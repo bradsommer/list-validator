@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginUser } from '@/lib/auth';
 
-// Development mode bypass - set DEV_AUTH_BYPASS=true in .env.local to enable
-const DEV_AUTH_BYPASS = process.env.DEV_AUTH_BYPASS === 'true';
+// Development mode bypass - enabled by default in dev, set DEV_AUTH_BYPASS=false to disable
+const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.DEV_AUTH_BYPASS !== 'false';
 const DEV_USER = {
   id: 'dev-user-id',
   username: 'admin@example.com',
