@@ -34,6 +34,8 @@ export default function MappingsPage() {
   const [newFieldId, setNewFieldId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Fetch data
   useEffect(() => {
@@ -136,6 +138,41 @@ export default function MappingsPage() {
     }
   };
 
+  // Sync HubSpot properties
+  const handleSyncHubSpotProperties = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const response = await fetch('/api/hubspot/properties', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSyncMessage({
+          type: 'success',
+          text: data.message,
+        });
+        fetchData(); // Refresh the fields list
+      } else {
+        setSyncMessage({
+          type: 'error',
+          text: data.error || 'Failed to sync properties',
+        });
+      }
+    } catch (err) {
+      console.error('Error syncing HubSpot properties:', err);
+      setSyncMessage({
+        type: 'error',
+        text: 'Failed to sync HubSpot properties',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -158,8 +195,43 @@ export default function MappingsPage() {
               you map headers during import.
             </p>
           </div>
-          <div className="text-sm text-gray-500">{mappings.length} total mappings</div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500">{mappings.length} mappings / {hubspotFields.length} fields</div>
+            <button
+              onClick={handleSyncHubSpotProperties}
+              disabled={isSyncing}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 flex items-center gap-2"
+            >
+              {isSyncing ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Fetch HubSpot Properties
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Sync message */}
+        {syncMessage && (
+          <div className={`p-4 rounded-lg ${
+            syncMessage.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {syncMessage.text}
+          </div>
+        )}
 
         {/* Add new mapping */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
