@@ -11,6 +11,8 @@ import type {
   AuditResult,
   LogEntry,
   UploadSession,
+  ScriptRunnerResult,
+  ValidationScript,
 } from '@/types';
 import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
 import { defaultEnrichmentConfigs } from '@/lib/enrichment';
@@ -33,6 +35,9 @@ interface AppState {
 
   // Validation
   validationResult: ValidationResult | null;
+  scriptRunnerResult: ScriptRunnerResult | null;
+  enabledScripts: string[];
+  availableScripts: ValidationScript[];
 
   // Enrichment
   enrichmentConfigs: EnrichmentConfig[];
@@ -79,6 +84,10 @@ interface AppState {
   toggleRequiredField: (field: string) => void;
 
   setValidationResult: (result: ValidationResult | null) => void;
+  setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
+  setEnabledScripts: (scriptIds: string[]) => void;
+  toggleScript: (scriptId: string) => void;
+  setAvailableScripts: (scripts: ValidationScript[]) => void;
 
   setEnrichmentConfigs: (configs: EnrichmentConfig[]) => void;
   addEnrichmentConfig: (config: EnrichmentConfig) => void;
@@ -122,6 +131,9 @@ const initialState = {
   headerMatches: [],
   requiredFields: ['email'],
   validationResult: null,
+  scriptRunnerResult: null,
+  enabledScripts: [], // Will be populated with all script IDs by default
+  availableScripts: [],
   enrichmentConfigs: defaultEnrichmentConfigs.map((c, i) => ({
     ...c,
     id: `enrich_${i}`,
@@ -182,6 +194,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   setValidationResult: (result) => set({ validationResult: result }),
+  setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),
+  setEnabledScripts: (scriptIds) => set({ enabledScripts: scriptIds }),
+  toggleScript: (scriptId) => set((state) => ({
+    enabledScripts: state.enabledScripts.includes(scriptId)
+      ? state.enabledScripts.filter((id) => id !== scriptId)
+      : [...state.enabledScripts, scriptId]
+  })),
+  setAvailableScripts: (scripts) => set({
+    availableScripts: scripts,
+    enabledScripts: scripts.map(s => s.id), // Enable all by default
+  }),
 
   setEnrichmentConfigs: (configs) => set({ enrichmentConfigs: configs }),
   addEnrichmentConfig: (config) => set((state) => ({

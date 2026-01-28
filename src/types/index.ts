@@ -148,3 +148,63 @@ export interface UploadSession {
   updatedAt: string;
   completedAt?: string;
 }
+
+// Validation Script Types
+export type ScriptType = 'transform' | 'validate';
+
+export interface ScriptChange {
+  rowIndex: number;
+  field: string;
+  originalValue: string | number | boolean | null;
+  newValue: string | number | boolean | null;
+  reason: string;
+}
+
+export interface ScriptError {
+  rowIndex: number;
+  field: string;
+  value: string | number | boolean | null;
+  errorType: string;
+  message: string;
+}
+
+export interface ScriptWarning {
+  rowIndex: number;
+  field: string;
+  value: string | number | boolean | null;
+  warningType: string;
+  message: string;
+}
+
+export interface ScriptResult {
+  scriptId: string;
+  scriptName: string;
+  scriptType: ScriptType;
+  success: boolean;
+  changes: ScriptChange[];
+  errors: ScriptError[];
+  warnings: ScriptWarning[];
+  rowsProcessed: number;
+  rowsModified: number;
+  executionTimeMs: number;
+}
+
+export interface ValidationScript {
+  id: string;
+  name: string;
+  description: string;
+  type: ScriptType;
+  targetFields: string[];  // Which HubSpot fields this script operates on
+  isEnabled: boolean;
+  order: number;  // Execution order
+}
+
+export interface ScriptRunnerResult {
+  totalScripts: number;
+  scriptsRun: number;
+  scriptResults: ScriptResult[];
+  totalChanges: number;
+  totalErrors: number;
+  totalWarnings: number;
+  processedData: ParsedRow[];
+}

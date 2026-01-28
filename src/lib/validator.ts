@@ -1,147 +1,48 @@
 import type {
   ParsedRow,
-  FieldMapping,
   HeaderMatch,
   ValidationError,
-  ValidationResult
+  ValidationResult,
+  ScriptRunnerResult,
 } from '@/types';
+import { runAllScripts, getAvailableScripts } from './scripts';
 
-// Validate email format
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+// Re-export script utilities
+export { runAllScripts, getAvailableScripts, runScript } from './scripts';
 
-// Validate phone format (basic)
-function isValidPhone(phone: string): boolean {
-  const phoneRegex = /^[\d\s\-\+\(\)]{7,}$/;
-  return phoneRegex.test(phone);
-}
-
-// Check for duplicate emails in the data
-function findDuplicateEmails(rows: ParsedRow[], emailField: string): Map<string, number[]> {
-  const emailOccurrences = new Map<string, number[]>();
-
-  rows.forEach((row, index) => {
-    const email = String(row[emailField] || '').toLowerCase().trim();
-    if (email) {
-      const existing = emailOccurrences.get(email) || [];
-      existing.push(index + 1); // 1-indexed for user display
-      emailOccurrences.set(email, existing);
-    }
-  });
-
-  // Return only duplicates
-  const duplicates = new Map<string, number[]>();
-  emailOccurrences.forEach((rows, email) => {
-    if (rows.length > 1) {
-      duplicates.set(email, rows);
-    }
-  });
-
-  return duplicates;
-}
-
-// Main validation function
+// Legacy validation function (now uses script system internally)
 export function validateData(
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
   requiredFields: string[]
 ): ValidationResult {
+  // Run all validation scripts
+  const scriptResult = runAllScripts(rows, headerMatches, requiredFields);
+
+  // Convert script results to legacy ValidationResult format
   const errors: ValidationError[] = [];
   const warnings: ValidationError[] = [];
 
-  // Create a mapping from original header to hubspot field
-  const headerToHubspot = new Map<string, string>();
-  headerMatches.forEach((match) => {
-    if (match.matchedField) {
-      headerToHubspot.set(match.originalHeader, match.matchedField.hubspotField);
-    }
-  });
-
-  // Find the email field for duplicate checking
-  const emailHeader = Array.from(headerToHubspot.entries())
-    .find(([_, hubspot]) => hubspot === 'email')?.[0];
-
-  // Check for duplicate emails
-  if (emailHeader) {
-    const duplicates = findDuplicateEmails(rows, emailHeader);
-    duplicates.forEach((rowNumbers, email) => {
-      rowNumbers.forEach((rowNum) => {
-        warnings.push({
-          row: rowNum,
-          field: 'email',
-          value: email,
-          errorType: 'duplicate',
-          message: `Duplicate email found in rows: ${rowNumbers.join(', ')}`,
-        });
+  scriptResult.scriptResults.forEach((result) => {
+    result.errors.forEach((err) => {
+      errors.push({
+        row: err.rowIndex + 1, // Convert to 1-indexed
+        field: err.field,
+        value: err.value as string | null,
+        errorType: err.errorType as ValidationError['errorType'],
+        message: err.message,
       });
     });
-  }
 
-  // Validate each row
-  rows.forEach((row, index) => {
-    const rowNumber = index + 1; // 1-indexed for user display
-
-    // Check required fields
-    requiredFields.forEach((requiredHubspotField) => {
-      // Find the original header that maps to this required field
-      const originalHeader = Array.from(headerToHubspot.entries())
-        .find(([_, hubspot]) => hubspot === requiredHubspotField)?.[0];
-
-      if (!originalHeader) {
-        // Required field not mapped
-        errors.push({
-          row: rowNumber,
-          field: requiredHubspotField,
-          value: null,
-          errorType: 'missing_required',
-          message: `Required field '${requiredHubspotField}' is not mapped to any column`,
-        });
-      } else {
-        const value = row[originalHeader];
-        if (value === null || value === undefined || String(value).trim() === '') {
-          errors.push({
-            row: rowNumber,
-            field: requiredHubspotField,
-            value: null,
-            errorType: 'missing_required',
-            message: `Required field '${requiredHubspotField}' is empty`,
-          });
-        }
-      }
+    result.warnings.forEach((warn) => {
+      warnings.push({
+        row: warn.rowIndex + 1, // Convert to 1-indexed
+        field: warn.field,
+        value: warn.value as string | null,
+        errorType: warn.warningType as ValidationError['errorType'],
+        message: warn.message,
+      });
     });
-
-    // Validate email format if present
-    if (emailHeader && row[emailHeader]) {
-      const email = String(row[emailHeader]).trim();
-      if (email && !isValidEmail(email)) {
-        errors.push({
-          row: rowNumber,
-          field: 'email',
-          value: email,
-          errorType: 'invalid_format',
-          message: 'Invalid email format',
-        });
-      }
-    }
-
-    // Validate phone format if present
-    const phoneHeader = Array.from(headerToHubspot.entries())
-      .find(([_, hubspot]) => hubspot === 'phone')?.[0];
-
-    if (phoneHeader && row[phoneHeader]) {
-      const phone = String(row[phoneHeader]).trim();
-      if (phone && !isValidPhone(phone)) {
-        warnings.push({
-          row: rowNumber,
-          field: 'phone',
-          value: phone,
-          errorType: 'invalid_format',
-          message: 'Phone number may be incorrectly formatted',
-        });
-      }
-    }
   });
 
   // Count valid vs invalid rows
@@ -155,6 +56,64 @@ export function validateData(
     warnings,
     validRows,
     invalidRows,
+  };
+}
+
+// Run validation and return both script results and transformed data
+export function validateAndTransform(
+  rows: ParsedRow[],
+  headerMatches: HeaderMatch[],
+  requiredFields: string[],
+  enabledScriptIds?: string[]
+): {
+  validationResult: ValidationResult;
+  scriptRunnerResult: ScriptRunnerResult;
+  transformedData: ParsedRow[];
+} {
+  const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds);
+
+  // Convert to legacy format
+  const errors: ValidationError[] = [];
+  const warnings: ValidationError[] = [];
+
+  scriptRunnerResult.scriptResults.forEach((result) => {
+    result.errors.forEach((err) => {
+      errors.push({
+        row: err.rowIndex + 1,
+        field: err.field,
+        value: err.value as string | null,
+        errorType: err.errorType as ValidationError['errorType'],
+        message: err.message,
+      });
+    });
+
+    result.warnings.forEach((warn) => {
+      warnings.push({
+        row: warn.rowIndex + 1,
+        field: warn.field,
+        value: warn.value as string | null,
+        errorType: warn.warningType as ValidationError['errorType'],
+        message: warn.message,
+      });
+    });
+  });
+
+  const rowsWithErrors = new Set(errors.map((e) => e.row));
+  const invalidRows = rowsWithErrors.size;
+  const validRows = rows.length - invalidRows;
+
+  const validationResult: ValidationResult = {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    validRows,
+    invalidRows,
+  };
+
+  return {
+    validationResult,
+    scriptRunnerResult,
+    transformedData: scriptRunnerResult.processedData,
   };
 }
 
@@ -210,5 +169,38 @@ export function getValidationSummary(result: ValidationResult): {
     totalWarnings: result.warnings.length,
     errorsByType,
     warningsByType,
+  };
+}
+
+// Get script-level summary
+export function getScriptSummary(result: ScriptRunnerResult): {
+  scriptsRun: number;
+  totalChanges: number;
+  totalErrors: number;
+  totalWarnings: number;
+  scriptDetails: Array<{
+    id: string;
+    name: string;
+    type: string;
+    changes: number;
+    errors: number;
+    warnings: number;
+    timeMs: number;
+  }>;
+} {
+  return {
+    scriptsRun: result.scriptsRun,
+    totalChanges: result.totalChanges,
+    totalErrors: result.totalErrors,
+    totalWarnings: result.totalWarnings,
+    scriptDetails: result.scriptResults.map((r) => ({
+      id: r.scriptId,
+      name: r.scriptName,
+      type: r.scriptType,
+      changes: r.changes.length,
+      errors: r.errors.length,
+      warnings: r.warnings.length,
+      timeMs: Math.round(r.executionTimeMs),
+    })),
   };
 }

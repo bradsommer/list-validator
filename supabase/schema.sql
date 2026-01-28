@@ -1,9 +1,15 @@
 -- Ascend HubSpot List Validator - Supabase Schema
+-- SECURITY-FOCUSED: No PII storage. All contact data processed in-memory only.
+-- This schema only stores configuration data (field mappings, enrichment rules, validation scripts).
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Field mappings table
+-- ============================================================================
+-- CONFIGURATION TABLES (No PII - safe to persist)
+-- ============================================================================
+
+-- Field mappings table - stores header-to-HubSpot field mapping rules
 CREATE TABLE IF NOT EXISTS field_mappings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   hubspot_field VARCHAR(255) NOT NULL,
@@ -17,7 +23,7 @@ CREATE TABLE IF NOT EXISTS field_mappings (
 -- Create index on hubspot_field
 CREATE INDEX IF NOT EXISTS idx_field_mappings_hubspot_field ON field_mappings(hubspot_field);
 
--- Enrichment configurations table
+-- Enrichment configurations table - stores enrichment rule definitions
 CREATE TABLE IF NOT EXISTS enrichment_configs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
@@ -31,44 +37,24 @@ CREATE TABLE IF NOT EXISTS enrichment_configs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Upload sessions table
-CREATE TABLE IF NOT EXISTS upload_sessions (
+-- Validation scripts configuration table - stores script enable/disable state
+CREATE TABLE IF NOT EXISTS validation_scripts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  file_name VARCHAR(255) NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'uploading',
-  total_rows INTEGER NOT NULL DEFAULT 0,
-  processed_rows INTEGER NOT NULL DEFAULT 0,
-  valid_rows INTEGER NOT NULL DEFAULT 0,
-  invalid_rows INTEGER NOT NULL DEFAULT 0,
-  errors JSONB DEFAULT '[]',
-  user_id UUID REFERENCES auth.users(id),
+  script_id VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  script_type VARCHAR(50) NOT NULL DEFAULT 'transform',
+  target_fields TEXT[] NOT NULL DEFAULT '{}',
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  execution_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  completed_at TIMESTAMP WITH TIME ZONE
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index on status and user_id
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_status ON upload_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_user_id ON upload_sessions(user_id);
+-- Create index on script_id
+CREATE INDEX IF NOT EXISTS idx_validation_scripts_script_id ON validation_scripts(script_id);
 
--- Logs table
-CREATE TABLE IF NOT EXISTS logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  level VARCHAR(20) NOT NULL,
-  step VARCHAR(50) NOT NULL,
-  message TEXT NOT NULL,
-  details JSONB,
-  user_id UUID REFERENCES auth.users(id),
-  session_id VARCHAR(255) NOT NULL
-);
-
--- Create indexes for logs
-CREATE INDEX IF NOT EXISTS idx_logs_session_id ON logs(session_id);
-CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
-
--- App settings table
+-- App settings table - general application settings (no PII)
 CREATE TABLE IF NOT EXISTS app_settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   key VARCHAR(255) UNIQUE NOT NULL,
@@ -77,25 +63,35 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- HubSpot sync results table (for audit trail)
-CREATE TABLE IF NOT EXISTS hubspot_sync_results (
+-- ============================================================================
+-- AUDIT LOG TABLE (Anonymized - no PII)
+-- Only stores aggregate statistics, never individual contact data
+-- ============================================================================
+
+-- Import audit log - tracks import operations without storing contact data
+CREATE TABLE IF NOT EXISTS import_audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id UUID REFERENCES upload_sessions(id),
-  row_index INTEGER NOT NULL,
-  contact_email VARCHAR(255),
-  contact_id VARCHAR(255),
-  company_name VARCHAR(255),
-  company_id VARCHAR(255),
-  match_type VARCHAR(50),
-  match_confidence DECIMAL(3,2),
-  task_created BOOLEAN DEFAULT FALSE,
-  task_id VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  total_rows INTEGER NOT NULL DEFAULT 0,
+  valid_rows INTEGER NOT NULL DEFAULT 0,
+  invalid_rows INTEGER NOT NULL DEFAULT 0,
+  auto_corrected_count INTEGER NOT NULL DEFAULT 0,
+  scripts_run TEXT[] DEFAULT '{}',
+  hubspot_contacts_created INTEGER NOT NULL DEFAULT 0,
+  hubspot_contacts_updated INTEGER NOT NULL DEFAULT 0,
+  hubspot_companies_created INTEGER NOT NULL DEFAULT 0,
+  hubspot_tasks_created INTEGER NOT NULL DEFAULT 0,
+  -- No PII: only store counts and metadata
+  error_types JSONB DEFAULT '{}',  -- e.g., {"invalid_email": 5, "missing_required": 3}
+  warning_types JSONB DEFAULT '{}'
 );
 
--- Create indexes for sync results
-CREATE INDEX IF NOT EXISTS idx_hubspot_sync_results_session ON hubspot_sync_results(session_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_sync_results_contact ON hubspot_sync_results(contact_email);
+-- Create index on timestamp for querying recent imports
+CREATE INDEX IF NOT EXISTS idx_import_audit_log_timestamp ON import_audit_log(timestamp DESC);
+
+-- ============================================================================
+-- HELPER FUNCTIONS
+-- ============================================================================
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -117,15 +113,19 @@ CREATE TRIGGER update_enrichment_configs_updated_at
   BEFORE UPDATE ON enrichment_configs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_upload_sessions_updated_at ON upload_sessions;
-CREATE TRIGGER update_upload_sessions_updated_at
-  BEFORE UPDATE ON upload_sessions
+DROP TRIGGER IF EXISTS update_validation_scripts_updated_at ON validation_scripts;
+CREATE TRIGGER update_validation_scripts_updated_at
+  BEFORE UPDATE ON validation_scripts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_app_settings_updated_at ON app_settings;
 CREATE TRIGGER update_app_settings_updated_at
   BEFORE UPDATE ON app_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- SEED DATA
+-- ============================================================================
 
 -- Insert default field mappings
 INSERT INTO field_mappings (hubspot_field, hubspot_label, variants, is_required) VALUES
@@ -165,35 +165,44 @@ INSERT INTO enrichment_configs (name, description, prompt, input_fields, output_
   )
 ON CONFLICT DO NOTHING;
 
+-- Insert default validation scripts
+INSERT INTO validation_scripts (script_id, name, description, script_type, target_fields, is_enabled, execution_order) VALUES
+  ('state-normalization', 'State Normalization', 'Converts state abbreviations to full names and fixes misspellings', 'transform', ARRAY['state'], TRUE, 10),
+  ('email-validation', 'Email Validation', 'Validates email format and flags personal/disposable domains', 'validate', ARRAY['email'], TRUE, 20),
+  ('phone-normalization', 'Phone Normalization', 'Standardizes phone formats to (XXX) XXX-XXXX', 'transform', ARRAY['phone'], TRUE, 30),
+  ('name-capitalization', 'Name Capitalization', 'Properly capitalizes names (McDonald, O''Brien, etc.)', 'transform', ARRAY['firstname', 'lastname'], TRUE, 50),
+  ('company-normalization', 'Company Normalization', 'Standardizes company names and suffixes (Inc., LLC, Ltd.)', 'transform', ARRAY['company'], TRUE, 60),
+  ('duplicate-detection', 'Duplicate Detection', 'Identifies duplicate entries by email, name, or phone', 'validate', ARRAY['email', 'firstname', 'lastname', 'phone'], TRUE, 100)
+ON CONFLICT (script_id) DO NOTHING;
+
 -- Insert default app settings
 INSERT INTO app_settings (key, value) VALUES
   ('default_task_assignee', '""'),
-  ('notify_on_new_company', '[]'),
   ('hubspot_portal_id', '""'),
   ('enrichment_services', '{"serp": true, "clearbit": false}')
 ON CONFLICT (key) DO NOTHING;
 
--- Row Level Security (RLS) policies
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================================
+
 -- Enable RLS on all tables
 ALTER TABLE field_mappings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrichment_configs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE upload_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE validation_scripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE hubspot_sync_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE import_audit_log ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for authenticated users (adjust as needed for your security requirements)
+-- Allow all operations for authenticated users
 CREATE POLICY "Allow all for authenticated users" ON field_mappings FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated users" ON enrichment_configs FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated users" ON upload_sessions FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated users" ON logs FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON validation_scripts FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated users" ON app_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated users" ON hubspot_sync_results FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON import_audit_log FOR ALL TO authenticated USING (true);
 
--- Also allow anonymous access for development (remove in production)
+-- Development policies (remove in production)
 CREATE POLICY "Allow all for anon" ON field_mappings FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON enrichment_configs FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON upload_sessions FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON logs FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON validation_scripts FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON app_settings FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON hubspot_sync_results FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON import_audit_log FOR ALL TO anon USING (true);
