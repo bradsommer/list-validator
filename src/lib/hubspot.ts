@@ -1,0 +1,412 @@
+import { Client } from '@hubspot/api-client';
+import type { HubSpotCompany, HubSpotContact, HubSpotMatchResult, ParsedRow } from '@/types';
+import { fuzzyMatchCompanyName } from './fuzzyMatcher';
+
+let hubspotClient: Client | null = null;
+
+export function getHubSpotClient(): Client {
+  if (!hubspotClient) {
+    const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
+    if (!accessToken) {
+      throw new Error('HubSpot access token not configured');
+    }
+    hubspotClient = new Client({ accessToken });
+  }
+  return hubspotClient;
+}
+
+// Search for companies by domain
+export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCompany[]> {
+  const client = getHubSpotClient();
+
+  try {
+    const response = await client.crm.companies.searchApi.doSearch({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'domain',
+              operator: 'CONTAINS_TOKEN',
+              value: domain,
+            },
+          ],
+        },
+      ],
+      properties: ['name', 'domain', 'city', 'state'],
+      limit: 10,
+    });
+
+    return response.results.map((company) => ({
+      id: company.id,
+      name: company.properties.name || '',
+      domain: company.properties.domain || '',
+      city: company.properties.city,
+      state: company.properties.state,
+      properties: company.properties,
+    }));
+  } catch (error) {
+    console.error('Error searching companies by domain:', error);
+    return [];
+  }
+}
+
+// Search for companies by name
+export async function searchCompaniesByName(name: string): Promise<HubSpotCompany[]> {
+  const client = getHubSpotClient();
+
+  try {
+    const response = await client.crm.companies.searchApi.doSearch({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'name',
+              operator: 'CONTAINS_TOKEN',
+              value: name,
+            },
+          ],
+        },
+      ],
+      properties: ['name', 'domain', 'city', 'state'],
+      limit: 10,
+    });
+
+    return response.results.map((company) => ({
+      id: company.id,
+      name: company.properties.name || '',
+      domain: company.properties.domain || '',
+      city: company.properties.city,
+      state: company.properties.state,
+      properties: company.properties,
+    }));
+  } catch (error) {
+    console.error('Error searching companies by name:', error);
+    return [];
+  }
+}
+
+// Find the best matching company for a contact
+export async function findBestCompanyMatch(
+  contactData: {
+    email?: string;
+    institution?: string;
+    officialName?: string;
+    domain?: string;
+    city?: string;
+    state?: string;
+  }
+): Promise<{ company: HubSpotCompany | null; matchType: 'exact_domain' | 'fuzzy_name' | 'no_match'; confidence: number }> {
+
+  // First, try exact domain match
+  if (contactData.domain) {
+    const domainMatches = await searchCompaniesByDomain(contactData.domain);
+    if (domainMatches.length > 0) {
+      return {
+        company: domainMatches[0],
+        matchType: 'exact_domain',
+        confidence: 1,
+      };
+    }
+  }
+
+  // Try to extract domain from email
+  if (contactData.email) {
+    const emailDomain = contactData.email.split('@')[1];
+    if (emailDomain && !emailDomain.includes('gmail') && !emailDomain.includes('yahoo') && !emailDomain.includes('hotmail')) {
+      const domainMatches = await searchCompaniesByDomain(emailDomain);
+      if (domainMatches.length > 0) {
+        return {
+          company: domainMatches[0],
+          matchType: 'exact_domain',
+          confidence: 0.9,
+        };
+      }
+    }
+  }
+
+  // Try fuzzy name match with official name or institution
+  const searchName = contactData.officialName || contactData.institution;
+  if (searchName) {
+    const nameMatches = await searchCompaniesByName(searchName);
+    if (nameMatches.length > 0) {
+      const fuzzyResult = fuzzyMatchCompanyName(
+        searchName,
+        nameMatches.map((c) => ({ id: c.id, name: c.name }))
+      );
+
+      if (fuzzyResult.company && fuzzyResult.confidence >= 0.7) {
+        const matchedCompany = nameMatches.find((c) => c.id === fuzzyResult.company!.id);
+        return {
+          company: matchedCompany || null,
+          matchType: 'fuzzy_name',
+          confidence: fuzzyResult.confidence,
+        };
+      }
+    }
+  }
+
+  return { company: null, matchType: 'no_match', confidence: 0 };
+}
+
+// Create a new company in HubSpot
+export async function createCompany(companyData: {
+  name: string;
+  domain?: string;
+  city?: string;
+  state?: string;
+}): Promise<HubSpotCompany> {
+  const client = getHubSpotClient();
+
+  const properties: Record<string, string> = {
+    name: companyData.name,
+  };
+
+  if (companyData.domain) properties.domain = companyData.domain;
+  if (companyData.city) properties.city = companyData.city;
+  if (companyData.state) properties.state = companyData.state;
+
+  const response = await client.crm.companies.basicApi.create({
+    properties,
+  });
+
+  return {
+    id: response.id,
+    name: response.properties.name || '',
+    domain: response.properties.domain || '',
+    city: response.properties.city,
+    state: response.properties.state,
+    properties: response.properties,
+  };
+}
+
+// Create or update a contact in HubSpot
+export async function createOrUpdateContact(contactData: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  company?: string;
+  jobTitle?: string;
+  city?: string;
+  state?: string;
+  [key: string]: string | undefined;
+}): Promise<HubSpotContact> {
+  const client = getHubSpotClient();
+
+  const properties: Record<string, string> = {
+    email: contactData.email,
+  };
+
+  if (contactData.firstName) properties.firstname = contactData.firstName;
+  if (contactData.lastName) properties.lastname = contactData.lastName;
+  if (contactData.phone) properties.phone = contactData.phone;
+  if (contactData.company) properties.company = contactData.company;
+  if (contactData.jobTitle) properties.jobtitle = contactData.jobTitle;
+  if (contactData.city) properties.city = contactData.city;
+  if (contactData.state) properties.state = contactData.state;
+
+  try {
+    // Try to create the contact
+    const response = await client.crm.contacts.basicApi.create({
+      properties,
+    });
+
+    return {
+      id: response.id,
+      email: response.properties.email || '',
+      firstName: response.properties.firstname,
+      lastName: response.properties.lastname,
+      company: response.properties.company,
+      properties: response.properties,
+    };
+  } catch (error: unknown) {
+    // If contact exists, update it
+    if (error && typeof error === 'object' && 'code' in error && error.code === 409) {
+      const searchResponse = await client.crm.contacts.searchApi.doSearch({
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: 'email',
+                operator: 'EQ',
+                value: contactData.email,
+              },
+            ],
+          },
+        ],
+        properties: ['email', 'firstname', 'lastname', 'company'],
+        limit: 1,
+      });
+
+      if (searchResponse.results.length > 0) {
+        const existingContact = searchResponse.results[0];
+        const updateResponse = await client.crm.contacts.basicApi.update(
+          existingContact.id,
+          { properties }
+        );
+
+        return {
+          id: updateResponse.id,
+          email: updateResponse.properties.email || '',
+          firstName: updateResponse.properties.firstname,
+          lastName: updateResponse.properties.lastname,
+          company: updateResponse.properties.company,
+          properties: updateResponse.properties,
+        };
+      }
+    }
+    throw error;
+  }
+}
+
+// Associate a contact with a company
+export async function associateContactWithCompany(
+  contactId: string,
+  companyId: string
+): Promise<void> {
+  const client = getHubSpotClient();
+
+  await client.crm.associations.v4.basicApi.create(
+    'contacts',
+    contactId,
+    'companies',
+    companyId,
+    [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 1 }]
+  );
+}
+
+// Create a task in HubSpot
+export async function createTask(taskData: {
+  subject: string;
+  body: string;
+  ownerId: string;
+  dueDate?: Date;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  associatedContactId?: string;
+  associatedCompanyId?: string;
+}): Promise<string> {
+  const client = getHubSpotClient();
+
+  const properties: Record<string, string> = {
+    hs_task_subject: taskData.subject,
+    hs_task_body: taskData.body,
+    hubspot_owner_id: taskData.ownerId,
+    hs_task_status: 'NOT_STARTED',
+    hs_task_priority: taskData.priority || 'MEDIUM',
+  };
+
+  if (taskData.dueDate) {
+    properties.hs_timestamp = taskData.dueDate.getTime().toString();
+  }
+
+  const response = await client.crm.objects.basicApi.create('tasks', {
+    properties,
+  });
+
+  // Associate task with contact and/or company
+  if (taskData.associatedContactId) {
+    await client.crm.associations.v4.basicApi.create(
+      'tasks',
+      response.id,
+      'contacts',
+      taskData.associatedContactId,
+      [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 204 }]
+    );
+  }
+
+  if (taskData.associatedCompanyId) {
+    await client.crm.associations.v4.basicApi.create(
+      'tasks',
+      response.id,
+      'companies',
+      taskData.associatedCompanyId,
+      [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 192 }]
+    );
+  }
+
+  return response.id;
+}
+
+// Get HubSpot owners (for task assignment dropdown)
+export async function getHubSpotOwners(): Promise<{ id: string; email: string; name: string }[]> {
+  const client = getHubSpotClient();
+
+  const response = await client.crm.owners.ownersApi.getPage();
+
+  return response.results.map((owner) => ({
+    id: owner.id,
+    email: owner.email || '',
+    name: `${owner.firstName || ''} ${owner.lastName || ''}`.trim(),
+  }));
+}
+
+// Process a single row for HubSpot sync
+export async function processRowForHubSpot(
+  rowIndex: number,
+  rowData: ParsedRow,
+  defaultTaskAssigneeId: string
+): Promise<HubSpotMatchResult> {
+  const contactData = {
+    email: String(rowData.email || ''),
+    institution: String(rowData.institution || rowData.company || ''),
+    officialName: String(rowData.official_company_name || ''),
+    domain: String(rowData.domain || ''),
+    city: String(rowData.city || ''),
+    state: String(rowData.state || ''),
+    programType: String(rowData.program_type || ''),
+  };
+
+  // Find best company match
+  const matchResult = await findBestCompanyMatch(contactData);
+
+  let company = matchResult.company;
+  let matchType = matchResult.matchType;
+  let taskCreated = false;
+  let taskId: string | undefined;
+
+  // If no match found, create new company and task
+  if (!company && contactData.officialName) {
+    company = await createCompany({
+      name: contactData.officialName,
+      domain: contactData.domain,
+      city: contactData.city,
+      state: contactData.state,
+    });
+    matchType = 'created_new';
+
+    // Create task for new company
+    taskId = await createTask({
+      subject: `Review new company: ${company.name}`,
+      body: `A new company was created during list import.\n\nCompany: ${company.name}\nDomain: ${contactData.domain || 'N/A'}\nCity: ${contactData.city || 'N/A'}\nState: ${contactData.state || 'N/A'}\n\nPlease review and verify the company information.`,
+      ownerId: defaultTaskAssigneeId,
+      priority: 'MEDIUM',
+      associatedCompanyId: company.id,
+    });
+    taskCreated = true;
+  }
+
+  // Create or update the contact
+  const contact = await createOrUpdateContact({
+    email: contactData.email,
+    firstName: String(rowData.firstname || rowData.first_name || ''),
+    lastName: String(rowData.lastname || rowData.last_name || ''),
+    company: contactData.officialName || contactData.institution,
+    city: contactData.city,
+    state: contactData.state,
+  });
+
+  // Associate contact with company
+  if (company) {
+    await associateContactWithCompany(contact.id, company.id);
+  }
+
+  return {
+    rowIndex,
+    contact,
+    matchedCompany: company,
+    matchConfidence: matchResult.confidence,
+    matchType: matchType as 'exact_domain' | 'fuzzy_name' | 'created_new' | 'no_match',
+    taskCreated,
+    taskId,
+  };
+}
