@@ -3,3 +3,4 @@ node_modules/
 .next/
 *.node
 .env.local
+.env.local
