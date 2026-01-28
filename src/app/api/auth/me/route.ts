@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
 
+// Development mode bypass
+const DEV_AUTH_BYPASS = process.env.DEV_AUTH_BYPASS === 'true';
+const DEV_USER = {
+  id: 'dev-user-id',
+  username: 'admin@example.com',
+  displayName: 'Administrator',
+  role: 'admin' as const,
+  isActive: true,
+  lastLogin: null,
+  createdAt: new Date().toISOString(),
+};
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth_token')?.value;
@@ -10,6 +22,11 @@ export async function GET(request: NextRequest) {
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
+    }
+
+    // Development bypass
+    if (DEV_AUTH_BYPASS && token === 'dev-token-12345') {
+      return NextResponse.json({ success: true, user: DEV_USER });
     }
 
     const user = await validateSession(token);

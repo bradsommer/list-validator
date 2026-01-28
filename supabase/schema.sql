@@ -249,7 +249,7 @@ CREATE TRIGGER update_app_settings_updated_at
 
 -- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
 INSERT INTO users (username, password_hash, display_name, role) VALUES
-  ('admin', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin')
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin')
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert default HubSpot fields
