@@ -20,6 +20,7 @@ interface AIModel {
 
 const PROVIDERS = [
   { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'] },
+  { id: 'azure-openai', name: 'Azure OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-35-turbo'], requiresBaseUrl: true },
   { id: 'anthropic', name: 'Anthropic', models: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'] },
   { id: 'google', name: 'Google', models: ['gemini-pro', 'gemini-pro-vision'] },
   { id: 'serp', name: 'SERP API', models: ['google', 'bing'] },
@@ -321,20 +322,55 @@ export default function AIModelsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                    <select
-                      value={formData.model_id}
-                      onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    >
-                      <option value="">Select a model...</option>
-                      {selectedProvider?.models.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {formData.provider === 'azure-openai' ? 'Deployment Name' : 'Model'}
+                    </label>
+                    {formData.provider === 'azure-openai' ? (
+                      <input
+                        type="text"
+                        value={formData.model_id}
+                        onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="e.g., my-gpt-4-deployment"
+                      />
+                    ) : (
+                      <select
+                        value={formData.model_id}
+                        onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      >
+                        <option value="">Select a model...</option>
+                        {selectedProvider?.models.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {formData.provider === 'azure-openai' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter your Azure OpenAI deployment name (not the model name)
+                      </p>
+                    )}
                   </div>
+
+                  {formData.provider === 'azure-openai' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Azure Endpoint URL
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.base_url}
+                        onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="https://your-resource.openai.azure.com"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your Azure OpenAI resource endpoint URL
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer">
