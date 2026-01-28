@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import type { FieldMapping, HeaderMatch } from '@/types';
+import type { HeaderMatch } from '@/types';
 
 export function HeaderMapper() {
   const {
@@ -23,6 +23,30 @@ export function HeaderMapper() {
     hubspotLabel: '',
     variants: '',
   });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Save mappings to the database for future auto-matching
+  const saveMappingsToDatabase = useCallback(async () => {
+    const mappingsToSave = headerMatches
+      .filter((match) => match.isMatched && match.matchedField)
+      .map((match) => ({
+        originalHeader: match.originalHeader,
+        hubspotField: match.matchedField!.hubspotField,
+      }));
+
+    if (mappingsToSave.length === 0) return;
+
+    try {
+      await fetch('/api/mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mappings: mappingsToSave }),
+      });
+    } catch (error) {
+      console.error('Failed to save mappings:', error);
+      // Don't block the user - mappings are saved for convenience, not required
+    }
+  }, [headerMatches]);
 
   if (!parsedFile) {
     return <div className="text-center text-gray-500">No file uploaded</div>;
@@ -61,6 +85,17 @@ export function HeaderMapper() {
     setShowAddMapping(false);
   };
 
+  const handleContinue = async () => {
+    setIsSaving(true);
+
+    // Save mappings in background (don't wait for completion)
+    saveMappingsToDatabase();
+
+    // Proceed immediately
+    nextStep();
+    setIsSaving(false);
+  };
+
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return 'bg-green-100 text-green-800';
     if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-800';
@@ -68,16 +103,32 @@ export function HeaderMapper() {
     return 'bg-gray-100 text-gray-600';
   };
 
+  // Count mapped and unmapped headers
+  const mappedCount = headerMatches.filter((m) => m.isMatched).length;
+  const unmappedCount = headerMatches.length - mappedCount;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Map Headers to HubSpot Fields</h2>
+        <div>
+          <h2 className="text-xl font-semibold">Map Headers to HubSpot Fields</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {mappedCount} of {headerMatches.length} headers mapped
+            {unmappedCount > 0 && ` (${unmappedCount} will not be imported)`}
+          </p>
+        </div>
         <button
           onClick={() => setShowAddMapping(true)}
           className="px-4 py-2 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200"
         >
           + Add Custom Field
         </button>
+      </div>
+
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+        <strong>Auto-Learning:</strong> Your header mappings are automatically saved for future imports.
+        Next time you upload a file with similar headers, they&apos;ll be matched automatically.
       </div>
 
       {/* Add new mapping modal */}
@@ -229,10 +280,11 @@ export function HeaderMapper() {
           Back
         </button>
         <button
-          onClick={nextStep}
-          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          onClick={handleContinue}
+          disabled={isSaving}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400"
         >
-          Continue to Validation
+          {isSaving ? 'Saving...' : 'Continue to Validation'}
         </button>
       </div>
     </div>

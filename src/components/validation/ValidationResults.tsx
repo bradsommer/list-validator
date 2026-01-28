@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { validateData, getValidationSummary } from '@/lib/validator';
+import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
+import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
   const {
@@ -12,67 +13,141 @@ export function ValidationResults() {
     headerMatches,
     requiredFields,
     validationResult,
+    scriptRunnerResult,
+    enabledScripts,
+    availableScripts,
     setValidationResult,
+    setScriptRunnerResult,
+    setProcessedData,
+    setAvailableScripts,
+    toggleScript,
     nextStep,
     prevStep,
   } = useAppStore();
 
   const [isValidating, setIsValidating] = useState(false);
+  const [showScripts, setShowScripts] = useState(true);
   const [showErrors, setShowErrors] = useState(true);
   const [showWarnings, setShowWarnings] = useState(true);
+  const [showChanges, setShowChanges] = useState(true);
+  const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
 
+  // Load available scripts on mount
   useEffect(() => {
-    const runValidation = async () => {
-      if (validationResult) return;
+    if (availableScripts.length === 0) {
+      const scripts = getAvailableScripts();
+      setAvailableScripts(scripts);
+    }
+  }, [availableScripts.length, setAvailableScripts]);
 
-      setIsValidating(true);
-      await logInfo('validate', 'Starting data validation', sessionId, {
-        totalRows: processedData.length,
+  const runValidation = async () => {
+    setIsValidating(true);
+    logInfo('validate', 'Starting data validation with scripts', sessionId, {
+      totalRows: processedData.length,
+      requiredFields,
+      enabledScripts,
+    });
+
+    try {
+      const result = validateAndTransform(
+        processedData,
+        headerMatches,
         requiredFields,
-      });
+        enabledScripts.length > 0 ? enabledScripts : undefined
+      );
 
-      try {
-        const result = validateData(processedData, headerMatches, requiredFields);
-        setValidationResult(result);
+      setValidationResult(result.validationResult);
+      setScriptRunnerResult(result.scriptRunnerResult);
 
-        if (result.isValid) {
-          await logSuccess('validate', 'Validation passed with no errors', sessionId);
-        } else {
-          await logError('validate', `Validation found ${result.errors.length} errors`, sessionId, {
-            summary: getValidationSummary(result),
-          });
-        }
-      } catch (error) {
-        await logError('validate', 'Validation failed', sessionId, { error });
-      } finally {
-        setIsValidating(false);
+      // Update processed data with transformations
+      if (result.scriptRunnerResult.totalChanges > 0) {
+        setProcessedData(result.transformedData);
       }
-    };
 
+      if (result.validationResult.isValid) {
+        logSuccess('validate', 'Validation passed', sessionId, {
+          changes: result.scriptRunnerResult.totalChanges,
+        });
+      } else {
+        logError('validate', `Validation found ${result.validationResult.errors.length} errors`, sessionId, {
+          summary: getValidationSummary(result.validationResult),
+        });
+      }
+    } catch (error) {
+      logError('validate', 'Validation failed', sessionId, { error });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Run validation on mount or when scripts change
+  useEffect(() => {
+    if (processedData.length > 0 && enabledScripts.length > 0 && !validationResult) {
+      runValidation();
+    }
+  }, [processedData.length, enabledScripts.length]);
+
+  const toggleScriptExpanded = (scriptId: string) => {
+    const newExpanded = new Set(expandedScripts);
+    if (newExpanded.has(scriptId)) {
+      newExpanded.delete(scriptId);
+    } else {
+      newExpanded.add(scriptId);
+    }
+    setExpandedScripts(newExpanded);
+  };
+
+  const handleRerunValidation = () => {
+    setValidationResult(null);
+    setScriptRunnerResult(null);
     runValidation();
-  }, [processedData, headerMatches, requiredFields, sessionId, setValidationResult, validationResult]);
+  };
 
   if (isValidating) {
     return (
       <div className="text-center py-12">
         <div className="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
-        <p className="text-gray-600">Validating data...</p>
+        <p className="text-gray-600">Running validation scripts...</p>
+        {scriptRunnerResult && (
+          <p className="text-sm text-gray-500 mt-2">
+            Processing script {scriptRunnerResult.scriptsRun} of {scriptRunnerResult.totalScripts}
+          </p>
+        )}
       </div>
     );
   }
 
-  if (!validationResult) {
-    return <div className="text-center text-gray-500">No validation results</div>;
+  if (!validationResult || !scriptRunnerResult) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Configure validation scripts and run validation</p>
+        <button
+          onClick={runValidation}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        >
+          Run Validation
+        </button>
+      </div>
+    );
   }
 
   const summary = getValidationSummary(validationResult);
+  const scriptSummary = getScriptSummary(scriptRunnerResult);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Validation Results</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Validation Results</h2>
+        <button
+          onClick={handleRerunValidation}
+          className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+        >
+          Re-run Validation
+        </button>
+      </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-green-700">{validationResult.validRows}</div>
           <div className="text-sm text-green-600">Valid Rows</div>
@@ -80,6 +155,10 @@ export function ValidationResults() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-red-700">{validationResult.invalidRows}</div>
           <div className="text-sm text-red-600">Invalid Rows</div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-blue-700">{scriptSummary.totalChanges}</div>
+          <div className="text-sm text-blue-600">Auto-Fixed</div>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-red-700">{summary.totalErrors}</div>
@@ -97,7 +176,9 @@ export function ValidationResults() {
           <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span className="text-green-700 font-medium">All data is valid! Ready to proceed.</span>
+          <span className="text-green-700 font-medium">
+            All data is valid! {scriptSummary.totalChanges > 0 && `(${scriptSummary.totalChanges} values auto-corrected)`}
+          </span>
         </div>
       ) : (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
@@ -110,22 +191,52 @@ export function ValidationResults() {
         </div>
       )}
 
-      {/* Error breakdown */}
-      {Object.keys(summary.errorsByType).length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Errors by Type</h3>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(summary.errorsByType).map(([type, count]) => (
-              <span key={type} className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">
-                {type.replace(/_/g, ' ')}: {count}
-              </span>
+      {/* Script-by-script results */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setShowScripts(!showScripts)}
+          className="w-full bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200 hover:bg-gray-100"
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-medium">Validation Scripts</span>
+            <span className="text-sm text-gray-500">({scriptSummary.scriptsRun} scripts run)</span>
+          </div>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${showScripts ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showScripts && (
+          <div className="divide-y divide-gray-100">
+            {scriptRunnerResult.scriptResults.map((result) => (
+              <ScriptResultRow
+                key={result.scriptId}
+                result={result}
+                isExpanded={expandedScripts.has(result.scriptId)}
+                onToggle={() => toggleScriptExpanded(result.scriptId)}
+              />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Toggles */}
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4">
+        {scriptSummary.totalChanges > 0 && (
+          <button
+            onClick={() => setShowChanges(!showChanges)}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              showChanges ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {showChanges ? 'Hide' : 'Show'} Changes ({scriptSummary.totalChanges})
+          </button>
+        )}
         <button
           onClick={() => setShowErrors(!showErrors)}
           className={`px-4 py-2 rounded-lg text-sm ${
@@ -143,6 +254,51 @@ export function ValidationResults() {
           {showWarnings ? 'Hide' : 'Show'} Warnings ({summary.totalWarnings})
         </button>
       </div>
+
+      {/* Changes list */}
+      {showChanges && scriptSummary.totalChanges > 0 && (
+        <div className="border border-blue-200 rounded-lg overflow-hidden">
+          <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
+            <h3 className="font-medium text-blue-700">Auto-Corrected Values</h3>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Row</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Field</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Original</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Corrected</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {scriptRunnerResult.scriptResults
+                  .flatMap((r) => r.changes.map((c) => ({ ...c, scriptName: r.scriptName })))
+                  .slice(0, 100)
+                  .map((change, index) => (
+                    <tr key={index} className="hover:bg-blue-50">
+                      <td className="px-4 py-2 text-sm">{change.rowIndex + 1}</td>
+                      <td className="px-4 py-2 text-sm font-medium">{change.field}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 line-through">
+                        {String(change.originalValue || '')}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-blue-700 font-medium">
+                        {String(change.newValue || '')}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{change.reason}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+          {scriptSummary.totalChanges > 100 && (
+            <div className="px-4 py-2 bg-gray-50 text-sm text-gray-500 text-center">
+              Showing 100 of {scriptSummary.totalChanges} changes
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error list */}
       {showErrors && validationResult.errors.length > 0 && (
@@ -227,6 +383,187 @@ export function ValidationResults() {
           Continue to Enrichment
         </button>
       </div>
+    </div>
+  );
+}
+
+// Individual script result row component
+function ScriptResultRow({
+  result,
+  isExpanded,
+  onToggle,
+}: {
+  result: ScriptResult;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const hasDetails = result.changes.length > 0 || result.errors.length > 0 || result.warnings.length > 0;
+
+  const getStatusIcon = () => {
+    if (result.errors.length > 0) {
+      return (
+        <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+          <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </span>
+      );
+    }
+    if (result.changes.length > 0) {
+      return (
+        <span className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </span>
+      );
+    }
+    return (
+      <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </span>
+    );
+  };
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        disabled={!hasDetails}
+        className={`w-full px-4 py-3 flex items-center justify-between ${
+          hasDetails ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {getStatusIcon()}
+          <div className="text-left">
+            <div className="font-medium text-gray-900">{result.scriptName}</div>
+            <div className="text-sm text-gray-500">
+              {result.scriptType === 'transform' ? 'Transform' : 'Validate'}
+              {' • '}
+              {result.rowsProcessed} rows • {result.executionTimeMs.toFixed(0)}ms
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {result.changes.length > 0 && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+              {result.changes.length} changes
+            </span>
+          )}
+          {result.errors.length > 0 && (
+            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+              {result.errors.length} errors
+            </span>
+          )}
+          {result.warnings.length > 0 && (
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+              {result.warnings.length} warnings
+            </span>
+          )}
+          {hasDetails && (
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </div>
+      </button>
+
+      {/* Expanded details */}
+      {isExpanded && hasDetails && (
+        <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100">
+          {/* Changes */}
+          {result.changes.length > 0 && (
+            <div className="mt-3">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Changes</h4>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-1 text-left text-xs text-gray-500">Row</th>
+                      <th className="px-3 py-1 text-left text-xs text-gray-500">Original</th>
+                      <th className="px-3 py-1 text-left text-xs text-gray-500">New</th>
+                      <th className="px-3 py-1 text-left text-xs text-gray-500">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {result.changes.slice(0, 20).map((change, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-1">{change.rowIndex + 1}</td>
+                        <td className="px-3 py-1 text-gray-500 line-through">{String(change.originalValue || '')}</td>
+                        <td className="px-3 py-1 text-blue-700">{String(change.newValue || '')}</td>
+                        <td className="px-3 py-1 text-gray-600">{change.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Errors */}
+          {result.errors.length > 0 && (
+            <div className="mt-3">
+              <h4 className="text-sm font-medium text-red-700 mb-2">Errors</h4>
+              <div className="max-h-40 overflow-y-auto border border-red-200 rounded bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-red-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-1 text-left text-xs text-red-600">Row</th>
+                      <th className="px-3 py-1 text-left text-xs text-red-600">Field</th>
+                      <th className="px-3 py-1 text-left text-xs text-red-600">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-red-100">
+                    {result.errors.slice(0, 20).map((error, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-1">{error.rowIndex + 1}</td>
+                        <td className="px-3 py-1">{error.field}</td>
+                        <td className="px-3 py-1 text-gray-600">{error.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {result.warnings.length > 0 && (
+            <div className="mt-3">
+              <h4 className="text-sm font-medium text-yellow-700 mb-2">Warnings</h4>
+              <div className="max-h-40 overflow-y-auto border border-yellow-200 rounded bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-yellow-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-1 text-left text-xs text-yellow-600">Row</th>
+                      <th className="px-3 py-1 text-left text-xs text-yellow-600">Field</th>
+                      <th className="px-3 py-1 text-left text-xs text-yellow-600">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-yellow-100">
+                    {result.warnings.slice(0, 20).map((warning, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-1">{warning.rowIndex + 1}</td>
+                        <td className="px-3 py-1">{warning.field}</td>
+                        <td className="px-3 py-1 text-gray-600">{warning.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
