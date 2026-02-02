@@ -272,7 +272,7 @@ export function HeaderMapper() {
                     onChange={(e) => handleMappingChange(index, e.target.value || null)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="">-- Do not import --</option>
+                    <option value="">Choose a property</option>
                     {fieldMappings.map((field) => {
                       const isUsed = usedFieldIds.has(field.id);
                       return (
