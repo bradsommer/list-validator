@@ -108,15 +108,19 @@ export function matchHeaders(
     includeScore: true,
   });
 
+  // Track which HubSpot fields have already been mapped to prevent duplicates
+  const usedFieldIds = new Set<string>();
+
   for (const header of headers) {
     const normalizedHeader = normalizeString(header);
 
     // First, try exact match
     const exactMatch = searchItems.find(
-      (item) => item.variant === normalizedHeader
+      (item) => item.variant === normalizedHeader && !usedFieldIds.has(item.mapping.id)
     );
 
     if (exactMatch) {
+      usedFieldIds.add(exactMatch.mapping.id);
       results.push({
         originalHeader: header,
         matchedField: exactMatch.mapping,
@@ -126,16 +130,22 @@ export function matchHeaders(
       continue;
     }
 
-    // Try fuzzy match
+    // Try fuzzy match (skip fields already mapped)
     const fuzzyResults = fuse.search(normalizedHeader);
+    const bestAvailable = fuzzyResults.find(
+      (r) => !usedFieldIds.has(r.item.mapping.id)
+    );
 
-    if (fuzzyResults.length > 0 && fuzzyResults[0].score !== undefined) {
-      const bestMatch = fuzzyResults[0];
-      const confidence = 1 - (bestMatch.score || 0);
+    if (bestAvailable && bestAvailable.score !== undefined) {
+      const confidence = 1 - (bestAvailable.score || 0);
+
+      if (confidence >= 0.6) {
+        usedFieldIds.add(bestAvailable.item.mapping.id);
+      }
 
       results.push({
         originalHeader: header,
-        matchedField: bestMatch.item.mapping,
+        matchedField: bestAvailable.item.mapping,
         confidence,
         isMatched: confidence >= 0.6,
       });
