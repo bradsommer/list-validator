@@ -103,6 +103,43 @@ export function ValidationResults() {
     runValidation();
   };
 
+  const handleExportCSV = () => {
+    if (processedData.length === 0) return;
+
+    // Get mapped headers only
+    const mappedHeaders = headerMatches
+      .filter((m) => m.isMatched && m.matchedField)
+      .map((m) => ({
+        original: m.originalHeader,
+        hubspot: m.matchedField!.hubspotField,
+        label: m.matchedField!.hubspotLabel,
+      }));
+
+    // Build CSV with HubSpot field names as headers
+    const csvHeaders = mappedHeaders.map((h) => h.hubspot).join(',');
+    const csvRows = processedData.map((row) =>
+      mappedHeaders
+        .map((h) => {
+          const val = String(row[h.original] || '');
+          // Escape commas and quotes
+          if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+            return `"${val.replace(/"/g, '""')}"`;
+          }
+          return val;
+        })
+        .join(',')
+    );
+
+    const csv = [csvHeaders, ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cleaned-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isValidating) {
     return (
       <div className="text-center py-12">
@@ -363,6 +400,9 @@ export function ValidationResults() {
         </div>
       )}
 
+      {/* Data Preview Table */}
+      <DataPreviewTable />
+
       {/* Navigation */}
       <div className="flex justify-between pt-4">
         <button
@@ -371,18 +411,157 @@ export function ValidationResults() {
         >
           Back
         </button>
-        <button
-          onClick={nextStep}
-          disabled={!validationResult.isValid}
-          className={`px-6 py-2 rounded-lg ${
-            validationResult.isValid
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Continue to Enrichment
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleExportCSV}
+            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            Export Cleaned CSV
+          </button>
+          <button
+            onClick={nextStep}
+            disabled={!validationResult.isValid}
+            className={`px-6 py-2 rounded-lg ${
+              validationResult.isValid
+                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Continue to Enrichment
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Data preview table showing transformed data with highlighted changes
+function DataPreviewTable() {
+  const { processedData, headerMatches, scriptRunnerResult } = useAppStore();
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewPage, setPreviewPage] = useState(0);
+  const pageSize = 25;
+
+  if (processedData.length === 0) return null;
+
+  // Get mapped headers
+  const mappedHeaders = headerMatches
+    .filter((m) => m.isMatched && m.matchedField)
+    .map((m) => ({
+      original: m.originalHeader,
+      label: m.matchedField!.hubspotLabel,
+      field: m.matchedField!.hubspotField,
+    }));
+
+  // Build a set of changed cells for highlighting
+  const changedCells = new Set<string>();
+  if (scriptRunnerResult) {
+    for (const result of scriptRunnerResult.scriptResults) {
+      for (const change of result.changes) {
+        changedCells.add(`${change.rowIndex}-${change.field}`);
+      }
+    }
+  }
+
+  const totalPages = Math.ceil(processedData.length / pageSize);
+  const pageData = processedData.slice(previewPage * pageSize, (previewPage + 1) * pageSize);
+  const startRow = previewPage * pageSize;
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setShowPreview(!showPreview)}
+        className="w-full bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200 hover:bg-gray-100"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Data Preview</span>
+          <span className="text-sm text-gray-500">
+            ({processedData.length} rows, {mappedHeaders.length} mapped fields)
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+            Blue cells = auto-corrected
+          </span>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${showPreview ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {showPreview && (
+        <div>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 border-b whitespace-nowrap">#</th>
+                  {mappedHeaders.map((h) => (
+                    <th key={h.field} className="px-3 py-2 text-left text-xs font-medium text-gray-600 border-b whitespace-nowrap">
+                      {h.label}
+                      <span className="block text-gray-400 font-normal">{h.field}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pageData.map((row, idx) => {
+                  const rowIndex = startRow + idx;
+                  return (
+                    <tr key={rowIndex} className="hover:bg-gray-50">
+                      <td className="px-3 py-1.5 text-gray-400 whitespace-nowrap">{rowIndex + 1}</td>
+                      {mappedHeaders.map((h) => {
+                        const isChanged = changedCells.has(`${rowIndex}-${h.field}`);
+                        return (
+                          <td
+                            key={h.field}
+                            className={`px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate ${
+                              isChanged ? 'bg-blue-50 text-blue-800 font-medium' : 'text-gray-700'
+                            }`}
+                            title={String(row[h.original] || '')}
+                          >
+                            {String(row[h.original] || '')}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
+              <span className="text-sm text-gray-500">
+                Showing {startRow + 1}-{Math.min(startRow + pageSize, processedData.length)} of {processedData.length} rows
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPreviewPage(Math.max(0, previewPage - 1))}
+                  disabled={previewPage === 0}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPreviewPage(Math.min(totalPages - 1, previewPage + 1))}
+                  disabled={previewPage >= totalPages - 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
