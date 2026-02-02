@@ -15,7 +15,7 @@ import type {
   ValidationScript,
 } from '@/types';
 import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
-import { defaultEnrichmentConfigs } from '@/lib/enrichment';
+
 import { generateSessionId } from '@/lib/logger';
 
 interface AppState {
@@ -134,12 +134,7 @@ const initialState = {
   scriptRunnerResult: null,
   enabledScripts: [], // Will be populated with all script IDs by default
   availableScripts: [],
-  enrichmentConfigs: defaultEnrichmentConfigs.map((c, i) => ({
-    ...c,
-    id: `enrich_${i}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  })),
+  enrichmentConfigs: [],
   enrichmentResults: [],
   isEnriching: false,
   enrichmentProgress: { completed: 0, total: 0 },
