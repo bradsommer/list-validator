@@ -2,21 +2,27 @@ import type { ParsedRow, HeaderMatch, ScriptResult, ScriptRunnerResult, Validati
 import type { IValidationScript, ScriptContext } from './types';
 
 // Import all scripts
+import { whitespaceCleanupScript } from './whitespace-cleanup';
+import { fullNameSplitterScript } from './full-name-splitter';
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
+import { dateNormalizationScript } from './date-normalization';
 import { duplicateDetectionScript } from './duplicate-detection';
 import { nameCapitalizationScript } from './name-capitalization';
 import { companyNormalizationScript } from './company-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
-  stateNormalizationScript,
-  emailValidationScript,
-  phoneNormalizationScript,
-  nameCapitalizationScript,
-  companyNormalizationScript,
-  duplicateDetectionScript, // Run last since it needs final data
+  whitespaceCleanupScript,       // order: 1  - clean whitespace first
+  fullNameSplitterScript,        // order: 5  - split names before capitalization
+  stateNormalizationScript,      // order: 10
+  emailValidationScript,         // order: 20
+  phoneNormalizationScript,      // order: 30
+  dateNormalizationScript,       // order: 35
+  nameCapitalizationScript,      // order: 50
+  companyNormalizationScript,    // order: 60
+  duplicateDetectionScript,      // order: 100 - run last
 ].sort((a, b) => a.order - b.order);
 
 // Get list of all available scripts (for UI display)
@@ -154,9 +160,12 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
+  whitespaceCleanupScript,
+  fullNameSplitterScript,
   stateNormalizationScript,
   emailValidationScript,
   phoneNormalizationScript,
+  dateNormalizationScript,
   duplicateDetectionScript,
   nameCapitalizationScript,
   companyNormalizationScript,
