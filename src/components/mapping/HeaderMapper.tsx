@@ -52,8 +52,34 @@ export function HeaderMapper() {
     return <div className="text-center text-gray-500">No file uploaded</div>;
   }
 
+  // Track which HubSpot fields are already mapped (excluding current row)
+  const getUsedFieldIds = (excludeIndex: number): Set<string> => {
+    const used = new Set<string>();
+    headerMatches.forEach((match, i) => {
+      if (i !== excludeIndex && match.isMatched && match.matchedField) {
+        used.add(match.matchedField.id);
+      }
+    });
+    return used;
+  };
+
   const handleMappingChange = (index: number, fieldId: string | null) => {
     const field = fieldId ? fieldMappings.find((f) => f.id === fieldId) : null;
+
+    // If this field is already mapped to another header, clear that mapping first
+    if (field) {
+      headerMatches.forEach((match, i) => {
+        if (i !== index && match.isMatched && match.matchedField?.id === field.id) {
+          updateHeaderMatch(i, {
+            ...match,
+            matchedField: null,
+            confidence: 0,
+            isMatched: false,
+          });
+        }
+      });
+    }
+
     const updatedMatch: HeaderMatch = {
       ...headerMatches[index],
       matchedField: field || null,
@@ -233,7 +259,9 @@ export function HeaderMapper() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {headerMatches.map((match, index) => (
+            {headerMatches.map((match, index) => {
+              const usedFieldIds = getUsedFieldIds(index);
+              return (
               <tr key={index} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <span className="font-medium">{match.originalHeader}</span>
@@ -245,12 +273,21 @@ export function HeaderMapper() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">-- Do not import --</option>
-                    {fieldMappings.map((field) => (
-                      <option key={field.id} value={field.id}>
-                        {field.hubspotLabel}
-                        {requiredFields.includes(field.hubspotField) ? ' *' : ''}
-                      </option>
-                    ))}
+                    {fieldMappings.map((field) => {
+                      const isUsed = usedFieldIds.has(field.id);
+                      return (
+                        <option
+                          key={field.id}
+                          value={field.id}
+                          disabled={isUsed}
+                          className={isUsed ? 'text-gray-400' : ''}
+                        >
+                          {field.hubspotLabel}
+                          {requiredFields.includes(field.hubspotField) ? ' *' : ''}
+                          {isUsed ? ' (already mapped)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </td>
                 <td className="px-4 py-3">
@@ -266,7 +303,8 @@ export function HeaderMapper() {
                   {parsedFile.rows[0]?.[match.originalHeader]?.toString().substring(0, 30) || '-'}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
