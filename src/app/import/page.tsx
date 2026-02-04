@@ -13,9 +13,17 @@ import { AuditReview } from '@/components/audit/AuditReview';
 export default function ImportPage() {
   const { currentStep, reset } = useAppStore();
 
-  // Reset import state on mount so the page always starts fresh
+  // Reset import state on mount so the page always starts fresh.
+  // Also clean up any legacy localStorage keys from older code versions.
   useEffect(() => {
     reset();
+    // Remove legacy keys that used an enabled-list approach (replaced by disabled-list)
+    try {
+      localStorage.removeItem('enabled_validation_rules');
+      localStorage.removeItem('known_validation_rules');
+    } catch {
+      // localStorage unavailable
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderStep = () => {

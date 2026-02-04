@@ -39,29 +39,18 @@ export function ValidationResults() {
       const scripts = getAvailableScripts();
       setAvailableScripts(scripts);
 
-      // Check if user has saved enabled rules in localStorage
+      // Load DISABLED scripts from localStorage — everything else is enabled.
+      // This means new scripts are always enabled automatically.
       try {
-        const saved = localStorage.getItem('enabled_validation_rules');
-        if (saved) {
-          const savedIds = JSON.parse(saved) as string[];
-          const knownRaw = localStorage.getItem('known_validation_rules');
-          const knownIds = knownRaw ? new Set(JSON.parse(knownRaw) as string[]) : new Set<string>();
+        const disabledRaw = localStorage.getItem('disabled_validation_rules');
+        if (disabledRaw) {
+          const disabledIds = new Set(JSON.parse(disabledRaw) as string[]);
           const allCurrentIds = scripts.map((s) => s.id);
-
-          // Start with saved enabled scripts (filter out stale ones)
-          const enabledSet = new Set(savedIds.filter((id) => allCurrentIds.includes(id)));
-
-          // Auto-enable any NEW scripts that weren't known at save time
-          for (const id of allCurrentIds) {
-            if (!knownIds.has(id)) {
-              enabledSet.add(id);
-            }
+          const enabledIds = allCurrentIds.filter((id) => !disabledIds.has(id));
+          if (enabledIds.length > 0) {
+            setEnabledScripts(enabledIds);
           }
-
-          if (enabledSet.size > 0) {
-            setEnabledScripts(Array.from(enabledSet));
-          }
-          // If empty, keep the defaults (all enabled from setAvailableScripts)
+          // If all disabled, keep defaults (all enabled from setAvailableScripts)
         }
       } catch {
         // localStorage unavailable — use defaults (all enabled)
