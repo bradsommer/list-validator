@@ -109,13 +109,22 @@ function getObjectTypePriority(objectType: string): number {
   return OBJECT_TYPE_PRIORITY[objectType] ?? 3;
 }
 
-// Match headers to field mappings using fuzzy matching
+// Admin-configured explicit mapping rule (from /admin/mappings page)
+export interface AdminMappingRule {
+  original_header: string;   // The spreadsheet header the user configured
+  hubspot_field_name: string; // The target HubSpot field
+  object_type: string;        // contacts | companies | deals
+}
+
+// Match headers to field mappings using a three-pass approach:
+//   Pass 0: Admin-configured explicit mappings (hard overrides — highest priority)
+//   Pass 1: Exact variant matches for all remaining headers
+//   Pass 2: Fuzzy matches for everything still unmatched
 export function matchHeaders(
   headers: string[],
-  fieldMappings: FieldMapping[]
+  fieldMappings: FieldMapping[],
+  adminMappings: AdminMappingRule[] = []
 ): HeaderMatch[] {
-  const results: HeaderMatch[] = [];
-
   // Create a searchable list of all variants
   const searchItems = fieldMappings.flatMap((mapping) =>
     mapping.variants.map((variant) => ({
@@ -124,42 +133,86 @@ export function matchHeaders(
     }))
   );
 
-  // Configure Fuse for fuzzy searching
-  const fuse = new Fuse(searchItems, {
-    keys: ['variant'],
-    threshold: 0.4, // Lower = stricter matching
-    includeScore: true,
-  });
-
   // Track which HubSpot fields have already been mapped to prevent duplicates
   const usedFieldIds = new Set<string>();
 
-  for (const header of headers) {
+  // Results indexed by header position
+  const results: (HeaderMatch | null)[] = headers.map(() => null);
+
+  // ── Pass 0: Admin-configured explicit mappings (hard overrides) ──
+  // These are rules the user explicitly defined on /admin/mappings.
+  // They take absolute priority over any fuzzy or exact variant matching.
+  if (adminMappings.length > 0) {
+    // Build a lookup: normalized header → { hubspot_field_name, object_type }
+    const adminLookup = new Map<string, AdminMappingRule>();
+    for (const rule of adminMappings) {
+      adminLookup.set(normalizeString(rule.original_header), rule);
+    }
+
+    for (let i = 0; i < headers.length; i++) {
+      const normalizedHeader = normalizeString(headers[i]);
+      const rule = adminLookup.get(normalizedHeader);
+      if (!rule) continue;
+
+      // Find the matching fieldMapping by hubspot field name and object type
+      const targetMapping = fieldMappings.find(
+        (fm) => fm.hubspotField === rule.hubspot_field_name
+          && fm.objectType === rule.object_type
+          && !usedFieldIds.has(fm.id)
+      );
+
+      if (targetMapping) {
+        usedFieldIds.add(targetMapping.id);
+        results[i] = {
+          originalHeader: headers[i],
+          matchedField: targetMapping,
+          confidence: 1,
+          isMatched: true,
+        };
+      }
+    }
+  }
+
+  // ── Pass 1: Exact matches for ALL remaining headers ──
+  for (let i = 0; i < headers.length; i++) {
+    if (results[i] !== null) continue; // already matched by admin rule
+
+    const header = headers[i];
     const normalizedHeader = normalizeString(header);
 
-    // First, try exact match — prefer contact properties over company/deal
     const exactMatches = searchItems.filter(
       (item) => item.variant === normalizedHeader && !usedFieldIds.has(item.mapping.id)
     );
 
     if (exactMatches.length > 0) {
-      // Sort by object type priority: contacts > companies > deals
+      // Prefer contact > company > deal when multiple exact matches exist
       exactMatches.sort((a, b) =>
         getObjectTypePriority(a.mapping.objectType) - getObjectTypePriority(b.mapping.objectType)
       );
       const bestExact = exactMatches[0];
       usedFieldIds.add(bestExact.mapping.id);
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: bestExact.mapping,
         confidence: 1,
         isMatched: true,
-      });
-      continue;
+      };
     }
+  }
 
-    // Try fuzzy match (skip fields already mapped)
-    // Prioritize contact properties when scores are close
+  // ── Pass 2: Fuzzy matches for remaining unmatched headers ──
+  const fuse = new Fuse(searchItems, {
+    keys: ['variant'],
+    threshold: 0.4,
+    includeScore: true,
+  });
+
+  for (let i = 0; i < headers.length; i++) {
+    if (results[i] !== null) continue; // already matched
+
+    const header = headers[i];
+    const normalizedHeader = normalizeString(header);
+
     const fuzzyResults = fuse.search(normalizedHeader);
     const availableResults = fuzzyResults.filter(
       (r) => !usedFieldIds.has(r.item.mapping.id)
@@ -182,32 +235,28 @@ export function matchHeaders(
 
     if (bestAvailable && bestAvailable.score !== undefined) {
       const confidence = 1 - (bestAvailable.score || 0);
-
-      // Always pre-select the best guess — mark as matched if confidence is
-      // reasonable (>= 0.4) so users see the suggestion and can verify/change it.
-      // Reserve the field to prevent duplicate assignments.
       const isSuggested = confidence >= 0.4;
       if (isSuggested) {
         usedFieldIds.add(bestAvailable.item.mapping.id);
       }
 
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: bestAvailable.item.mapping,
         confidence,
         isMatched: isSuggested,
-      });
+      };
     } else {
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: null,
         confidence: 0,
         isMatched: false,
-      });
+      };
     }
   }
 
-  return results;
+  return results as HeaderMatch[];
 }
 
 // Fuzzy match company names for HubSpot company matching
