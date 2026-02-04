@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
 import { processRowForHubSpot } from '@/lib/hubspot';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
-import type { ParsedRow } from '@/types';
+
+interface SyncRow {
+  contactProperties: Record<string, string>;
+  companyProperties: Record<string, string>;
+}
 
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
@@ -11,7 +15,7 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json();
         const { rows, taskAssigneeId, sessionId } = body as {
-          rows: ParsedRow[];
+          rows: SyncRow[];
           taskAssigneeId: string;
           sessionId: string;
         };
@@ -31,8 +35,13 @@ export async function POST(request: NextRequest) {
               )
             );
 
-            // Process the row
-            const result = await processRowForHubSpot(i, rows[i], taskAssigneeId);
+            // Process the row with separated contact/company properties
+            const result = await processRowForHubSpot(
+              i,
+              rows[i].contactProperties,
+              rows[i].companyProperties,
+              taskAssigneeId
+            );
 
             // Send result
             controller.enqueue(
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
                   type: 'result',
                   result: {
                     rowIndex: i,
-                    contact: { email: rows[i].email },
+                    contact: { email: rows[i].contactProperties?.email || '' },
                     matchedCompany: null,
                     matchConfidence: 0,
                     matchType: 'no_match',

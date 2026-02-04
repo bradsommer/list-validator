@@ -1,5 +1,5 @@
 import { Client } from '@hubspot/api-client';
-import type { HubSpotCompany, HubSpotContact, HubSpotMatchResult, ParsedRow } from '@/types';
+import type { HubSpotCompany, HubSpotContact, HubSpotMatchResult } from '@/types';
 import { fuzzyMatchCompanyName } from './fuzzyMatcher';
 import { cache, CACHE_TTL, CACHE_KEYS } from './cache';
 
@@ -670,27 +670,47 @@ export async function getHubSpotOwners(): Promise<{ id: string; email: string; n
   }));
 }
 
-// Process a single row for HubSpot sync
-// rowData keys are expected to be HubSpot internal field names (email, firstname, company, etc.)
-// after transformToHubSpotFormat has been applied on the client side.
-export async function processRowForHubSpot(
-  rowIndex: number,
-  rowData: ParsedRow,
-  defaultTaskAssigneeId: string
-): Promise<HubSpotMatchResult> {
-  const email = String(rowData.email || '');
-  const companyName = String(rowData.company || '');
-  const domain = String(rowData.website || '');
-  const city = String(rowData.city || '');
-  const state = String(rowData.state || '');
+// Update an existing company's properties
+export async function updateCompany(
+  companyId: string,
+  properties: Record<string, string>
+): Promise<void> {
+  const client = await getHubSpotClient();
 
-  // Build contact properties from all row fields (already in HubSpot field name format)
-  const contactProperties: Record<string, string> = {};
-  for (const [key, value] of Object.entries(rowData)) {
-    if (value !== null && value !== undefined && String(value).trim()) {
-      contactProperties[key] = String(value).trim();
+  // Filter out empty values
+  const cleanProperties: Record<string, string> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (value && value.trim()) {
+      cleanProperties[key] = value.trim();
     }
   }
+
+  if (Object.keys(cleanProperties).length === 0) return;
+
+  await client.crm.companies.basicApi.update(companyId, { properties: cleanProperties });
+}
+
+// Process a single row for HubSpot sync.
+// contactProps: HubSpot contact property names -> values
+// companyProps: HubSpot company property names -> values
+// These are separated by the client so we can:
+// - Use company properties (domain, name, city, state) for company matching/creation
+// - Use contact properties (email, firstname, etc.) for contact creation/update
+// - Avoid sending company properties as contact properties (which HubSpot rejects)
+export async function processRowForHubSpot(
+  rowIndex: number,
+  contactProps: Record<string, string>,
+  companyProps: Record<string, string>,
+  defaultTaskAssigneeId: string
+): Promise<HubSpotMatchResult> {
+  // Email comes from contact properties
+  const email = contactProps.email || '';
+
+  // Company info comes from company properties first, with contact fallbacks
+  const companyName = companyProps.name || companyProps.company || contactProps.company || '';
+  const domain = companyProps.domain || companyProps.website || contactProps.website || '';
+  const city = companyProps.city || contactProps.city || '';
+  const state = companyProps.state || contactProps.state || '';
 
   // Find best company match
   const matchResult = await findBestCompanyMatch({
@@ -707,8 +727,15 @@ export async function processRowForHubSpot(
   let taskCreated = false;
   let taskId: string | undefined;
 
-  // If no match found, create new company and task
-  if (!company && companyName) {
+  if (company) {
+    // Update existing company with any new property values from this row
+    try {
+      await updateCompany(company.id, companyProps);
+    } catch (err) {
+      console.error(`Failed to update company ${company.id}:`, err);
+    }
+  } else if (companyName) {
+    // No match found — create new company and task
     company = await createCompany({
       name: companyName,
       domain,
@@ -730,8 +757,8 @@ export async function processRowForHubSpot(
     }
   }
 
-  // Create or update the contact with ALL mapped properties
-  const contact = await createOrUpdateContact(contactProperties);
+  // Create or update the contact with ONLY contact properties (matched on email)
+  const contact = await createOrUpdateContact(contactProps);
 
   // Associate contact with company
   if (company) {
