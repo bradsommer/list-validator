@@ -4,3 +4,4 @@ node_modules/
 *.node
 *.tsbuildinfo
 .env.local
+.hubspot-tokens.json
