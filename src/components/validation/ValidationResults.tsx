@@ -44,12 +44,24 @@ export function ValidationResults() {
         const saved = localStorage.getItem('enabled_validation_rules');
         if (saved) {
           const savedIds = JSON.parse(saved) as string[];
-          // Filter to only include IDs that still exist in the registry
-          const validIds = savedIds.filter((id) => scripts.some((s) => s.id === id));
-          if (validIds.length > 0) {
-            setEnabledScripts(validIds);
+          const knownRaw = localStorage.getItem('known_validation_rules');
+          const knownIds = knownRaw ? new Set(JSON.parse(knownRaw) as string[]) : new Set<string>();
+          const allCurrentIds = scripts.map((s) => s.id);
+
+          // Start with saved enabled scripts (filter out stale ones)
+          const enabledSet = new Set(savedIds.filter((id) => allCurrentIds.includes(id)));
+
+          // Auto-enable any NEW scripts that weren't known at save time
+          for (const id of allCurrentIds) {
+            if (!knownIds.has(id)) {
+              enabledSet.add(id);
+            }
           }
-          // If all saved IDs were stale, keep the defaults (all enabled)
+
+          if (enabledSet.size > 0) {
+            setEnabledScripts(Array.from(enabledSet));
+          }
+          // If empty, keep the defaults (all enabled from setAvailableScripts)
         }
       } catch {
         // localStorage unavailable — use defaults (all enabled)
