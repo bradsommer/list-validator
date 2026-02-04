@@ -25,6 +25,13 @@ interface InputField {
   propertyLabel: string;
 }
 
+interface OutputField {
+  id: string;
+  type: OutputFieldType;
+}
+
+type OutputFieldType = 'string' | 'number' | 'boolean' | 'datetime' | 'enumeration' | 'date' | 'phone_number';
+
 interface EnrichmentConfig {
   id: string;
   name: string;
@@ -51,6 +58,44 @@ const OBJECT_TYPE_COLORS: Record<HubSpotObjectType, string> = {
   deals: 'bg-green-100 text-green-700 border-green-200',
 };
 
+const OUTPUT_FIELD_TYPES: { value: OutputFieldType; label: string }[] = [
+  { value: 'string', label: 'String' },
+  { value: 'number', label: 'Number' },
+  { value: 'boolean', label: 'Boolean' },
+  { value: 'datetime', label: 'Datetime' },
+  { value: 'date', label: 'Date' },
+  { value: 'enumeration', label: 'Enumeration' },
+  { value: 'phone_number', label: 'Phone Number' },
+];
+
+const OUTPUT_TYPE_LABELS: Record<OutputFieldType, string> = {
+  string: 'String',
+  number: 'Number',
+  boolean: 'Boolean',
+  datetime: 'Datetime',
+  date: 'Date',
+  enumeration: 'Enum',
+  phone_number: 'Phone',
+};
+
+// Parse output_field from DB — handles both legacy single string and new JSON array format
+function parseOutputFields(raw: string): OutputField[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Not JSON — legacy single string field
+  }
+  return [{ id: raw, type: 'string' }];
+}
+
+// Serialize output fields to DB string
+function serializeOutputFields(fields: OutputField[]): string {
+  if (fields.length === 0) return '';
+  return JSON.stringify(fields);
+}
+
 export default function EnrichmentPage() {
   const [configs, setConfigs] = useState<EnrichmentConfig[]>([]);
   const [aiModels, setAiModels] = useState<AIModel[]>([]);
@@ -66,7 +111,7 @@ export default function EnrichmentPage() {
     ai_model_id: '',
     prompt_template: '',
     input_fields: [] as InputField[],
-    output_field: '',
+    output_fields: [] as OutputField[],
     execution_order: 0,
   });
   const [formError, setFormError] = useState('');
@@ -76,8 +121,28 @@ export default function EnrichmentPage() {
   const [pickerObjectType, setPickerObjectType] = useState<HubSpotObjectType>('contacts');
   const [pickerProperty, setPickerProperty] = useState('');
 
+  // Output field picker state
+  const [outputFieldId, setOutputFieldId] = useState('');
+  const [outputFieldType, setOutputFieldType] = useState<OutputFieldType>('string');
+
   // Prompt textarea ref for cursor insertion
   const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
+  };
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        closeModal();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showModal]);
 
   useEffect(() => {
     fetchData();
@@ -96,7 +161,14 @@ export default function EnrichmentPage() {
       setAiModels(modelsRes.data || []);
 
       if (propertiesRes.success && propertiesRes.properties) {
-        setHubspotProperties(propertiesRes.properties);
+        const mapped: HubSpotProperty[] = propertiesRes.properties.map(
+          (p: { field_name: string; field_label: string; object_type: string }) => ({
+            name: p.field_name,
+            label: p.field_label,
+            objectType: p.object_type as HubSpotObjectType,
+          })
+        );
+        setHubspotProperties(mapped);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -112,13 +184,15 @@ export default function EnrichmentPage() {
       ai_model_id: '',
       prompt_template: '',
       input_fields: [],
-      output_field: '',
+      output_fields: [],
       execution_order: configs.length * 10 + 10,
     });
     setFormError('');
     setEditingConfig(null);
     setPickerObjectType('contacts');
     setPickerProperty('');
+    setOutputFieldId('');
+    setOutputFieldType('string');
   };
 
   const openAddModal = () => {
@@ -127,7 +201,6 @@ export default function EnrichmentPage() {
   };
 
   // Parse stored input_fields strings back into InputField objects
-  // Format: "objectType:propertyName" e.g. "contacts:firstname"
   const parseInputFields = (fields: string[]): InputField[] => {
     return fields.map((f) => {
       const [objectType, propertyName] = f.includes(':') ? f.split(':', 2) : ['contacts', f];
@@ -142,7 +215,6 @@ export default function EnrichmentPage() {
     });
   };
 
-  // Serialize InputField objects to storage format
   const serializeInputFields = (fields: InputField[]): string[] => {
     return fields.map((f) => `${f.objectType}:${f.propertyName}`);
   };
@@ -150,21 +222,22 @@ export default function EnrichmentPage() {
   const openEditModal = (config: EnrichmentConfig) => {
     setEditingConfig(config);
     const parsedFields = parseInputFields(config.input_fields);
+    const parsedOutputs = parseOutputFields(config.output_field);
     setFormData({
       name: config.name,
       description: config.description || '',
       ai_model_id: config.ai_model_id || '',
       prompt_template: config.prompt_template,
       input_fields: parsedFields,
-      output_field: config.output_field,
+      output_fields: parsedOutputs,
       execution_order: config.execution_order,
     });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.prompt_template || !formData.output_field) {
-      setFormError('Name, prompt template, and output field are required');
+    if (!formData.name || !formData.prompt_template || formData.output_fields.length === 0) {
+      setFormError('Name, prompt template, and at least one output field are required');
       return;
     }
 
@@ -178,7 +251,7 @@ export default function EnrichmentPage() {
         ai_model_id: formData.ai_model_id || null,
         prompt_template: formData.prompt_template,
         input_fields: serializeInputFields(formData.input_fields),
-        output_field: formData.output_field,
+        output_field: serializeOutputFields(formData.output_fields),
         execution_order: formData.execution_order,
       };
 
@@ -224,7 +297,6 @@ export default function EnrichmentPage() {
   const addInputField = () => {
     if (!pickerProperty) return;
 
-    // Check if already added
     const exists = formData.input_fields.some(
       (f) => f.objectType === pickerObjectType && f.propertyName === pickerProperty
     );
@@ -251,6 +323,27 @@ export default function EnrichmentPage() {
     }));
   };
 
+  const addOutputField = () => {
+    if (!outputFieldId.trim()) return;
+
+    const exists = formData.output_fields.some((f) => f.id === outputFieldId.trim());
+    if (exists) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      output_fields: [...prev.output_fields, { id: outputFieldId.trim(), type: outputFieldType }],
+    }));
+    setOutputFieldId('');
+    setOutputFieldType('string');
+  };
+
+  const removeOutputField = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      output_fields: prev.output_fields.filter((_, i) => i !== index),
+    }));
+  };
+
   const insertShortcode = (field: InputField) => {
     const shortcode = `[${field.propertyName}]`;
     const textarea = promptRef.current;
@@ -263,7 +356,6 @@ export default function EnrichmentPage() {
 
       setFormData((prev) => ({ ...prev, prompt_template: newText }));
 
-      // Restore cursor position after the inserted shortcode
       requestAnimationFrame(() => {
         textarea.focus();
         textarea.selectionStart = textarea.selectionEnd = start + shortcode.length;
@@ -281,7 +373,6 @@ export default function EnrichmentPage() {
     .filter((p) => p.objectType === pickerObjectType)
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Get a display-friendly label for an input field
   const getFieldDisplay = (field: InputField) => {
     return `${field.propertyLabel}`;
   };
@@ -368,6 +459,7 @@ export default function EnrichmentPage() {
         <div className="space-y-4">
           {configs.map((config) => {
             const fields = formatStoredFields(config.input_fields);
+            const outputFields = parseOutputFields(config.output_field);
 
             return (
               <div
@@ -392,7 +484,6 @@ export default function EnrichmentPage() {
                         <span>
                           AI Model: {config.ai_model?.name || 'Default'}
                         </span>
-                        <span>Output: <code className="bg-gray-100 px-1 rounded">{config.output_field}</code></span>
                         <span>Order: {config.execution_order}</span>
                       </div>
                     </div>
@@ -444,6 +535,22 @@ export default function EnrichmentPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Output fields */}
+                  {outputFields.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500">Output fields:</span>
+                      {outputFields.map((field, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded border bg-orange-50 text-orange-700 border-orange-200"
+                        >
+                          <code>{field.id}</code>
+                          <span className="opacity-60">{OUTPUT_TYPE_LABELS[field.type] || field.type}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -458,12 +565,26 @@ export default function EnrichmentPage() {
 
         {/* Add/Edit Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+          >
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {editingConfig ? 'Edit Enrichment' : 'Add Enrichment'}
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {editingConfig ? 'Edit Enrichment' : 'Add Enrichment'}
+                  </h3>
+                  <button
+                    onClick={closeModal}
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
                 <div className="space-y-4">
                   {formError && (
@@ -559,7 +680,7 @@ export default function EnrichmentPage() {
                         disabled={!pickerProperty}
                         className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
                       >
-                        Add Field
+                        Add
                       </button>
                     </div>
 
@@ -641,42 +762,104 @@ export default function EnrichmentPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Output Field
-                      </label>
+                  {/* Output Fields */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Output Fields
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Define the fields where enrichment results will be stored. Set an ID and a data type for each.
+                    </p>
+
+                    {/* Output field picker row */}
+                    <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        value={formData.output_field}
-                        onChange={(e) => setFormData({ ...formData, output_field: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        value={outputFieldId}
+                        onChange={(e) => setOutputFieldId(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addOutputField();
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm font-mono"
                         placeholder="e.g., official_company_name"
                       />
+
+                      <select
+                        value={outputFieldType}
+                        onChange={(e) => setOutputFieldType(e.target.value as OutputFieldType)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                      >
+                        {OUTPUT_FIELD_TYPES.map((ft) => (
+                          <option key={ft.value} value={ft.value}>{ft.label}</option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={addOutputField}
+                        disabled={!outputFieldId.trim()}
+                        className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
+                      >
+                        Add
+                      </button>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Execution Order
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.execution_order}
-                        onChange={(e) =>
-                          setFormData({ ...formData, execution_order: parseInt(e.target.value) || 0 })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      />
-                    </div>
+                    {/* Added output fields list */}
+                    {formData.output_fields.length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        {formData.output_fields.map((field, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between px-3 py-2 rounded-lg border bg-orange-50 border-orange-200 text-orange-700"
+                          >
+                            <div className="flex items-center gap-3">
+                              <code className="text-sm font-medium">{field.id}</code>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 border border-orange-200">
+                                {OUTPUT_TYPE_LABELS[field.type] || field.type}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeOutputField(index)}
+                              className="text-sm opacity-60 hover:opacity-100 ml-2"
+                              title="Remove output field"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {formData.output_fields.length === 0 && (
+                      <p className="mt-2 text-xs text-gray-400 italic">
+                        No output fields added yet. Add at least one to define where the enrichment result is stored.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Execution Order */}
+                  <div className="max-w-[200px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Execution Order
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.execution_order}
+                      onChange={(e) =>
+                        setFormData({ ...formData, execution_order: parseInt(e.target.value) || 0 })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    />
                   </div>
                 </div>
 
                 <div className="flex justify-end gap-3 mt-6">
                   <button
-                    onClick={() => {
-                      setShowModal(false);
-                      resetForm();
-                    }}
+                    onClick={closeModal}
                     className="px-4 py-2 text-gray-700 hover:text-gray-900"
                   >
                     Cancel

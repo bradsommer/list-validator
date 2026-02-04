@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS enrichment_configs (
   ai_model_id UUID REFERENCES ai_models(id), -- Which AI model to use
   prompt_template TEXT NOT NULL, -- Prompt with {{field_name}} placeholders
   input_fields TEXT[] NOT NULL DEFAULT '{}', -- Fields to use in prompt
-  output_field VARCHAR(255) NOT NULL, -- Where to store result
+  output_field TEXT NOT NULL, -- JSON array of {id, type} output field definitions
   is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   execution_order INTEGER DEFAULT 0,
   created_by UUID REFERENCES users(id),
@@ -411,18 +411,18 @@ INSERT INTO enrichment_configs (name, description, prompt_template, input_fields
   (
     'Find Official Company Name',
     'Use search to find the official company/institution name',
-    'Find the official company name for: {{company}} located in {{city}}, {{state}}',
-    ARRAY['company', 'city', 'state'],
-    'official_company_name',
+    'Find the official company name for: [company] located in [city], [state]',
+    ARRAY['contacts:company', 'contacts:city', 'contacts:state'],
+    '[{"id":"official_company_name","type":"string"}]',
     TRUE,
     10
   ),
   (
     'Find Company Domain',
     'Use search to find the company website domain',
-    'Find the official website domain for: {{company}} ({{official_company_name}})',
-    ARRAY['company', 'official_company_name'],
-    'domain',
+    'Find the official website domain for: [company] ([official_company_name])',
+    ARRAY['contacts:company', 'contacts:official_company_name'],
+    '[{"id":"domain","type":"string"}]',
     TRUE,
     20
   )
