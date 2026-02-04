@@ -64,6 +64,7 @@ interface AppState {
   uploadSession: UploadSession | null;
 
   // Actions
+  loadFieldMappingsFromHubSpot: () => Promise<void>;
   setSessionId: (id: string) => void;
   setCurrentStep: (step: number) => void;
   nextStep: () => void;
@@ -150,6 +151,35 @@ const initialState = {
 
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState,
+
+  loadFieldMappingsFromHubSpot: async () => {
+    try {
+      const response = await fetch('/api/hubspot/properties');
+      const data = await response.json();
+      if (data.success && data.properties?.length > 0) {
+        const mappings: FieldMapping[] = data.properties.map(
+          (prop: { field_name: string; field_label: string; field_type: string }, i: number) => ({
+            id: `hs_${i}`,
+            hubspotField: prop.field_name,
+            hubspotLabel: prop.field_label,
+            variants: [
+              prop.field_name,
+              prop.field_label.toLowerCase(),
+              prop.field_name.replace(/_/g, ' '),
+              prop.field_name.replace(/_/g, ''),
+            ].filter((v, idx, arr) => arr.indexOf(v) === idx),
+            isRequired: prop.field_name === 'email',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        set({ fieldMappings: mappings });
+      }
+    } catch {
+      // If fetch fails, keep the default hardcoded mappings
+      console.error('Failed to load HubSpot properties, using defaults');
+    }
+  },
 
   setSessionId: (id) => set({ sessionId: id }),
   setCurrentStep: (step) => set({ currentStep: step }),
