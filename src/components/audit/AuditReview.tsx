@@ -159,12 +159,15 @@ export function AuditReview() {
 
       {/* Flagged rows toggle */}
       {flaggedData.length > 0 && (
-        <button
-          onClick={() => setShowFlagged(!showFlagged)}
-          className="text-sm text-primary-600 hover:text-primary-700"
-        >
-          {showFlagged ? 'Hide' : 'Show'} flagged rows ({flaggedData.length})
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowFlagged(!showFlagged)}
+            className="text-sm text-primary-600 hover:text-primary-700"
+          >
+            {showFlagged ? 'Hide' : 'Show'} flagged rows ({flaggedData.length})
+          </button>
+          <span className="text-xs text-gray-500">These are advisory warnings only — all rows were synced to HubSpot regardless of flags.</span>
+        </div>
       )}
 
       {/* Flagged rows table */}
@@ -172,6 +175,7 @@ export function AuditReview() {
         <div className="border border-yellow-200 rounded-lg overflow-hidden">
           <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-200">
             <h3 className="font-medium text-yellow-700">Rows Flagged for Review</h3>
+            <p className="text-xs text-yellow-600 mt-0.5">These flags highlight potential data quality issues for your review. They did not prevent any rows from being processed or synced.</p>
           </div>
           <div className="max-h-64 overflow-auto">
             <table className="w-full">
