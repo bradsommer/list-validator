@@ -58,6 +58,7 @@ export default function ImportHistoryPage() {
   const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
 
   useEffect(() => {
@@ -128,6 +129,35 @@ export default function ImportHistoryPage() {
       alert('Failed to download file');
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleExport = async (session: ImportSession, exportFilter: 'all' | 'clean' | 'flagged') => {
+    setExportingId(`${session.id}-${exportFilter}`);
+    try {
+      const response = await fetch(`/api/pipeline/sessions/${session.id}/export?filter=${exportFilter}`);
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Export failed');
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = response.headers.get('Content-Disposition');
+      const filenameMatch = disposition?.match(/filename="(.+)"/);
+      a.download = filenameMatch?.[1] || `${session.fileName}_export.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export data');
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -229,26 +259,61 @@ export default function ImportHistoryPage() {
                         )}
                       </td>
                       <td className="px-5 py-3">
-                        {session.hasFile && !isExpired ? (
-                          <button
-                            onClick={() => handleDownload(session)}
-                            disabled={downloadingId === session.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            {downloadingId === session.id ? (
-                              <div className="animate-spin w-3.5 h-3.5 border-2 border-primary-500 border-t-transparent rounded-full" />
-                            ) : (
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                            )}
-                            Download
-                          </button>
-                        ) : isExpired ? (
-                          <span className="text-xs text-gray-400">File deleted</span>
-                        ) : (
-                          <span className="text-xs text-gray-400">No file</span>
-                        )}
+                        <div className="flex flex-col gap-1.5">
+                          {/* Export buttons */}
+                          {session.totalRows > 0 && !isExpired && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleExport(session, 'all')}
+                                disabled={exportingId === `${session.id}-all`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded transition-colors disabled:opacity-50"
+                              >
+                                {exportingId === `${session.id}-all` ? (
+                                  <div className="animate-spin w-3 h-3 border-2 border-primary-500 border-t-transparent rounded-full" />
+                                ) : (
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                )}
+                                Export Data
+                              </button>
+                              <button
+                                onClick={() => handleExport(session, 'clean')}
+                                disabled={exportingId === `${session.id}-clean`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-gray-600 bg-gray-50 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                              >
+                                Clean
+                              </button>
+                              {session.failedRows > 0 && (
+                                <button
+                                  onClick={() => handleExport(session, 'flagged')}
+                                  disabled={exportingId === `${session.id}-flagged`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Flagged
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {/* Original file download */}
+                          {session.hasFile && !isExpired && (
+                            <button
+                              onClick={() => handleDownload(session)}
+                              disabled={downloadingId === session.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                            >
+                              {downloadingId === session.id ? (
+                                <div className="animate-spin w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full" />
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              )}
+                              Original file
+                            </button>
+                          )}
+                          {isExpired && <span className="text-xs text-gray-400">Expired</span>}
+                        </div>
                       </td>
                     </tr>
                   );
