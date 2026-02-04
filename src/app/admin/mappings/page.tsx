@@ -132,6 +132,15 @@ export default function MappingsPage() {
       return;
     }
 
+    // Each HubSpot property can only be mapped once
+    const existingForField = mappings.find(
+      m => m.hubspot_field_name === field.field_name && m.object_type === newObjectType
+    );
+    if (existingForField) {
+      setError(`"${field.field_label}" is already mapped to "${existingForField.original_header}". Delete that mapping first.`);
+      return;
+    }
+
     setIsAdding(true);
     setError('');
 
@@ -156,7 +165,13 @@ export default function MappingsPage() {
   };
 
   // Properties filtered by the selected object type in the "Add" form
-  const filteredProperties = allProperties.filter(p => p.object_type === newObjectType);
+  // Exclude properties that are already mapped (each HubSpot property can only be mapped once)
+  const alreadyMappedFields = new Set(
+    mappings.filter(m => m.object_type === newObjectType).map(m => m.hubspot_field_name)
+  );
+  const filteredProperties = allProperties.filter(
+    p => p.object_type === newObjectType && !alreadyMappedFields.has(p.field_name)
+  );
 
   // Mappings filtered by the view filter
   const filteredMappings = filterObjectType === 'all'
