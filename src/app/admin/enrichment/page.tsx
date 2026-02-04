@@ -128,6 +128,22 @@ export default function EnrichmentPage() {
   // Prompt textarea ref for cursor insertion
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
+  };
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        closeModal();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showModal]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -549,12 +565,26 @@ export default function EnrichmentPage() {
 
         {/* Add/Edit Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+          >
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {editingConfig ? 'Edit Enrichment' : 'Add Enrichment'}
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {editingConfig ? 'Edit Enrichment' : 'Add Enrichment'}
+                  </h3>
+                  <button
+                    onClick={closeModal}
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
                 <div className="space-y-4">
                   {formError && (
@@ -829,10 +859,7 @@ export default function EnrichmentPage() {
 
                 <div className="flex justify-end gap-3 mt-6">
                   <button
-                    onClick={() => {
-                      setShowModal(false);
-                      resetForm();
-                    }}
+                    onClick={closeModal}
                     className="px-4 py-2 text-gray-700 hover:text-gray-900"
                   >
                     Cancel
