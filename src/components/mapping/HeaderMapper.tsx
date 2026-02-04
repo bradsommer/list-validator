@@ -307,6 +307,9 @@ export function HeaderMapper() {
                       // Always show the actual matched field — never blank it out dynamically.
                       // The dropdown options hide already-used fields to prevent NEW duplicates.
                       const selectedFieldId = skipped ? '' : (match.matchedField?.id || '');
+                      const selectedFieldKey = match.matchedField
+                        ? `${match.matchedField.objectType}_${match.matchedField.hubspotField}`
+                        : '';
                       return (
                         <select
                           value={selectedFieldId}
@@ -320,11 +323,11 @@ export function HeaderMapper() {
                           {filteredFields
                             .sort((a, b) => a.hubspotLabel.localeCompare(b.hubspotLabel))
                             .map((field) => {
-                              const fieldKey = `${field.objectType}_${field.hubspotField}`;
-                              const isUsed = usedFieldKeys.has(fieldKey);
+                              const fKey = `${field.objectType}_${field.hubspotField}`;
+                              const isUsed = usedFieldKeys.has(fKey);
                               // Always show the currently selected field in the list;
                               // hide other already-mapped properties to prevent duplicates
-                              if (isUsed && field.id !== selectedFieldId) return null;
+                              if (isUsed && fKey !== selectedFieldKey) return null;
                               return (
                                 <option
                                   key={field.id}
