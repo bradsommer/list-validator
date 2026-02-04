@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { parseFile } from '@/lib/fileParser';
 import { matchHeaders } from '@/lib/fuzzyMatcher';
@@ -14,11 +14,17 @@ export function FileUpload() {
   const {
     sessionId,
     fieldMappings,
+    loadFieldMappingsFromHubSpot,
     setParsedFile,
     setProcessedData,
     setHeaderMatches,
     nextStep,
   } = useAppStore();
+
+  // Load HubSpot properties on mount so the dropdown has all available fields
+  useEffect(() => {
+    loadFieldMappingsFromHubSpot();
+  }, [loadFieldMappingsFromHubSpot]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
