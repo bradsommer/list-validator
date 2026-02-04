@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getValidAccessToken } from '@/lib/hubspot';
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get HubSpot API key from environment or database
-    const apiKey = process.env.HUBSPOT_ACCESS_TOKEN;
+    const accessToken = await getValidAccessToken();
 
-    if (!apiKey) {
+    if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: 'HubSpot API key not configured. Set HUBSPOT_ACCESS_TOKEN in environment variables.' },
+        { success: false, error: 'HubSpot not connected. Go to Admin > Field Mappings and click "Connect to HubSpot".' },
         { status: 400 }
       );
     }
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Fetch contact properties from HubSpot
     const response = await fetch(`${HUBSPOT_API_BASE}/crm/v3/properties/contacts`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
@@ -71,11 +71,11 @@ export async function GET(request: NextRequest) {
 // POST endpoint to sync HubSpot properties to our database
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.HUBSPOT_ACCESS_TOKEN;
+    const accessToken = await getValidAccessToken();
 
-    if (!apiKey) {
+    if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: 'HubSpot API key not configured. Set HUBSPOT_ACCESS_TOKEN in environment variables.' },
+        { success: false, error: 'HubSpot not connected. Go to Admin > Field Mappings and click "Connect to HubSpot".' },
         { status: 400 }
       );
     }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     // Fetch contact properties from HubSpot
     const response = await fetch(`${HUBSPOT_API_BASE}/crm/v3/properties/contacts`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
