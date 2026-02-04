@@ -96,7 +96,15 @@ export default function EnrichmentPage() {
       setAiModels(modelsRes.data || []);
 
       if (propertiesRes.success && propertiesRes.properties) {
-        setHubspotProperties(propertiesRes.properties);
+        // Map API response shape (field_name, field_label, object_type) to component shape
+        const mapped: HubSpotProperty[] = propertiesRes.properties.map(
+          (p: { field_name: string; field_label: string; object_type: string }) => ({
+            name: p.field_name,
+            label: p.field_label,
+            objectType: p.object_type as HubSpotObjectType,
+          })
+        );
+        setHubspotProperties(mapped);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
