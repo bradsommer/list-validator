@@ -7,17 +7,20 @@ import { exportToCSV, exportToExcel } from '@/lib/fileParser';
 import { logInfo, logSuccess } from '@/lib/logger';
 import type { ParsedRow } from '@/types';
 
-/** Remap row keys using the column mapping (original header → HubSpot heading) */
+const DO_NOT_USE = '__do_not_use__';
+
+/** Remap row keys using the column mapping. Excludes "Do not use" columns. */
 function remapRows(rows: ParsedRow[], mapping: Record<string, string>): ParsedRow[] {
-  // Build key rename map — only for columns that have a mapping set
-  const hasRenames = Object.values(mapping).some((v) => v);
-  if (!hasRenames) return rows;
+  const hasMapping = Object.values(mapping).some((v) => v);
+  if (!hasMapping) return rows;
 
   return rows.map((row) => {
     const newRow: ParsedRow = {};
     for (const [key, value] of Object.entries(row)) {
-      const renamed = mapping[key];
-      newRow[renamed || key] = value;
+      const mapped = mapping[key];
+      // Skip columns marked as "Do not use"
+      if (mapped === DO_NOT_USE) continue;
+      newRow[mapped || key] = value;
     }
     return newRow;
   });
