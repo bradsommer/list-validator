@@ -202,6 +202,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       if (propertiesData.success && propertiesData.properties?.length > 0) {
+        // Build mappings from HubSpot properties, enriched with all variant sources
         const mappings: FieldMapping[] = propertiesData.properties.map(
           (prop: { field_name: string; field_label: string; field_type: string; object_type: string }, i: number) => {
             const baseVariants = [
@@ -228,6 +229,25 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         );
         set({ fieldMappings: mappings });
+      } else {
+        // Fallback: use default field mappings when HubSpot properties aren't available
+        const fallbackMappings: FieldMapping[] = defaultFieldMappings.map((dm, i) => {
+          const learned = extraVariants[dm.hubspotField] || [];
+          const allVariants = [...dm.variants, ...learned]
+            .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+          return {
+            id: `default_${i}`,
+            hubspotField: dm.hubspotField,
+            hubspotLabel: dm.hubspotLabel,
+            objectType: dm.objectType,
+            variants: allVariants,
+            isRequired: dm.isRequired,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        set({ fieldMappings: fallbackMappings });
       }
     } catch {
       console.error('Failed to load HubSpot properties');
