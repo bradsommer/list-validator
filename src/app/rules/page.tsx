@@ -193,22 +193,42 @@ export default function RulesPage() {
 
     // Load enabled state from localStorage
     const saved = localStorage.getItem('enabled_validation_rules');
+    const knownRaw = localStorage.getItem('known_validation_rules');
     const allIds = new Set(available.map((s) => s.id));
+
     if (saved) {
       const savedIds = JSON.parse(saved) as string[];
-      // Filter to only include IDs that still exist
-      const validIds = savedIds.filter((id) => allIds.has(id));
-      if (validIds.length > 0) {
-        setEnabledScripts(new Set(validIds));
+      const knownIds = knownRaw ? new Set(JSON.parse(knownRaw) as string[]) : new Set<string>();
+
+      // Start with the saved enabled scripts (filter out stale ones)
+      const enabledSet = new Set(savedIds.filter((id) => allIds.has(id)));
+
+      // Auto-enable any NEW scripts that weren't known at save time
+      for (const id of allIds) {
+        if (!knownIds.has(id)) {
+          enabledSet.add(id);
+        }
+      }
+
+      if (enabledSet.size > 0) {
+        setEnabledScripts(enabledSet);
       } else {
-        // All saved IDs were stale — enable all
         setEnabledScripts(allIds);
       }
     } else {
       // Enable all by default
       setEnabledScripts(allIds);
     }
+
+    // Always save the current known script IDs
+    localStorage.setItem('known_validation_rules', JSON.stringify(Array.from(allIds)));
   }, []);
+
+  const saveEnabledToStorage = (ids: Set<string>) => {
+    localStorage.setItem('enabled_validation_rules', JSON.stringify(Array.from(ids)));
+    // Also persist the full list of known scripts so we can detect new ones later
+    localStorage.setItem('known_validation_rules', JSON.stringify(scripts.map((s) => s.id)));
+  };
 
   const toggleRule = (scriptId: string) => {
     setEnabledScripts((prev) => {
@@ -218,7 +238,7 @@ export default function RulesPage() {
       } else {
         next.add(scriptId);
       }
-      localStorage.setItem('enabled_validation_rules', JSON.stringify(Array.from(next)));
+      saveEnabledToStorage(next);
       return next;
     });
   };
@@ -226,12 +246,12 @@ export default function RulesPage() {
   const enableAll = () => {
     const all = new Set(scripts.map((s) => s.id));
     setEnabledScripts(all);
-    localStorage.setItem('enabled_validation_rules', JSON.stringify(Array.from(all)));
+    saveEnabledToStorage(all);
   };
 
   const disableAll = () => {
     setEnabledScripts(new Set());
-    localStorage.setItem('enabled_validation_rules', JSON.stringify([]));
+    saveEnabledToStorage(new Set());
   };
 
   return (
