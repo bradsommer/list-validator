@@ -65,9 +65,11 @@ export default function ImportHistoryPage() {
     const fetchHistory = async () => {
       setIsLoading(true);
       try {
+        // Only show fully completed imports (synced to HubSpot)
         let query = supabase
           .from('upload_sessions')
           .select('id, file_name, status, total_rows, enriched_rows, synced_rows, failed_rows, file_size, expires_at, created_at, error_message')
+          .in('status', ['completed', 'failed', 'expired'])
           .order('created_at', { ascending: false })
           .limit(50);
 
@@ -161,10 +163,22 @@ export default function ImportHistoryPage() {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!confirm('Are you sure you want to clear all import history? This cannot be undone.')) return;
+    try {
+      const response = await fetch('/api/pipeline/sessions', { method: 'DELETE' });
+      if (response.ok) {
+        setSessions([]);
+      } else {
+        alert('Failed to clear history');
+      }
+    } catch {
+      alert('Failed to clear history');
+    }
+  };
+
   const filterOptions = [
     { value: 'all', label: 'All' },
-    { value: 'uploaded', label: 'Uploaded' },
-    { value: 'enriched', label: 'Enriched' },
     { value: 'completed', label: 'Completed' },
     { value: 'failed', label: 'Failed' },
     { value: 'expired', label: 'Expired' },
@@ -175,19 +189,29 @@ export default function ImportHistoryPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-gray-600">
-            View past imports and download original files within the 15-day retention window.
+            View completed imports and download original files within the 15-day retention window.
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Filter:</span>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-            >
-              {filterOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3">
+            {sessions.length > 0 && (
+              <button
+                onClick={handleClearHistory}
+                className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                Clear History
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Filter:</span>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              >
+                {filterOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

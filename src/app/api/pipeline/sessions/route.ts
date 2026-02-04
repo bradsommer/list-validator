@@ -3,6 +3,51 @@ import { supabase } from '@/lib/supabase';
 
 const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
+// DELETE - Clear all import history (upload_sessions and their rows)
+export async function DELETE(request: NextRequest) {
+  try {
+    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+
+    // Delete all rows first (cascade should handle this but be explicit)
+    const { data: sessions } = await supabase
+      .from('upload_sessions')
+      .select('id')
+      .eq('account_id', accountId);
+
+    if (sessions && sessions.length > 0) {
+      const sessionIds = sessions.map((s: { id: string }) => s.id);
+      await supabase
+        .from('upload_rows')
+        .delete()
+        .in('session_id', sessionIds);
+    }
+
+    // Delete all sessions
+    const { error } = await supabase
+      .from('upload_sessions')
+      .delete()
+      .eq('account_id', accountId);
+
+    if (error) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to clear history' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deleted: sessions?.length || 0,
+    });
+  } catch (error) {
+    console.error('Clear history error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to clear history' },
+      { status: 500 }
+    );
+  }
+}
+
 // GET - List upload sessions for the account
 export async function GET(request: NextRequest) {
   try {
