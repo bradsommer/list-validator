@@ -123,7 +123,13 @@ function buildPromptFromTemplate(template: string, rowData: ParsedRow, inputFiel
 function resolveApiKey(aiModel: NonNullable<EnrichmentConfig['aiModel']>): string {
   if (aiModel.apiKey) return aiModel.apiKey;
 
-  // Check common env var patterns
+  // Check the admin-configured env var name first (from ai_models.env_key_name)
+  if (aiModel.envKeyName) {
+    const key = process.env[aiModel.envKeyName];
+    if (key) return key;
+  }
+
+  // Fall back to common env var patterns
   const provider = aiModel.provider.toLowerCase();
   const envVarNames = [
     `${provider.toUpperCase()}_API_KEY`,
@@ -135,7 +141,10 @@ function resolveApiKey(aiModel: NonNullable<EnrichmentConfig['aiModel']>): strin
     if (key) return key;
   }
 
-  throw new Error(`No API key found for ${aiModel.provider}. Set ${provider.toUpperCase()}_API_KEY in .env.local`);
+  const hint = aiModel.envKeyName
+    ? `Set ${aiModel.envKeyName} in .env.local`
+    : `Set ${provider.toUpperCase()}_API_KEY in .env.local`;
+  throw new Error(`No API key found for ${aiModel.provider}. ${hint}`);
 }
 
 // ============================================================================

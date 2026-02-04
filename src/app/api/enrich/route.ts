@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         } else {
           allSuccess = false;
           error = result.error;
+          console.error(`Enrichment failed for row ${i}, config "${config.name}": ${result.error}`);
         }
 
         // Rate limiting between API calls

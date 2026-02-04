@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
                 ? undefined
                 : (aiModel.api_key_encrypted || undefined),
               baseUrl: aiModel.base_url || undefined,
+              envKeyName: aiModel.env_key_name || undefined,
             } : undefined,
           };
         });
