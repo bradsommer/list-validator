@@ -8,6 +8,8 @@ const DEV_USER = {
   username: 'admin@example.com',
   displayName: 'Administrator',
   role: 'admin' as const,
+  accountId: 'dev-account-id',
+  accountName: 'Default Account',
   isActive: true,
   lastLogin: null,
   createdAt: new Date().toISOString(),
