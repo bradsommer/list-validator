@@ -66,6 +66,7 @@ export interface EnrichmentConfig {
     modelId: string;
     apiKey?: string;
     baseUrl?: string;
+    envKeyName?: string;
   };
 }
 

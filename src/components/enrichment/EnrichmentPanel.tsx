@@ -97,6 +97,7 @@ export function EnrichmentPanel() {
               ? undefined
               : (c.ai_model.api_key_encrypted || undefined),
             baseUrl: c.ai_model.base_url || undefined,
+            envKeyName: c.ai_model.env_key_name || undefined,
           } : undefined,
         };
       });
@@ -326,15 +327,34 @@ export function EnrichmentPanel() {
       )}
 
       {/* Results summary */}
-      {enrichmentResults.length > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h3 className="font-medium text-green-700 mb-2">Enrichment Complete</h3>
-          <div className="text-sm text-green-600">
-            {enrichmentResults.filter((r) => r.success).length} of {enrichmentResults.length} rows
-            successfully enriched
+      {enrichmentResults.length > 0 && (() => {
+        const successCount = enrichmentResults.filter((r) => r.success).length;
+        const failedResults = enrichmentResults.filter((r) => !r.success && r.error);
+        const allFailed = successCount === 0;
+        // Get unique error messages
+        const uniqueErrors = [...new Set(failedResults.map((r) => r.error))];
+
+        return (
+          <div className={`${allFailed ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4`}>
+            <h3 className={`font-medium ${allFailed ? 'text-red-700' : 'text-green-700'} mb-2`}>
+              Enrichment Complete
+            </h3>
+            <div className={`text-sm ${allFailed ? 'text-red-600' : 'text-green-600'}`}>
+              {successCount} of {enrichmentResults.length} rows successfully enriched
+            </div>
+            {uniqueErrors.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <p className="text-sm font-medium text-red-700">Errors:</p>
+                {uniqueErrors.map((err, i) => (
+                  <p key={i} className="text-sm text-red-600 bg-red-100 rounded px-2 py-1">
+                    {err}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">

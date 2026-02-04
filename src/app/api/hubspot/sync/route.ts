@@ -35,11 +35,14 @@ export async function POST(request: NextRequest) {
               )
             );
 
+            // Log row data for debugging
+            console.log(`Sync row ${i}: contactProps=${JSON.stringify(Object.keys(rows[i].contactProperties || {}))}, companyProps=${JSON.stringify(Object.keys(rows[i].companyProperties || {}))}`);
+
             // Process the row with separated contact/company properties
             const result = await processRowForHubSpot(
               i,
-              rows[i].contactProperties,
-              rows[i].companyProperties,
+              rows[i].contactProperties || {},
+              rows[i].companyProperties || {},
               taskAssigneeId
             );
 

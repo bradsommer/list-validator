@@ -247,7 +247,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           updatedAt: new Date().toISOString(),
         };
       });
-      set({ fieldMappings: mappings });
+      // Deduplicate: keep only the first entry per objectType + hubspotField
+      const seen = new Set<string>();
+      const dedupedMappings = mappings.filter((m) => {
+        const key = `${m.objectType}_${m.hubspotField}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      set({ fieldMappings: dedupedMappings });
     } else {
       // Fallback: use default field mappings when HubSpot properties aren't available
       const fallbackMappings: FieldMapping[] = defaultFieldMappings.map((dm, i) => {
@@ -266,7 +274,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           updatedAt: new Date().toISOString(),
         };
       });
-      set({ fieldMappings: fallbackMappings });
+      // Deduplicate: keep only the first entry per objectType + hubspotField
+      const seenFallback = new Set<string>();
+      const dedupedFallback = fallbackMappings.filter((m) => {
+        const key = `${m.objectType}_${m.hubspotField}`;
+        if (seenFallback.has(key)) return false;
+        seenFallback.add(key);
+        return true;
+      });
+      set({ fieldMappings: dedupedFallback });
     }
   },
 

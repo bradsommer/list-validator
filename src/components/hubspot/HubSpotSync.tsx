@@ -273,6 +273,25 @@ export function HubSpotSync() {
             </div>
           </div>
 
+          {/* Error summary */}
+          {(() => {
+            const errorResults = hubspotResults.filter((r) => r.error);
+            if (errorResults.length === 0) return null;
+            const uniqueErrors = [...new Set(errorResults.map((r) => r.error))];
+            return (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-red-700 mb-2">
+                  {errorResults.length} of {hubspotResults.length} rows had errors:
+                </p>
+                {uniqueErrors.map((err, i) => (
+                  <p key={i} className="text-sm text-red-600 bg-red-100 rounded px-2 py-1 mb-1">
+                    {err}
+                  </p>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Results table */}
           <div className="border rounded-lg overflow-hidden">
             <div className="max-h-64 overflow-auto">
@@ -284,17 +303,21 @@ export function HubSpotSync() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Company</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Match Type</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Confidence</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Error</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {hubspotResults.slice(0, 50).map((result, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                    <tr key={index} className={`hover:bg-gray-50 ${result.error ? 'bg-red-50' : ''}`}>
                       <td className="px-4 py-2 text-sm">{result.rowIndex + 1}</td>
                       <td className="px-4 py-2 text-sm">{result.contact.email}</td>
                       <td className="px-4 py-2 text-sm">{result.matchedCompany?.name || '-'}</td>
                       <td className="px-4 py-2 text-sm">{getMatchTypeBadge(result.matchType)}</td>
                       <td className="px-4 py-2 text-sm">
                         {Math.round(result.matchConfidence * 100)}%
+                      </td>
+                      <td className="px-4 py-2 text-sm text-red-600">
+                        {result.error || ''}
                       </td>
                     </tr>
                   ))}

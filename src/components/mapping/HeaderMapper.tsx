@@ -147,11 +147,14 @@ export function HeaderMapper() {
   }
 
   // Track which HubSpot fields are already mapped (excluding current row)
-  const getUsedFieldIds = (excludeIndex: number): Set<string> => {
+  // Uses composite key (objectType + hubspotField) to prevent the same property
+  // from being mapped to multiple spreadsheet headers, even if fieldMappings
+  // contains multiple entries with different IDs for the same property.
+  const getUsedFieldKeys = (excludeIndex: number): Set<string> => {
     const used = new Set<string>();
     headerMatches.forEach((match, i) => {
       if (i !== excludeIndex && match.isMatched && match.matchedField) {
-        used.add(match.matchedField.id);
+        used.add(`${match.matchedField.objectType}_${match.matchedField.hubspotField}`);
       }
     });
     return used;
@@ -275,7 +278,7 @@ export function HeaderMapper() {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {headerMatches.map((match, index) => {
-              const usedFieldIds = getUsedFieldIds(index);
+              const usedFieldKeys = getUsedFieldKeys(index);
               const objectType = getRowObjectType(index);
               const skipped = isRowSkipped(index);
               const filteredFields = skipped ? [] : fieldMappings.filter(f => f.objectType === objectType);
@@ -317,7 +320,8 @@ export function HeaderMapper() {
                           {filteredFields
                             .sort((a, b) => a.hubspotLabel.localeCompare(b.hubspotLabel))
                             .map((field) => {
-                              const isUsed = usedFieldIds.has(field.id);
+                              const fieldKey = `${field.objectType}_${field.hubspotField}`;
+                              const isUsed = usedFieldKeys.has(fieldKey);
                               // Always show the currently selected field in the list;
                               // hide other already-mapped properties to prevent duplicates
                               if (isUsed && field.id !== selectedFieldId) return null;
