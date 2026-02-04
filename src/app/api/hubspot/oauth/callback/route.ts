@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, setTokens, resetClient } from '@/lib/hubspot';
 import { cache, CACHE_KEYS } from '@/lib/cache';
+import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
@@ -44,8 +45,17 @@ export async function GET(request: NextRequest) {
     await setTokens(tokens, accountId, portalId);
     resetClient();
 
-    // Invalidate cached connection status so next check reflects new connection
+    // Invalidate cached connection status
     cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
+
+    // Auto-fetch HubSpot properties and store in DB
+    try {
+      const result = await fetchAndStoreProperties(accountId);
+      console.log(`Auto-fetched ${result.total} HubSpot properties on connect`);
+    } catch (err) {
+      console.error('Failed to auto-fetch properties on connect:', err);
+      // Non-blocking — user can still manually sync later
+    }
 
     return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_connected=true`);
   } catch (err) {

@@ -50,7 +50,6 @@ export const cache = new MemoryCache();
 // Common TTLs
 export const CACHE_TTL = {
   OWNERS: 10 * 60 * 1000,        // 10 minutes
-  PROPERTIES: 30 * 60 * 1000,    // 30 minutes
   CONNECTION: 5 * 60 * 1000,     // 5 minutes
   COMPANY_SEARCH: 60 * 1000,     // 1 minute (during sync batches)
 } as const;
@@ -58,7 +57,6 @@ export const CACHE_TTL = {
 // Cache keys
 export const CACHE_KEYS = {
   HUBSPOT_OWNERS: 'hubspot:owners',
-  HUBSPOT_PROPERTIES: 'hubspot:properties',
   HUBSPOT_CONNECTION: 'hubspot:connection',
   companyDomain: (domain: string) => `company:domain:${domain.toLowerCase()}`,
   companyName: (name: string) => `company:name:${name.toLowerCase()}`,
