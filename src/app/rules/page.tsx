@@ -7,6 +7,33 @@ import type { ValidationScript } from '@/types';
 
 // Script source code for display (descriptions of what each rule does)
 const SCRIPT_SOURCE: Record<string, string> = {
+  'role-normalization': `// Role Normalization Rule
+// - Checks role values against an allowed list
+// - Case-insensitive matching (e.g., "admin" → "Admin")
+// - Non-matching values are set to "Other"
+
+const VALID_ROLES = [
+  'Admin',
+  'Administrator',
+  'Ascend Employee',
+  'ATI Champion',
+  'ATI Employee',
+  'Champion Nominee',
+  'Coordinator',
+  'Dean',
+  'Director',
+  'Educator',
+  'Instructor',
+  'Other',
+  'Proctor',
+  'Student',
+  'TEAS Student',
+  'LMS Admin',
+];
+
+// If the value does not exactly match (case-insensitive),
+// the role is set to "Other".`,
+
   'email-validation': `// Email Validation Rule
 // - Trims whitespace and converts to lowercase
 // - Validates email format (RFC-compliant regex)

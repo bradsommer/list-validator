@@ -9,10 +9,12 @@ import { dateNormalizationScript } from './date-normalization';
 import { duplicateDetectionScript } from './duplicate-detection';
 import { nameCapitalizationScript } from './name-capitalization';
 import { companyNormalizationScript } from './company-normalization';
+import { roleNormalizationScript } from './role-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
   stateNormalizationScript,      // order: 10
+  roleNormalizationScript,       // order: 15
   emailValidationScript,         // order: 20
   phoneNormalizationScript,      // order: 30
   dateNormalizationScript,       // order: 35
@@ -157,6 +159,7 @@ export function runAllScripts(
 // Export individual scripts for direct access if needed
 export {
   stateNormalizationScript,
+  roleNormalizationScript,
   emailValidationScript,
   phoneNormalizationScript,
   dateNormalizationScript,
