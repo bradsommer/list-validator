@@ -211,3 +211,70 @@ export interface ScriptRunnerResult {
   totalWarnings: number;
   processedData: ParsedRow[];
 }
+
+// Pipeline types - temporary DB storage for upload processing
+export type PipelineSessionStatus =
+  | 'uploaded'    // Rows stored, awaiting processing
+  | 'enriching'   // Enrichment in progress
+  | 'enriched'    // Enrichment complete, awaiting sync
+  | 'syncing'     // Pushing to HubSpot
+  | 'completed'   // Successfully synced, rows deleted
+  | 'failed'      // Sync failed, rows retained for retry
+  | 'expired';    // Past retention, rows purged
+
+export type PipelineRowStatus =
+  | 'pending'     // Awaiting enrichment
+  | 'enriching'   // Enrichment in progress
+  | 'enriched'    // Enrichment complete
+  | 'syncing'     // Being pushed to HubSpot
+  | 'synced'      // Successfully sent (will be deleted)
+  | 'failed';     // Sync failed
+
+export interface PipelineSession {
+  id: string;
+  accountId: string;
+  userId?: string;
+  fileName: string;
+  status: PipelineSessionStatus;
+  totalRows: number;
+  processedRows: number;
+  enrichedRows: number;
+  syncedRows: number;
+  failedRows: number;
+  errorMessage?: string;
+  fieldMappings: Record<string, string>; // csvHeader -> hubspotField
+  enrichmentConfigIds: string[];
+  retryCount: number;
+  maxRetries: number;
+  expiresAt: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineRow {
+  id: string;
+  sessionId: string;
+  rowIndex: number;
+  rawData: Record<string, unknown>;
+  enrichedData: Record<string, unknown>;
+  status: PipelineRowStatus;
+  hubspotContactId?: string;
+  hubspotCompanyId?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineProgress {
+  sessionId: string;
+  status: PipelineSessionStatus;
+  totalRows: number;
+  processedRows: number;
+  enrichedRows: number;
+  syncedRows: number;
+  failedRows: number;
+  errorMessage?: string;
+  retryCount: number;
+  expiresAt: string;
+}

@@ -217,6 +217,70 @@ CREATE INDEX IF NOT EXISTS idx_import_audit_log_timestamp ON import_audit_log(ti
 CREATE INDEX IF NOT EXISTS idx_import_audit_log_user_id ON import_audit_log(user_id);
 
 -- ============================================================================
+-- UPLOAD SESSIONS & TEMPORARY ROW STORAGE (PII - auto-purged)
+-- ============================================================================
+
+-- Upload sessions track each file upload through the pipeline
+CREATE TABLE IF NOT EXISTS upload_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id),
+  file_name VARCHAR(500) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'uploaded',
+    -- uploaded: rows stored, awaiting processing
+    -- enriching: enrichment in progress
+    -- enriched: enrichment complete, awaiting sync
+    -- syncing: pushing to HubSpot
+    -- completed: successfully synced, rows deleted
+    -- failed: sync failed, rows retained for retry
+    -- expired: past retention, rows purged
+  total_rows INTEGER NOT NULL DEFAULT 0,
+  processed_rows INTEGER NOT NULL DEFAULT 0,
+  enriched_rows INTEGER NOT NULL DEFAULT 0,
+  synced_rows INTEGER NOT NULL DEFAULT 0,
+  failed_rows INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  field_mappings JSONB NOT NULL DEFAULT '{}', -- {csvHeader -> hubspotField} mapping
+  enrichment_config_ids UUID[] DEFAULT '{}', -- Which enrichment configs to run
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  max_retries INTEGER NOT NULL DEFAULT 3,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() + INTERVAL '15 days'),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_account ON upload_sessions(account_id);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_status ON upload_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_expires ON upload_sessions(expires_at);
+
+-- Temporary row storage - holds actual PII data during processing
+-- Rows are deleted after successful HubSpot sync or after expiry
+CREATE TABLE IF NOT EXISTS upload_rows (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id UUID NOT NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
+  row_index INTEGER NOT NULL, -- Original row position in the file
+  raw_data JSONB NOT NULL, -- Original mapped row data {hubspotField: value}
+  enriched_data JSONB DEFAULT '{}', -- Data added by enrichment {field: value}
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    -- pending: awaiting enrichment
+    -- enriching: enrichment in progress
+    -- enriched: enrichment complete
+    -- syncing: being pushed to HubSpot
+    -- synced: successfully sent to HubSpot (will be deleted)
+    -- failed: sync failed
+  hubspot_contact_id VARCHAR(255), -- HubSpot contact ID after sync
+  hubspot_company_id VARCHAR(255), -- HubSpot company ID after sync
+  error_message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_upload_rows_session ON upload_rows(session_id);
+CREATE INDEX IF NOT EXISTS idx_upload_rows_status ON upload_rows(status);
+CREATE INDEX IF NOT EXISTS idx_upload_rows_session_status ON upload_rows(session_id, status);
+
+-- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
@@ -292,6 +356,16 @@ CREATE TRIGGER update_app_settings_updated_at
 DROP TRIGGER IF EXISTS update_account_integrations_updated_at ON account_integrations;
 CREATE TRIGGER update_account_integrations_updated_at
   BEFORE UPDATE ON account_integrations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_upload_sessions_updated_at ON upload_sessions;
+CREATE TRIGGER update_upload_sessions_updated_at
+  BEFORE UPDATE ON upload_sessions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_upload_rows_updated_at ON upload_rows;
+CREATE TRIGGER update_upload_rows_updated_at
+  BEFORE UPDATE ON upload_rows
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
@@ -460,6 +534,8 @@ ALTER TABLE validation_scripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE account_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE import_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upload_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upload_rows ENABLE ROW LEVEL SECURITY;
 
 -- Policies for authenticated users
 CREATE POLICY "Allow all for authenticated" ON accounts FOR ALL TO authenticated USING (true);
@@ -473,6 +549,8 @@ CREATE POLICY "Allow all for authenticated" ON validation_scripts FOR ALL TO aut
 CREATE POLICY "Allow all for authenticated" ON app_settings FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON account_integrations FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON import_audit_log FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated" ON upload_sessions FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated" ON upload_rows FOR ALL TO authenticated USING (true);
 
 -- Development policies (remove in production)
 CREATE POLICY "Allow all for anon" ON accounts FOR ALL TO anon USING (true);
@@ -486,3 +564,5 @@ CREATE POLICY "Allow all for anon" ON validation_scripts FOR ALL TO anon USING (
 CREATE POLICY "Allow all for anon" ON app_settings FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON account_integrations FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON import_audit_log FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON upload_sessions FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON upload_rows FOR ALL TO anon USING (true);
