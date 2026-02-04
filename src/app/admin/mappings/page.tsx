@@ -3,142 +3,92 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 
-interface HubSpotField {
-  id: string;
+type ObjectType = 'contacts' | 'companies' | 'deals';
+
+interface HubSpotProperty {
   field_name: string;
   field_label: string;
   field_type: string;
-  is_required: boolean;
-  is_custom: boolean;
+  group_name: string;
+  object_type: ObjectType;
 }
 
 interface HeaderMapping {
   id: string;
   original_header: string;
-  normalized_header: string;
-  hubspot_field_id: string;
-  hubspot_field?: HubSpotField;
-  confidence: number;
-  usage_count: number;
-  last_used_at: string;
+  object_type: ObjectType;
+  hubspot_field_name: string;
+  hubspot_field_label: string;
   created_at: string;
 }
 
+const OBJECT_TYPE_LABELS: Record<ObjectType, string> = {
+  contacts: 'Contacts',
+  companies: 'Companies',
+  deals: 'Deals',
+};
+
+const OBJECT_TYPE_COLORS: Record<ObjectType, string> = {
+  contacts: 'bg-blue-100 text-blue-700',
+  companies: 'bg-purple-100 text-purple-700',
+  deals: 'bg-green-100 text-green-700',
+};
+
 export default function MappingsPage() {
-  const [hubspotFields, setHubspotFields] = useState<HubSpotField[]>([]);
+  const [allProperties, setAllProperties] = useState<HubSpotProperty[]>([]);
   const [mappings, setMappings] = useState<HeaderMapping[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedField, setSelectedField] = useState<string>('all');
+  const [filterObjectType, setFilterObjectType] = useState<ObjectType | 'all'>('all');
+
+  // New mapping form state
   const [newHeader, setNewHeader] = useState('');
-  const [newFieldId, setNewFieldId] = useState('');
+  const [newObjectType, setNewObjectType] = useState<ObjectType>('contacts');
+  const [newFieldName, setNewFieldName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState('');
+
+  // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hubspotConnected, setHubspotConnected] = useState<boolean | null>(null);
 
-  // Fetch data
   useEffect(() => {
-    fetchData();
+    fetchProperties();
+    loadMappings();
     checkHubSpotConnection();
   }, []);
 
-  const fetchData = async () => {
+  const fetchProperties = async () => {
     setIsLoading(true);
     try {
-      // Fetch HubSpot fields
-      const { data: fields } = await supabase
-        .from('hubspot_fields')
-        .select('*')
-        .order('field_label');
-
-      // Fetch mappings with field info
-      const { data: mappingsData } = await supabase
-        .from('header_mappings')
-        .select('*, hubspot_field:hubspot_fields(*)')
-        .order('hubspot_field_id');
-
-      setHubspotFields(fields || []);
-      setMappings(mappingsData || []);
-    } catch (err) {
-      console.error('Error fetching data:', err);
+      const response = await fetch('/api/hubspot/properties');
+      const data = await response.json();
+      if (data.success && data.properties) {
+        setAllProperties(data.properties);
+      }
+    } catch {
+      console.error('Failed to fetch properties');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Group mappings by HubSpot field
-  const groupedMappings = mappings.reduce(
-    (acc, mapping) => {
-      const fieldId = mapping.hubspot_field_id;
-      if (!acc[fieldId]) {
-        acc[fieldId] = {
-          field: mapping.hubspot_field,
-          mappings: [],
-        };
-      }
-      acc[fieldId].mappings.push(mapping);
-      return acc;
-    },
-    {} as Record<string, { field?: HubSpotField; mappings: HeaderMapping[] }>
-  );
-
-  // Filter by selected field
-  const filteredGroups =
-    selectedField === 'all'
-      ? Object.entries(groupedMappings)
-      : Object.entries(groupedMappings).filter(([id]) => id === selectedField);
-
-  // Add new mapping
-  const handleAddMapping = async () => {
-    if (!newHeader.trim() || !newFieldId) {
-      setError('Please enter a header and select a field');
-      return;
-    }
-
-    setIsAdding(true);
-    setError('');
-
+  const loadMappings = () => {
+    // Load saved mappings from localStorage
     try {
-      const { error: insertError } = await supabase.from('header_mappings').insert({
-        original_header: newHeader.trim(),
-        normalized_header: newHeader.trim().toLowerCase(),
-        hubspot_field_id: newFieldId,
-        confidence: 1.0,
-        usage_count: 0,
-      });
-
-      if (insertError) {
-        if (insertError.code === '23505') {
-          setError('This mapping already exists');
-        } else {
-          setError('Failed to add mapping');
-        }
-        return;
+      const saved = localStorage.getItem('admin_header_mappings');
+      if (saved) {
+        setMappings(JSON.parse(saved));
       }
-
-      setNewHeader('');
-      setNewFieldId('');
-      fetchData();
     } catch {
-      setError('Failed to add mapping');
-    } finally {
-      setIsAdding(false);
+      // ignore
     }
   };
 
-  // Delete mapping
-  const handleDeleteMapping = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this mapping?')) return;
-
-    try {
-      await supabase.from('header_mappings').delete().eq('id', id);
-      fetchData();
-    } catch (err) {
-      console.error('Error deleting mapping:', err);
-    }
+  const saveMappings = (updated: HeaderMapping[]) => {
+    setMappings(updated);
+    localStorage.setItem('admin_header_mappings', JSON.stringify(updated));
   };
 
   const checkHubSpotConnection = async () => {
@@ -151,39 +101,73 @@ export default function MappingsPage() {
     }
   };
 
-  // Sync HubSpot properties
   const handleSyncHubSpotProperties = async () => {
     setIsSyncing(true);
     setSyncMessage(null);
-
     try {
-      const response = await fetch('/api/hubspot/properties', {
-        method: 'POST',
-      });
-
+      const response = await fetch('/api/hubspot/properties', { method: 'POST' });
       const data = await response.json();
-
       if (data.success) {
-        setSyncMessage({
-          type: 'success',
-          text: data.message,
-        });
-        fetchData(); // Refresh the fields list
+        setSyncMessage({ type: 'success', text: data.message });
+        fetchProperties();
       } else {
-        setSyncMessage({
-          type: 'error',
-          text: data.error || 'Failed to sync properties',
-        });
+        setSyncMessage({ type: 'error', text: data.error || 'Failed to sync properties' });
       }
-    } catch (err) {
-      console.error('Error syncing HubSpot properties:', err);
-      setSyncMessage({
-        type: 'error',
-        text: 'Failed to sync HubSpot properties',
-      });
+    } catch {
+      setSyncMessage({ type: 'error', text: 'Failed to sync HubSpot properties' });
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleAddMapping = () => {
+    if (!newHeader.trim() || !newFieldName) {
+      setError('Please enter a header and select a field');
+      return;
+    }
+
+    const field = filteredProperties.find(p => p.field_name === newFieldName);
+    if (!field) {
+      setError('Selected field not found');
+      return;
+    }
+
+    setIsAdding(true);
+    setError('');
+
+    const newMapping: HeaderMapping = {
+      id: `mapping_${Date.now()}`,
+      original_header: newHeader.trim(),
+      object_type: newObjectType,
+      hubspot_field_name: field.field_name,
+      hubspot_field_label: field.field_label,
+      created_at: new Date().toISOString(),
+    };
+
+    saveMappings([...mappings, newMapping]);
+    setNewHeader('');
+    setNewFieldName('');
+    setIsAdding(false);
+  };
+
+  const handleDeleteMapping = (id: string) => {
+    if (!confirm('Delete this mapping?')) return;
+    saveMappings(mappings.filter(m => m.id !== id));
+  };
+
+  // Properties filtered by the selected object type in the "Add" form
+  const filteredProperties = allProperties.filter(p => p.object_type === newObjectType);
+
+  // Mappings filtered by the view filter
+  const filteredMappings = filterObjectType === 'all'
+    ? mappings
+    : mappings.filter(m => m.object_type === filterObjectType);
+
+  // Counts per object type
+  const propertyCounts = {
+    contacts: allProperties.filter(p => p.object_type === 'contacts').length,
+    companies: allProperties.filter(p => p.object_type === 'companies').length,
+    deals: allProperties.filter(p => p.object_type === 'deals').length,
   };
 
   if (isLoading) {
@@ -204,11 +188,12 @@ export default function MappingsPage() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Field Mappings</h2>
             <p className="text-gray-500 text-sm mt-1">
-              View and manage header-to-HubSpot field mappings. These are automatically learned when
-              you map headers during import.
+              Map spreadsheet headers to HubSpot properties. These mappings are used during import to auto-match columns.
             </p>
           </div>
-          <div className="text-sm text-gray-500">{mappings.length} mappings / {hubspotFields.length} fields</div>
+          <div className="text-sm text-gray-500">
+            {mappings.length} mappings / {allProperties.length} properties
+          </div>
         </div>
 
         {/* HubSpot Connection Status */}
@@ -223,6 +208,11 @@ export default function MappingsPage() {
                 <Link href="/admin/integrations" className="text-sm text-primary-600 hover:text-primary-700 underline">
                   Set up in Integrations
                 </Link>
+              )}
+              {hubspotConnected && allProperties.length > 0 && (
+                <span className="text-sm text-gray-500">
+                  ({propertyCounts.contacts} contact, {propertyCounts.companies} company, {propertyCounts.deals} deal properties)
+                </span>
               )}
             </div>
             {hubspotConnected && (
@@ -274,27 +264,39 @@ export default function MappingsPage() {
             </div>
             <div className="flex items-center text-gray-400 px-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </div>
-            <div className="flex-1">
-              <label className="block text-sm text-gray-600 mb-1">Maps to HubSpot Field</label>
+            <div className="w-40">
+              <label className="block text-sm text-gray-600 mb-1">Object Type</label>
               <select
-                value={newFieldId}
-                onChange={(e) => setNewFieldId(e.target.value)}
+                value={newObjectType}
+                onChange={(e) => {
+                  setNewObjectType(e.target.value as ObjectType);
+                  setNewFieldName('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               >
-                <option value="">Select a field...</option>
-                {hubspotFields.map((field) => (
-                  <option key={field.id} value={field.id}>
-                    {field.field_label}
-                  </option>
-                ))}
+                <option value="contacts">Contacts</option>
+                <option value="companies">Companies</option>
+                <option value="deals">Deals</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm text-gray-600 mb-1">HubSpot Property</label>
+              <select
+                value={newFieldName}
+                onChange={(e) => setNewFieldName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              >
+                <option value="">Select a property...</option>
+                {filteredProperties
+                  .sort((a, b) => a.field_label.localeCompare(b.field_label))
+                  .map((prop) => (
+                    <option key={prop.field_name} value={prop.field_name}>
+                      {prop.field_label}
+                    </option>
+                  ))}
               </select>
             </div>
             <button
@@ -310,84 +312,65 @@ export default function MappingsPage() {
 
         {/* Filter */}
         <div className="flex items-center gap-4">
-          <label className="text-sm text-gray-600">Filter by field:</label>
+          <label className="text-sm text-gray-600">Filter by type:</label>
           <select
-            value={selectedField}
-            onChange={(e) => setSelectedField(e.target.value)}
+            value={filterObjectType}
+            onChange={(e) => setFilterObjectType(e.target.value as ObjectType | 'all')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
-            <option value="all">All Fields</option>
-            {hubspotFields.map((field) => (
-              <option key={field.id} value={field.id}>
-                {field.field_label}
-              </option>
-            ))}
+            <option value="all">All Types ({mappings.length})</option>
+            <option value="contacts">Contacts ({mappings.filter(m => m.object_type === 'contacts').length})</option>
+            <option value="companies">Companies ({mappings.filter(m => m.object_type === 'companies').length})</option>
+            <option value="deals">Deals ({mappings.filter(m => m.object_type === 'deals').length})</option>
           </select>
         </div>
 
-        {/* Mappings grouped by field */}
-        <div className="space-y-4">
-          {filteredGroups.map(([fieldId, group]) => (
-            <div key={fieldId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900">
-                    {group.field?.field_label || 'Unknown Field'}
-                    <span className="ml-2 text-sm font-normal text-gray-500">
-                      ({group.field?.field_name})
+        {/* Mappings table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Header Name</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Object Type</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">HubSpot Property</th>
+                <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredMappings.map((mapping) => (
+                <tr key={mapping.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                      {mapping.original_header}
+                    </code>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${OBJECT_TYPE_COLORS[mapping.object_type]}`}>
+                      {OBJECT_TYPE_LABELS[mapping.object_type]}
                     </span>
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    {group.mappings.length} mapping{group.mappings.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {group.mappings.map((mapping) => (
-                  <div
-                    key={mapping.id}
-                    className="px-4 py-3 flex items-center justify-between hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
-                        {mapping.original_header}
-                      </code>
-                      <svg
-                        className="w-4 h-4 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
-                        />
-                      </svg>
-                      <span className="text-gray-700">{group.field?.field_label}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-500">
-                        Used {mapping.usage_count} time{mapping.usage_count !== 1 ? 's' : ''}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteMapping(mapping.id)}
-                        className="text-red-600 hover:text-red-700 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {mapping.hubspot_field_label}
+                    <span className="ml-2 text-xs text-gray-400">({mapping.hubspot_field_name})</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDeleteMapping(mapping.id)}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-          {filteredGroups.length === 0 && (
+          {filteredMappings.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No mappings found. Mappings are created automatically when you import files and map
-              headers.
+              {allProperties.length === 0
+                ? 'No HubSpot properties loaded. Connect to HubSpot and click "Fetch HubSpot Properties" to get started.'
+                : 'No mappings found. Add mappings above to teach the system how to match spreadsheet headers to HubSpot properties.'}
             </div>
           )}
         </div>
