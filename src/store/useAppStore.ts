@@ -147,110 +147,111 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...initialState,
 
   loadFieldMappingsFromHubSpot: async () => {
+    // Collect extra variants from all optional sources (each wrapped to never throw)
+    const extraVariants: Record<string, string[]> = {};
+
+    // Source 1: Learned header mappings from DB (past imports)
     try {
-      // Fetch HubSpot properties and saved header mappings in parallel
-      const [propertiesRes, mappingsRes] = await Promise.all([
-        fetch('/api/hubspot/properties'),
-        fetch('/api/mappings'),
-      ]);
-
-      const propertiesData = await propertiesRes.json();
-      let savedMappings: Record<string, { field: string; label: string; confidence: number }> = {};
-      try {
-        const mappingsData = await mappingsRes.json();
-        if (mappingsData.success && mappingsData.mappings) {
-          savedMappings = mappingsData.mappings;
+      const res = await fetch('/api/mappings');
+      const data = await res.json();
+      if (data.success && data.mappings) {
+        for (const [normalizedHeader, mapping] of Object.entries(
+          data.mappings as Record<string, { field: string }>
+        )) {
+          if (!extraVariants[mapping.field]) extraVariants[mapping.field] = [];
+          extraVariants[mapping.field].push(normalizedHeader);
         }
-      } catch {
-        // Non-blocking — saved mappings are optional
-      }
-
-      // Build a lookup: hubspotFieldName -> list of extra variant strings
-      const extraVariants: Record<string, string[]> = {};
-
-      // Source 1: Learned header mappings from DB (past imports)
-      for (const [normalizedHeader, mapping] of Object.entries(savedMappings)) {
-        if (!extraVariants[mapping.field]) {
-          extraVariants[mapping.field] = [];
-        }
-        extraVariants[mapping.field].push(normalizedHeader);
-      }
-
-      // Source 2: Admin-configured mappings from localStorage (/admin/mappings page)
-      try {
-        const adminMappingsJson = localStorage.getItem('admin_header_mappings');
-        if (adminMappingsJson) {
-          const adminMappings = JSON.parse(adminMappingsJson) as Array<{
-            original_header: string;
-            hubspot_field_name: string;
-          }>;
-          for (const m of adminMappings) {
-            if (!extraVariants[m.hubspot_field_name]) {
-              extraVariants[m.hubspot_field_name] = [];
-            }
-            extraVariants[m.hubspot_field_name].push(m.original_header.toLowerCase().trim());
-          }
-        }
-      } catch {
-        // Non-blocking — admin mappings are optional
-      }
-
-      // Source 3: Default field mappings (common header variants like fname, email address, etc.)
-      const defaultVariantsLookup: Record<string, string[]> = {};
-      for (const dm of defaultFieldMappings) {
-        defaultVariantsLookup[dm.hubspotField] = dm.variants;
-      }
-
-      if (propertiesData.success && propertiesData.properties?.length > 0) {
-        // Build mappings from HubSpot properties, enriched with all variant sources
-        const mappings: FieldMapping[] = propertiesData.properties.map(
-          (prop: { field_name: string; field_label: string; field_type: string; object_type: string }, i: number) => {
-            const baseVariants = [
-              prop.field_name,
-              prop.field_label.toLowerCase(),
-              prop.field_name.replace(/_/g, ' '),
-              prop.field_name.replace(/_/g, ''),
-            ];
-            const learned = extraVariants[prop.field_name] || [];
-            const defaults = defaultVariantsLookup[prop.field_name] || [];
-            const allVariants = [...baseVariants, ...defaults, ...learned]
-              .filter((v, idx, arr) => arr.indexOf(v) === idx);
-
-            return {
-              id: `hs_${i}`,
-              hubspotField: prop.field_name,
-              hubspotLabel: prop.field_label,
-              objectType: prop.object_type || 'contacts',
-              variants: allVariants,
-              isRequired: prop.field_name === 'email',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-          }
-        );
-        set({ fieldMappings: mappings });
-      } else {
-        // Fallback: use default field mappings when HubSpot properties aren't available
-        const fallbackMappings: FieldMapping[] = defaultFieldMappings.map((dm, i) => {
-          const learned = extraVariants[dm.hubspotField] || [];
-          const allVariants = [...dm.variants, ...learned]
-            .filter((v, idx, arr) => arr.indexOf(v) === idx);
-
-          return {
-            id: `default_${i}`,
-            hubspotField: dm.hubspotField,
-            hubspotLabel: dm.hubspotLabel,
-            objectType: dm.objectType,
-            variants: allVariants,
-            isRequired: dm.isRequired,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        });
-        set({ fieldMappings: fallbackMappings });
       }
     } catch {
-      console.error('Failed to load HubSpot properties');
+      // DB learned mappings unavailable — non-blocking
+    }
+
+    // Source 2: Admin-configured mappings from localStorage (/admin/mappings page)
+    try {
+      const adminJson = localStorage.getItem('admin_header_mappings');
+      if (adminJson) {
+        const adminMappings = JSON.parse(adminJson) as Array<{
+          original_header: string;
+          hubspot_field_name: string;
+        }>;
+        for (const m of adminMappings) {
+          if (!extraVariants[m.hubspot_field_name]) extraVariants[m.hubspot_field_name] = [];
+          extraVariants[m.hubspot_field_name].push(m.original_header.toLowerCase().trim());
+        }
+      }
+    } catch {
+      // localStorage unavailable — non-blocking
+    }
+
+    // Source 3: Default field mappings (common header variants)
+    const defaultVariantsLookup: Record<string, string[]> = {};
+    for (const dm of defaultFieldMappings) {
+      defaultVariantsLookup[dm.hubspotField] = dm.variants;
+    }
+
+    // Try to load HubSpot properties from DB/API
+    let hubspotProperties: Array<{
+      field_name: string;
+      field_label: string;
+      field_type: string;
+      object_type: string;
+    }> = [];
+
+    try {
+      const res = await fetch('/api/hubspot/properties');
+      const data = await res.json();
+      if (data.success && data.properties?.length > 0) {
+        hubspotProperties = data.properties;
+      }
+    } catch {
+      // HubSpot properties unavailable — will use defaults
+    }
+
+    if (hubspotProperties.length > 0) {
+      // Build mappings from HubSpot properties, enriched with all variant sources
+      const mappings: FieldMapping[] = hubspotProperties.map((prop, i) => {
+        const baseVariants = [
+          prop.field_name,
+          prop.field_label.toLowerCase(),
+          prop.field_name.replace(/_/g, ' '),
+          prop.field_name.replace(/_/g, ''),
+        ];
+        const learned = extraVariants[prop.field_name] || [];
+        const defaults = defaultVariantsLookup[prop.field_name] || [];
+        const allVariants = [...baseVariants, ...defaults, ...learned]
+          .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+        return {
+          id: `hs_${i}`,
+          hubspotField: prop.field_name,
+          hubspotLabel: prop.field_label,
+          objectType: prop.object_type || 'contacts',
+          variants: allVariants,
+          isRequired: prop.field_name === 'email',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      set({ fieldMappings: mappings });
+    } else {
+      // Fallback: use default field mappings when HubSpot properties aren't available
+      const fallbackMappings: FieldMapping[] = defaultFieldMappings.map((dm, i) => {
+        const learned = extraVariants[dm.hubspotField] || [];
+        const allVariants = [...dm.variants, ...learned]
+          .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+        return {
+          id: `default_${i}`,
+          hubspotField: dm.hubspotField,
+          hubspotLabel: dm.hubspotLabel,
+          objectType: dm.objectType,
+          variants: allVariants,
+          isRequired: dm.isRequired,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      set({ fieldMappings: fallbackMappings });
     }
   },
 
