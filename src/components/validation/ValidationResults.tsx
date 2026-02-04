@@ -298,7 +298,7 @@ export function ValidationResults() {
           <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
             <h3 className="font-medium text-blue-700">Auto-Corrected Values</h3>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -343,7 +343,7 @@ export function ValidationResults() {
           <div className="bg-red-50 px-4 py-2 border-b border-red-200">
             <h3 className="font-medium text-red-700">Errors</h3>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -377,7 +377,7 @@ export function ValidationResults() {
           <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-200">
             <h3 className="font-medium text-yellow-700">Warnings</h3>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -663,7 +663,7 @@ function ScriptResultRow({
           {result.changes.length > 0 && (
             <div className="mt-3">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Changes</h4>
-              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded bg-white">
+              <div className="max-h-40 overflow-auto border border-gray-200 rounded bg-white">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
@@ -692,7 +692,7 @@ function ScriptResultRow({
           {result.errors.length > 0 && (
             <div className="mt-3">
               <h4 className="text-sm font-medium text-red-700 mb-2">Errors</h4>
-              <div className="max-h-40 overflow-y-auto border border-red-200 rounded bg-white">
+              <div className="max-h-40 overflow-auto border border-red-200 rounded bg-white">
                 <table className="w-full text-sm">
                   <thead className="bg-red-50 sticky top-0">
                     <tr>
@@ -719,7 +719,7 @@ function ScriptResultRow({
           {result.warnings.length > 0 && (
             <div className="mt-3">
               <h4 className="text-sm font-medium text-yellow-700 mb-2">Warnings</h4>
-              <div className="max-h-40 overflow-y-auto border border-yellow-200 rounded bg-white">
+              <div className="max-h-40 overflow-auto border border-yellow-200 rounded bg-white">
                 <table className="w-full text-sm">
                   <thead className="bg-yellow-50 sticky top-0">
                     <tr>

@@ -2,8 +2,6 @@ import type { ParsedRow, HeaderMatch, ScriptResult, ScriptRunnerResult, Validati
 import type { IValidationScript, ScriptContext } from './types';
 
 // Import all scripts
-import { whitespaceCleanupScript } from './whitespace-cleanup';
-import { fullNameSplitterScript } from './full-name-splitter';
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
@@ -14,8 +12,6 @@ import { companyNormalizationScript } from './company-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
-  whitespaceCleanupScript,       // order: 1  - clean whitespace first
-  fullNameSplitterScript,        // order: 5  - split names before capitalization
   stateNormalizationScript,      // order: 10
   emailValidationScript,         // order: 20
   phoneNormalizationScript,      // order: 30
@@ -160,8 +156,6 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
-  whitespaceCleanupScript,
-  fullNameSplitterScript,
   stateNormalizationScript,
   emailValidationScript,
   phoneNormalizationScript,

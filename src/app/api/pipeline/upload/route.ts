@@ -13,11 +13,17 @@ export async function POST(request: NextRequest) {
       rows,
       fieldMappings,
       enrichmentConfigIds,
+      fileContent,
+      fileType,
+      fileSize,
     } = body as {
       fileName: string;
       rows: Record<string, unknown>[];
       fieldMappings: Record<string, string>;
       enrichmentConfigIds?: string[];
+      fileContent?: string;
+      fileType?: string;
+      fileSize?: number;
     };
 
     const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
@@ -30,16 +36,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the upload session
+    const sessionInsert: Record<string, unknown> = {
+      account_id: accountId,
+      file_name: fileName,
+      status: 'uploaded',
+      total_rows: rows.length,
+      field_mappings: fieldMappings || {},
+      enrichment_config_ids: enrichmentConfigIds || [],
+    };
+    if (fileContent) sessionInsert.file_content = fileContent;
+    if (fileType) sessionInsert.file_type = fileType;
+    if (fileSize) sessionInsert.file_size = fileSize;
+
     const { data: session, error: sessionError } = await supabase
       .from('upload_sessions')
-      .insert({
-        account_id: accountId,
-        file_name: fileName,
-        status: 'uploaded',
-        total_rows: rows.length,
-        field_mappings: fieldMappings || {},
-        enrichment_config_ids: enrichmentConfigIds || [],
-      })
+      .insert(sessionInsert)
       .select()
       .single();
 

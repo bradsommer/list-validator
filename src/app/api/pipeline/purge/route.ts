@@ -46,11 +46,12 @@ export async function POST() {
         continue;
       }
 
-      // Mark session as expired (keep session metadata for audit)
+      // Mark session as expired, clear stored file content (keep metadata for audit)
       await supabase
         .from('upload_sessions')
         .update({
           status: 'expired',
+          file_content: null,
           error_message: `Data purged after 15-day retention period (original status: ${session.status})`,
         })
         .eq('id', session.id);

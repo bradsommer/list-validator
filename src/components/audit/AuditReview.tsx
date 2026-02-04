@@ -173,7 +173,7 @@ export function AuditReview() {
           <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-200">
             <h3 className="font-medium text-yellow-700">Rows Flagged for Review</h3>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>

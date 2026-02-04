@@ -110,10 +110,16 @@ export default function DashboardPage() {
           });
         }
 
-        // Check HubSpot connection
+        // Check HubSpot connection via account_integrations table
         try {
-          const hsResponse = await fetch('/api/hubspot/owners');
-          setHubspotConnected(hsResponse.ok);
+          const { data: integration } = await supabase
+            .from('account_integrations')
+            .select('is_active')
+            .eq('provider', 'hubspot')
+            .eq('is_active', true)
+            .limit(1)
+            .single();
+          setHubspotConnected(!!integration);
         } catch {
           setHubspotConnected(false);
         }

@@ -41,6 +41,19 @@ export function FileUpload() {
       });
 
       try {
+        // Read file as base64 for storage
+        const fileBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Strip the data URL prefix (e.g. "data:text/csv;base64,")
+            const base64 = result.includes(',') ? result.split(',')[1] : result;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
         // Parse the file
         const parsed = await parseFile(file);
         await logSuccess('parse', `Successfully parsed ${parsed.totalRows} rows`, sessionId, {
@@ -50,6 +63,25 @@ export function FileUpload() {
 
         setParsedFile(parsed);
         setProcessedData(parsed.rows);
+
+        // Store original file in the pipeline for later download
+        try {
+          await fetch('/api/pipeline/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileContent: fileBase64,
+              fileType: file.type || 'text/csv',
+              fileSize: file.size,
+              rows: parsed.rows,
+              fieldMappings: {},
+            }),
+          });
+        } catch (storeErr) {
+          console.error('Failed to store file for history:', storeErr);
+          // Non-blocking — import continues even if storage fails
+        }
 
         // Match headers to field mappings
         const matches = matchHeaders(parsed.headers, fieldMappings);
