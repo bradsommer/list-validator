@@ -7,6 +7,73 @@ import type { ValidationScript } from '@/types';
 
 // Script source code for display (descriptions of what each rule does)
 const SCRIPT_SOURCE: Record<string, string> = {
+  'yes-no-validation': `// Yes/No Field Validation Rule
+// Targets: "Whitespace" and "New Business" columns
+// - Value must be "Yes", "No", or blank
+// - Normalizes common variants:
+//   "y" / "n"         → "Yes" / "No"
+//   "true" / "false"  → "Yes" / "No"
+//   "1" / "0"         → "Yes" / "No"
+// - Any other value is cleared to blank and flagged as a warning`,
+
+  'role-normalization': `// Role Normalization Rule
+// - Checks role values against an allowed list
+// - Case-insensitive matching (e.g., "admin" → "Admin")
+// - Non-matching values are set to "Other"
+
+const VALID_ROLES = [
+  'Admin',
+  'Administrator',
+  'Ascend Employee',
+  'ATI Champion',
+  'ATI Employee',
+  'Champion Nominee',
+  'Coordinator',
+  'Dean',
+  'Director',
+  'Educator',
+  'Instructor',
+  'Other',
+  'Proctor',
+  'Student',
+  'TEAS Student',
+  'LMS Admin',
+];
+
+// If the value does not exactly match (case-insensitive),
+// the role is set to "Other".`,
+
+  'program-type-normalization': `// Program Type Normalization Rule
+// - Checks Program Type values against an allowed list
+// - Case-insensitive matching fixes casing mismatches
+// - Non-matching values are flagged as warnings (kept as-is)
+
+const VALID_PROGRAM_TYPES = [
+  'ADN', 'BSN', 'OTHER-BSN', 'RN', 'PN',
+  'Allied Health', 'Diploma', 'Other', 'Testing Center',
+  'ATI Allied Health', 'RN to BSN', 'APRN', 'Healthcare',
+  'Bookstore', 'LPN', 'DNP', 'MSN', 'CNA',
+  'ADN - Online', 'BSN - Online', 'BSN Philippines',
+  'CT', 'CV Sonography', 'Dental Assisting', 'Dental Hygiene',
+  'HCO', 'Health Occupations', 'Healthcare-ADN', 'Hospital',
+  'ICV', 'LPN to RN', 'MRI', 'Medical Assisting',
+  'Medical Sonography', 'NHA Allied Health', 'Nuclear Medicine',
+  'Occupational Assisting', 'PN - Online', 'PhD',
+  'Physical Therapy', 'Radiation Therapy', 'Radiography',
+  'Resident', 'Respiratory Therapy', 'Sports Medicine',
+  'TEAS Only', 'Test Program Type', 'Therapeutic Massage',
+];`,
+
+  'solution-normalization': `// Solution Normalization Rule
+// - Checks Solution values against an allowed list
+// - Case-insensitive matching fixes casing mismatches
+// - Non-matching values are flagged as warnings (kept as-is)
+
+const VALID_SOLUTIONS = [
+  'OPTIMAL', 'SUPREME', 'STO', 'CARP',
+  'BASIC', 'MID-MARKET', 'COMPLETE',
+];`,
+
   'email-validation': `// Email Validation Rule
 // - Trims whitespace and converts to lowercase
 // - Validates email format (RFC-compliant regex)
