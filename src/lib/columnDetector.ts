@@ -10,7 +10,7 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   firstname: ['first_name', 'firstname', 'first name', 'first', 'given_name', 'given name', 'givenname'],
   lastname: ['last_name', 'lastname', 'last name', 'last', 'surname', 'family_name', 'family name', 'familyname'],
   company: ['company', 'company_name', 'company name', 'companyname', 'organization', 'organisation', 'org', 'employer'],
-  state: ['state', 'state_province', 'state/province', 'province', 'region', 'state_region'],
+  state: ['state', 'state_province', 'state/province', 'state/region', 'province', 'region', 'state_region'],
   date: ['date', 'created_date', 'create_date', 'close_date', 'closedate', 'start_date', 'end_date', 'birthday', 'birthdate', 'date_of_birth'],
   city: ['city', 'town'],
   zip: ['zip', 'zipcode', 'zip_code', 'postal_code', 'postalcode', 'postal'],
