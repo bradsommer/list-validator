@@ -9,6 +9,221 @@ import {
   type ColumnHeading,
 } from '@/lib/columnHeadings';
 
+const DO_NOT_USE = '__do_not_use__';
+
+/** Custom dropdown for a single column mapping row */
+function HeadingDropdown({
+  value,
+  headings,
+  onSelect,
+  onAddNew,
+}: {
+  value: string;
+  headings: ColumnHeading[];
+  onSelect: (val: string) => void;
+  onAddNew: (name: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setSearch('');
+        setIsAdding(false);
+        setNewName('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Focus search when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Focus new name input when adding
+  useEffect(() => {
+    if (isAdding && newNameRef.current) {
+      newNameRef.current.focus();
+    }
+  }, [isAdding]);
+
+  const filtered = headings.filter((h) =>
+    h.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const displayValue =
+    value === DO_NOT_USE
+      ? 'Do not use'
+      : value || 'Choose a column heading';
+
+  const handleSelect = (val: string) => {
+    onSelect(val);
+    setIsOpen(false);
+    setSearch('');
+  };
+
+  const handleCreateNew = () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    onAddNew(trimmed);
+    setIsAdding(false);
+    setNewName('');
+    setIsOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-white text-sm text-left outline-none transition-colors ${
+          isOpen
+            ? 'border-primary-500 ring-2 ring-primary-200'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {displayValue}
+        </span>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg flex flex-col" style={{ maxHeight: '320px' }}>
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search"
+                className="w-full px-3 py-2 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+              />
+              <svg
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Scrollable option list */}
+          <div className="overflow-y-auto flex-1" style={{ maxHeight: '180px' }}>
+            {/* Keep original */}
+            <button
+              type="button"
+              onClick={() => handleSelect('')}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                value === '' ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700'
+              }`}
+            >
+              Keep original
+            </button>
+
+            {filtered.length > 0 ? (
+              filtered.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => handleSelect(h.name)}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    value === h.name ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  {h.name}
+                </button>
+              ))
+            ) : search ? (
+              <div className="px-4 py-3 text-sm text-gray-400">No results</div>
+            ) : null}
+          </div>
+
+          {/* Pinned footer: Do not use + Create new */}
+          <div className="border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => handleSelect(DO_NOT_USE)}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                value === DO_NOT_USE ? 'bg-red-50 text-red-700 font-medium' : 'text-red-600'
+              }`}
+            >
+              Do not use
+            </button>
+
+            {isAdding ? (
+              <div className="px-3 py-2 border-t border-gray-100">
+                <div className="flex gap-2">
+                  <input
+                    ref={newNameRef}
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateNew();
+                      }
+                      if (e.key === 'Escape') {
+                        setIsAdding(false);
+                        setNewName('');
+                      }
+                    }}
+                    placeholder="Column heading name..."
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateNew}
+                    disabled={!newName.trim()}
+                    className="px-3 py-1.5 bg-primary-600 text-white rounded text-sm hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAdding(true)}
+                className="w-full text-left px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 border-t border-gray-100 font-medium"
+              >
+                + Create new column heading
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ColumnMapper() {
   const {
     parsedFile,
@@ -22,16 +237,9 @@ export function ColumnMapper() {
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
 
-  // Inline "add new heading" popup state
-  const [addingFor, setAddingFor] = useState<string | null>(null);
-  const [newHeadingName, setNewHeadingName] = useState('');
-  const popupRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     setHeadings(getColumnHeadings());
 
-    // Initialize mapping: default each column to itself (keep original) unless already set
     if (parsedFile) {
       const initial: ColumnMapping = {};
       for (const header of parsedFile.headers) {
@@ -41,47 +249,24 @@ export function ColumnMapper() {
     }
   }, [parsedFile, columnMapping]);
 
-  // Close popup on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setAddingFor(null);
-        setNewHeadingName('');
-      }
-    };
-    if (addingFor) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [addingFor]);
-
-  // Focus input when popup opens
-  useEffect(() => {
-    if (addingFor && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [addingFor]);
-
-  const handleSelect = (originalHeader: string, hubspotHeading: string) => {
+  const handleSelect = (originalHeader: string, value: string) => {
     setMapping((prev) => ({
       ...prev,
-      [originalHeader]: hubspotHeading,
+      [originalHeader]: value,
     }));
   };
 
-  const handleAddNew = (originalHeader: string) => {
-    const trimmed = newHeadingName.trim();
+  const handleAddNew = (originalHeader: string, name: string) => {
+    const trimmed = name.trim();
     if (!trimmed) return;
-    // Add to localStorage
-    addColumnHeading(trimmed);
+    if (!headings.some((h) => h.name.toLowerCase() === trimmed.toLowerCase())) {
+      addColumnHeading(trimmed);
+    }
     setHeadings(getColumnHeadings());
-    // Select it for this column
     setMapping((prev) => ({
       ...prev,
       [originalHeader]: trimmed,
     }));
-    setAddingFor(null);
-    setNewHeadingName('');
   };
 
   const handleContinue = () => {
@@ -94,7 +279,8 @@ export function ColumnMapper() {
   }
 
   const headers = parsedFile.headers;
-  const mappedCount = headers.filter((h) => mapping[h]).length;
+  const mappedCount = headers.filter((h) => mapping[h] && mapping[h] !== DO_NOT_USE).length;
+  const excludedCount = headers.filter((h) => mapping[h] === DO_NOT_USE).length;
 
   return (
     <div className="space-y-6">
@@ -102,23 +288,25 @@ export function ColumnMapper() {
         <h2 className="text-xl font-semibold">Map Columns</h2>
         <p className="text-sm text-gray-600 mt-1">
           Choose a HubSpot column heading for each column in your spreadsheet. Mapped columns will be renamed in the exported file.
-          Unmapped columns will keep their original names.
+          Columns set to &ldquo;Do not use&rdquo; will be excluded from the export.
         </p>
       </div>
 
       <div className="text-sm text-gray-500">
-        {mappedCount} of {headers.length} columns mapped
+        {mappedCount} mapped
+        {excludedCount > 0 && <span className="text-red-500 ml-2">{excludedCount} excluded</span>}
+        <span className="ml-1">of {headers.length} columns</span>
       </div>
 
       {/* Mapping table */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-gray-200 rounded-lg overflow-visible">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-1/3">
+              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-2/5">
                 Spreadsheet Column
               </th>
-              <th className="text-center px-4 py-3 text-sm font-medium text-gray-400 w-12">
+              <th className="text-center px-4 py-3 text-sm font-medium text-gray-400 w-10">
                 &rarr;
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-1/2">
@@ -130,13 +318,16 @@ export function ColumnMapper() {
             {headers.map((header) => {
               const match = headerMatches.find((m) => m.originalHeader === header);
               const detectedType = match?.matchedField?.hubspotField;
+              const isExcluded = mapping[header] === DO_NOT_USE;
 
               return (
-                <tr key={header} className="hover:bg-gray-50">
+                <tr key={header} className={`${isExcluded ? 'bg-red-50/30' : 'hover:bg-gray-50'}`}>
                   <td className="px-4 py-3">
                     <div>
-                      <span className="font-medium text-gray-900">{header}</span>
-                      {detectedType && (
+                      <span className={`font-medium ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {header}
+                      </span>
+                      {detectedType && !isExcluded && (
                         <span className="ml-2 text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
                           {detectedType}
                         </span>
@@ -144,70 +335,13 @@ export function ColumnMapper() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center text-gray-400">&rarr;</td>
-                  <td className="px-4 py-3 relative">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={mapping[header] || ''}
-                        onChange={(e) => handleSelect(header, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-                      >
-                        <option value="">-- Keep original --</option>
-                        {headings.map((h) => (
-                          <option key={h.id} value={h.name}>
-                            {h.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => {
-                          setAddingFor(header);
-                          setNewHeadingName('');
-                        }}
-                        className="px-2 py-2 text-primary-600 hover:bg-primary-50 rounded-lg text-sm whitespace-nowrap"
-                        title="Add new column heading"
-                      >
-                        + Add
-                      </button>
-                    </div>
-
-                    {/* Inline add popup */}
-                    {addingFor === header && (
-                      <div
-                        ref={popupRef}
-                        className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-80"
-                      >
-                        <p className="text-sm font-medium text-gray-700 mb-2">
-                          Add New Column Heading
-                        </p>
-                        <div className="flex gap-2">
-                          <input
-                            ref={inputRef}
-                            type="text"
-                            value={newHeadingName}
-                            onChange={(e) => setNewHeadingName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddNew(header);
-                              }
-                              if (e.key === 'Escape') {
-                                setAddingFor(null);
-                                setNewHeadingName('');
-                              }
-                            }}
-                            placeholder="Column heading name..."
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-                          />
-                          <button
-                            onClick={() => handleAddNew(header)}
-                            disabled={!newHeadingName.trim()}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  <td className="px-4 py-3">
+                    <HeadingDropdown
+                      value={mapping[header] || ''}
+                      headings={headings}
+                      onSelect={(val) => handleSelect(header, val)}
+                      onAddNew={(name) => handleAddNew(header, name)}
+                    />
                   </td>
                 </tr>
               );
