@@ -120,11 +120,15 @@ export async function refreshAccessToken(refreshToken: string): Promise<HubSpotT
   };
 }
 
-// Token persistence - uses file storage in dev to survive hot reloads and restarts
+// Token persistence - Supabase as primary, file as fallback
 import * as fs from 'fs';
 import * as path from 'path';
+import { supabase } from '@/lib/supabase';
 
 const TOKEN_FILE = path.join(process.cwd(), '.hubspot-tokens.json');
+const DEFAULT_ACCOUNT_ID = 'dev-account-id';
+
+// --- File-based fallback ---
 
 function saveTokensToFile(tokens: HubSpotTokens | null) {
   try {
@@ -134,15 +138,14 @@ function saveTokensToFile(tokens: HubSpotTokens | null) {
       if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
     }
   } catch {
-    // Silently fail - file persistence is best-effort
+    // Silently fail
   }
 }
 
 function loadTokensFromFile(): HubSpotTokens | null {
   try {
     if (fs.existsSync(TOKEN_FILE)) {
-      const data = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
-      return data;
+      return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
     }
   } catch {
     // Silently fail
@@ -150,25 +153,125 @@ function loadTokensFromFile(): HubSpotTokens | null {
   return null;
 }
 
-// In-memory token store with file-based fallback
+// --- Supabase storage ---
+
+async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId?: string): Promise<boolean> {
+  try {
+    const upsertData: Record<string, unknown> = {
+      account_id: accountId,
+      provider: 'hubspot',
+      is_active: true,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: tokens.expires_at,
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (portalId) {
+      upsertData.portal_id = portalId;
+    }
+    const { error } = await supabase
+      .from('account_integrations')
+      .upsert(upsertData, {
+        onConflict: 'account_id,provider',
+      });
+    if (error) {
+      console.error('Failed to save tokens to DB:', error.message);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null> {
+  try {
+    const { data, error } = await supabase
+      .from('account_integrations')
+      .select('access_token, refresh_token, token_expires_at')
+      .eq('account_id', accountId)
+      .eq('provider', 'hubspot')
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data?.access_token) return null;
+
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: 0,
+      expires_at: data.token_expires_at || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getPortalId(accountId?: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('account_integrations')
+      .select('portal_id')
+      .eq('account_id', accountId || DEFAULT_ACCOUNT_ID)
+      .eq('provider', 'hubspot')
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data?.portal_id) return null;
+    return data.portal_id;
+  } catch {
+    return null;
+  }
+}
+
+async function clearTokensFromDb(accountId: string): Promise<void> {
+  try {
+    await supabase
+      .from('account_integrations')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('provider', 'hubspot');
+  } catch {
+    // Silently fail
+  }
+}
+
+// --- Combined token management (in-memory + DB + file) ---
+
 let storedTokens: HubSpotTokens | null = null;
 
-export function setTokens(tokens: HubSpotTokens) {
+export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
   storedTokens = tokens;
   saveTokensToFile(tokens);
+  await saveTokensToDb(tokens, accountId || DEFAULT_ACCOUNT_ID, portalId);
 }
 
-export function getTokens(): HubSpotTokens | null {
-  if (!storedTokens) {
-    storedTokens = loadTokensFromFile();
+export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
+  if (storedTokens) return storedTokens;
+
+  // Try database first
+  const dbTokens = await loadTokensFromDb(accountId || DEFAULT_ACCOUNT_ID);
+  if (dbTokens) {
+    storedTokens = dbTokens;
+    return dbTokens;
   }
-  return storedTokens;
+
+  // Fall back to file
+  const fileTokens = loadTokensFromFile();
+  if (fileTokens) {
+    storedTokens = fileTokens;
+    return fileTokens;
+  }
+
+  return null;
 }
 
-export function clearTokens() {
+export async function clearTokens(accountId?: string) {
   storedTokens = null;
   hubspotClient = null;
   saveTokensToFile(null);
+  await clearTokensFromDb(accountId || DEFAULT_ACCOUNT_ID);
 }
 
 export async function getValidAccessToken(): Promise<string | null> {
@@ -177,17 +280,17 @@ export async function getValidAccessToken(): Promise<string | null> {
     return process.env.HUBSPOT_ACCESS_TOKEN;
   }
 
-  let tokens = getTokens();
+  let tokens = await getTokens();
   if (!tokens) return null;
 
   // Refresh if expired (with 5 min buffer)
   if (Date.now() > tokens.expires_at - 5 * 60 * 1000) {
     try {
       const refreshed = await refreshAccessToken(tokens.refresh_token);
-      setTokens(refreshed);
+      await setTokens(refreshed);
       tokens = refreshed;
     } catch {
-      clearTokens();
+      await clearTokens();
       return null;
     }
   }
@@ -195,8 +298,10 @@ export async function getValidAccessToken(): Promise<string | null> {
   return tokens.access_token;
 }
 
-export function isConnected(): boolean {
-  return !!storedTokens || !!process.env.HUBSPOT_ACCESS_TOKEN;
+export async function isConnected(): Promise<boolean> {
+  if (process.env.HUBSPOT_ACCESS_TOKEN) return true;
+  const tokens = await getTokens();
+  return !!tokens;
 }
 
 // ============================================================================
@@ -205,10 +310,9 @@ export function isConnected(): boolean {
 
 let hubspotClient: Client | null = null;
 
-export function getHubSpotClient(): Client {
+export async function getHubSpotClient(): Promise<Client> {
   if (!hubspotClient) {
-    const tokens = getTokens();
-    const accessToken = tokens?.access_token || process.env.HUBSPOT_ACCESS_TOKEN;
+    const accessToken = await getValidAccessToken();
     if (!accessToken) {
       throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
     }
@@ -224,7 +328,7 @@ export function resetClient() {
 
 // Search for companies by domain
 export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCompany[]> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   try {
     const response = await client.crm.companies.searchApi.doSearch({
@@ -259,7 +363,7 @@ export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCo
 
 // Search for companies by name
 export async function searchCompaniesByName(name: string): Promise<HubSpotCompany[]> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   try {
     const response = await client.crm.companies.searchApi.doSearch({
@@ -362,7 +466,7 @@ export async function createCompany(companyData: {
   city?: string;
   state?: string;
 }): Promise<HubSpotCompany> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   const properties: Record<string, string> = {
     name: companyData.name,
@@ -398,7 +502,7 @@ export async function createOrUpdateContact(contactData: {
   state?: string;
   [key: string]: string | undefined;
 }): Promise<HubSpotContact> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   const properties: Record<string, string> = {
     email: contactData.email,
@@ -471,7 +575,7 @@ export async function associateContactWithCompany(
   contactId: string,
   companyId: string
 ): Promise<void> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   await client.crm.associations.v4.basicApi.create(
     'contacts',
@@ -492,7 +596,7 @@ export async function createTask(taskData: {
   associatedContactId?: string;
   associatedCompanyId?: string;
 }): Promise<string> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   const properties: Record<string, string> = {
     hs_task_subject: taskData.subject,
@@ -536,7 +640,7 @@ export async function createTask(taskData: {
 
 // Get HubSpot owners (for task assignment dropdown)
 export async function getHubSpotOwners(): Promise<{ id: string; email: string; name: string }[]> {
-  const client = getHubSpotClient();
+  const client = await getHubSpotClient();
 
   const response = await client.crm.owners.ownersApi.getPage();
 

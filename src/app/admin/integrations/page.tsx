@@ -33,6 +33,7 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hubspotConnected, setHubspotConnected] = useState(false);
+  const [hubspotPortalId, setHubspotPortalId] = useState<string | null>(null);
   const [hubspotAuthorizeUrl, setHubspotAuthorizeUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -79,6 +80,7 @@ export default function IntegrationsPage() {
       });
       const data = await response.json();
       setHubspotConnected(data.connected);
+      setHubspotPortalId(data.portalId || null);
       setHubspotAuthorizeUrl(data.authorizeUrl || null);
     } catch {
       setHubspotConnected(false);
@@ -204,8 +206,13 @@ export default function IntegrationsPage() {
                         )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1">{integration.description}</p>
+                      {connected && integration.provider === 'hubspot' && hubspotPortalId && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Portal ID: <span className="font-mono font-medium">{hubspotPortalId}</span>
+                        </p>
+                      )}
                       {connected && data?.connected_at && (
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-gray-400 mt-1">
                           Connected {new Date(data.connected_at).toLocaleDateString()}
                         </p>
                       )}
