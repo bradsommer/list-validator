@@ -98,6 +98,17 @@ function normalizeString(str: string): string {
     .replace(/[^a-z0-9\s]/g, '');
 }
 
+// Object type priority: contacts first, then companies, then deals
+const OBJECT_TYPE_PRIORITY: Record<string, number> = {
+  contacts: 0,
+  companies: 1,
+  deals: 2,
+};
+
+function getObjectTypePriority(objectType: string): number {
+  return OBJECT_TYPE_PRIORITY[objectType] ?? 3;
+}
+
 // Match headers to field mappings using fuzzy matching
 export function matchHeaders(
   headers: string[],
@@ -126,16 +137,21 @@ export function matchHeaders(
   for (const header of headers) {
     const normalizedHeader = normalizeString(header);
 
-    // First, try exact match
-    const exactMatch = searchItems.find(
+    // First, try exact match — prefer contact properties over company/deal
+    const exactMatches = searchItems.filter(
       (item) => item.variant === normalizedHeader && !usedFieldIds.has(item.mapping.id)
     );
 
-    if (exactMatch) {
-      usedFieldIds.add(exactMatch.mapping.id);
+    if (exactMatches.length > 0) {
+      // Sort by object type priority: contacts > companies > deals
+      exactMatches.sort((a, b) =>
+        getObjectTypePriority(a.mapping.objectType) - getObjectTypePriority(b.mapping.objectType)
+      );
+      const bestExact = exactMatches[0];
+      usedFieldIds.add(bestExact.mapping.id);
       results.push({
         originalHeader: header,
-        matchedField: exactMatch.mapping,
+        matchedField: bestExact.mapping,
         confidence: 1,
         isMatched: true,
       });
@@ -143,10 +159,26 @@ export function matchHeaders(
     }
 
     // Try fuzzy match (skip fields already mapped)
+    // Prioritize contact properties when scores are close
     const fuzzyResults = fuse.search(normalizedHeader);
-    const bestAvailable = fuzzyResults.find(
+    const availableResults = fuzzyResults.filter(
       (r) => !usedFieldIds.has(r.item.mapping.id)
     );
+
+    // Among results with similar scores (within 0.1), prefer contact > company > deal
+    let bestAvailable = availableResults[0];
+    if (bestAvailable && bestAvailable.score !== undefined) {
+      const bestScore = bestAvailable.score;
+      const closeMatches = availableResults.filter(
+        (r) => r.score !== undefined && r.score - bestScore < 0.1
+      );
+      if (closeMatches.length > 1) {
+        closeMatches.sort((a, b) =>
+          getObjectTypePriority(a.item.mapping.objectType) - getObjectTypePriority(b.item.mapping.objectType)
+        );
+        bestAvailable = closeMatches[0];
+      }
+    }
 
     if (bestAvailable && bestAvailable.score !== undefined) {
       const confidence = 1 - (bestAvailable.score || 0);

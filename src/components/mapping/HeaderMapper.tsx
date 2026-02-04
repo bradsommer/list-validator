@@ -22,7 +22,6 @@ export function HeaderMapper() {
     requiredFields,
     setRequiredFields,
     updateHeaderMatch,
-    addFieldMapping,
     nextStep,
     prevStep,
   } = useAppStore();
@@ -56,12 +55,6 @@ export function HeaderMapper() {
     fetchRequired();
   }, [setRequiredFields]);
 
-  const [showAddMapping, setShowAddMapping] = useState(false);
-  const [newMapping, setNewMapping] = useState({
-    hubspotField: '',
-    hubspotLabel: '',
-    variants: '',
-  });
   const [isSaving, setIsSaving] = useState(false);
   const [ignoreUnmapped, setIgnoreUnmapped] = useState(false);
 
@@ -190,29 +183,6 @@ export function HeaderMapper() {
     updateHeaderMatch(index, updatedMatch);
   };
 
-  const handleAddMapping = () => {
-    if (!newMapping.hubspotField || !newMapping.hubspotLabel) return;
-
-    const variants = newMapping.variants
-      .split(',')
-      .map((v) => v.trim().toLowerCase())
-      .filter((v) => v);
-
-    addFieldMapping({
-      id: `custom_${Date.now()}`,
-      hubspotField: newMapping.hubspotField.toLowerCase().replace(/\s+/g, '_'),
-      hubspotLabel: newMapping.hubspotLabel,
-      objectType: 'contacts',
-      variants: [newMapping.hubspotField.toLowerCase(), ...variants],
-      isRequired: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    setNewMapping({ hubspotField: '', hubspotLabel: '', variants: '' });
-    setShowAddMapping(false);
-  };
-
   const handleContinue = async () => {
     setIsSaving(true);
     saveMappingsToDatabase();
@@ -243,12 +213,6 @@ export function HeaderMapper() {
             {unmappedCount > 0 && ` (${unmappedCount} unmapped)`}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddMapping(true)}
-          className="px-4 py-2 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200"
-        >
-          + Add Custom Field
-        </button>
       </div>
 
       {/* Info banner */}
@@ -256,67 +220,6 @@ export function HeaderMapper() {
         <strong>Auto-Learning:</strong> Your header mappings are automatically saved for future imports.
         Next time you upload a file with similar headers, they&apos;ll be matched automatically.
       </div>
-
-      {/* Add new mapping modal */}
-      {showAddMapping && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Add Custom Field Mapping</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  HubSpot Field Name
-                </label>
-                <input
-                  type="text"
-                  value={newMapping.hubspotField}
-                  onChange={(e) => setNewMapping({ ...newMapping, hubspotField: e.target.value })}
-                  placeholder="e.g., custom_field"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Display Label
-                </label>
-                <input
-                  type="text"
-                  value={newMapping.hubspotLabel}
-                  onChange={(e) => setNewMapping({ ...newMapping, hubspotLabel: e.target.value })}
-                  placeholder="e.g., Custom Field"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Variants (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={newMapping.variants}
-                  onChange={(e) => setNewMapping({ ...newMapping, variants: e.target.value })}
-                  placeholder="e.g., custom, custom_field, customfield"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowAddMapping(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddMapping}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                Add Mapping
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Required properties info */}
       <div className="bg-gray-50 rounded-lg p-4">
