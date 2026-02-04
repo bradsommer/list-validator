@@ -47,11 +47,6 @@ export function HubSpotSync() {
   }, []);
 
   const handleSync = async () => {
-    if (!defaultTaskAssignee) {
-      setError('Please select a task assignee before syncing');
-      return;
-    }
-
     setIsSyncing(true);
     setError(null);
     await logInfo('hubspot', 'Starting HubSpot sync', sessionId, {
@@ -146,7 +141,7 @@ export function HubSpotSync() {
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Task Assignee (for new companies)
+            Task Assignee (optional — for new company tasks)
           </label>
           <select
             value={defaultTaskAssignee}
@@ -173,7 +168,7 @@ export function HubSpotSync() {
             <li>Use fuzzy matching for company names if no domain match</li>
             <li>Create new companies if no match is found</li>
             <li>Create/update contacts and associate with companies</li>
-            <li>Create a task for the assignee when new companies are created</li>
+            <li>Create a task for the assignee when new companies are created (if assignee selected)</li>
           </ul>
         </div>
       </div>
@@ -285,9 +280,9 @@ export function HubSpotSync() {
           {hubspotResults.length === 0 ? (
             <button
               onClick={handleSync}
-              disabled={isSyncing || !defaultTaskAssignee}
+              disabled={isSyncing}
               className={`px-6 py-2 rounded-lg ${
-                isSyncing || !defaultTaskAssignee
+                isSyncing
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-hubspot-orange text-white hover:bg-orange-600'
               }`}
