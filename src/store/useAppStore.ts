@@ -151,10 +151,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await response.json();
       if (data.success && data.properties?.length > 0) {
         const mappings: FieldMapping[] = data.properties.map(
-          (prop: { field_name: string; field_label: string; field_type: string }, i: number) => ({
+          (prop: { field_name: string; field_label: string; field_type: string; object_type: string }, i: number) => ({
             id: `hs_${i}`,
             hubspotField: prop.field_name,
             hubspotLabel: prop.field_label,
+            objectType: prop.object_type || 'contacts',
             variants: [
               prop.field_name,
               prop.field_label.toLowerCase(),
@@ -169,8 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ fieldMappings: mappings });
       }
     } catch {
-      // If fetch fails, keep the default hardcoded mappings
-      console.error('Failed to load HubSpot properties, using defaults');
+      console.error('Failed to load HubSpot properties');
     }
   },
 

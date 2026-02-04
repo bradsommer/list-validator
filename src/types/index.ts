@@ -1,8 +1,11 @@
 // Field mapping types
+export type HubSpotObjectType = 'contacts' | 'companies' | 'deals';
+
 export interface FieldMapping {
   id: string;
   hubspotField: string;
   hubspotLabel: string;
+  objectType: HubSpotObjectType;
   variants: string[];
   isRequired: boolean;
   createdAt: string;
