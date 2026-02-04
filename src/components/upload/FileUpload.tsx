@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { parseFile } from '@/lib/fileParser';
-import { matchHeaders } from '@/lib/fuzzyMatcher';
+import { autoDetectColumns } from '@/lib/columnDetector';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -13,18 +13,11 @@ export function FileUpload() {
 
   const {
     sessionId,
-    fieldMappings,
-    loadFieldMappingsFromHubSpot,
     setParsedFile,
     setProcessedData,
     setHeaderMatches,
     nextStep,
   } = useAppStore();
-
-  // Load HubSpot properties on mount so the dropdown has all available fields
-  useEffect(() => {
-    loadFieldMappingsFromHubSpot();
-  }, [loadFieldMappingsFromHubSpot]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -41,19 +34,6 @@ export function FileUpload() {
       });
 
       try {
-        // Read file as base64 for storage
-        const fileBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            // Strip the data URL prefix (e.g. "data:text/csv;base64,")
-            const base64 = result.includes(',') ? result.split(',')[1] : result;
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
         // Parse the file
         const parsed = await parseFile(file);
         await logSuccess('parse', `Successfully parsed ${parsed.totalRows} rows`, sessionId, {
@@ -64,46 +44,20 @@ export function FileUpload() {
         setParsedFile(parsed);
         setProcessedData(parsed.rows);
 
-        // Store original file in the pipeline for later download
-        try {
-          await fetch('/api/pipeline/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileContent: fileBase64,
-              fileType: file.type || 'text/csv',
-              fileSize: file.size,
-              rows: parsed.rows,
-              fieldMappings: {},
-            }),
-          });
-        } catch (storeErr) {
-          console.error('Failed to store file for history:', storeErr);
-          // Non-blocking — import continues even if storage fails
-        }
-
-        // Match headers to field mappings
-        // If fieldMappings haven't loaded yet, fetch them now before matching
-        let mappingsToUse = fieldMappings;
-        if (mappingsToUse.length === 0) {
-          await loadFieldMappingsFromHubSpot();
-          mappingsToUse = useAppStore.getState().fieldMappings;
-        }
-        const adminMappings = useAppStore.getState().adminMappings;
-        const matches = matchHeaders(parsed.headers, mappingsToUse, adminMappings);
+        // Auto-detect column types from headers
+        const matches = autoDetectColumns(parsed.headers);
         setHeaderMatches(matches);
 
-        const matchedCount = matches.filter((m) => m.isMatched).length;
-        await logInfo('parse', `Matched ${matchedCount}/${parsed.headers.length} headers`, sessionId, {
+        const detectedCount = matches.filter((m) => m.isMatched).length;
+        await logInfo('detect', `Detected ${detectedCount}/${parsed.headers.length} column types`, sessionId, {
           matches: matches.map((m) => ({
-            original: m.originalHeader,
-            matched: m.matchedField?.hubspotLabel || 'Not matched',
+            header: m.originalHeader,
+            detected: m.matchedField?.hubspotField || 'unknown',
             confidence: m.confidence,
           })),
         });
 
-        // Move to next step
+        // Move directly to validation
         nextStep();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -113,7 +67,7 @@ export function FileUpload() {
         setIsProcessing(false);
       }
     },
-    [sessionId, fieldMappings, setParsedFile, setProcessedData, setHeaderMatches, nextStep]
+    [sessionId, setParsedFile, setProcessedData, setHeaderMatches, nextStep]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

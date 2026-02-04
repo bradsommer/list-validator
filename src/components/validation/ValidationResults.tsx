@@ -32,13 +32,24 @@ export function ValidationResults() {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
 
-  // Load available scripts on mount
+  // Load available scripts on mount, respecting localStorage-saved enabled state
   useEffect(() => {
     if (availableScripts.length === 0) {
       const scripts = getAvailableScripts();
       setAvailableScripts(scripts);
+
+      // Check if user has saved enabled rules in localStorage
+      try {
+        const saved = localStorage.getItem('enabled_validation_rules');
+        if (saved) {
+          const savedIds = JSON.parse(saved) as string[];
+          setEnabledScripts(savedIds);
+        }
+      } catch {
+        // localStorage unavailable — use defaults (all enabled)
+      }
     }
-  }, [availableScripts.length, setAvailableScripts]);
+  }, [availableScripts.length, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
     setIsValidating(true);
@@ -106,22 +117,18 @@ export function ValidationResults() {
   const handleExportCSV = () => {
     if (processedData.length === 0) return;
 
-    // Get mapped headers only
-    const mappedHeaders = headerMatches
-      .filter((m) => m.isMatched && m.matchedField)
-      .map((m) => ({
-        original: m.originalHeader,
-        hubspot: m.matchedField!.hubspotField,
-        label: m.matchedField!.hubspotLabel,
-      }));
+    // Use all headers from the data (original column names)
+    const allHeaders = headerMatches.map((m) => m.originalHeader);
 
-    // Build CSV with HubSpot field names as headers
-    const csvHeaders = mappedHeaders.map((h) => h.hubspot).join(',');
+    // Build CSV with original headers
+    const csvHeaders = allHeaders.map((h) => {
+      if (h.includes(',') || h.includes('"')) return `"${h.replace(/"/g, '""')}"`;
+      return h;
+    }).join(',');
     const csvRows = processedData.map((row) =>
-      mappedHeaders
+      allHeaders
         .map((h) => {
-          const val = String(row[h.original] || '');
-          // Escape commas and quotes
+          const val = String(row[h] || '');
           if (val.includes(',') || val.includes('"') || val.includes('\n')) {
             return `"${val.replace(/"/g, '""')}"`;
           }
@@ -135,7 +142,7 @@ export function ValidationResults() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cleaned-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -427,7 +434,7 @@ export function ValidationResults() {
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
-            Continue to Enrichment
+            Continue to Export
           </button>
         </div>
       </div>
@@ -444,14 +451,8 @@ function DataPreviewTable() {
 
   if (processedData.length === 0) return null;
 
-  // Get mapped headers
-  const mappedHeaders = headerMatches
-    .filter((m) => m.isMatched && m.matchedField)
-    .map((m) => ({
-      original: m.originalHeader,
-      label: m.matchedField!.hubspotLabel,
-      field: m.matchedField!.hubspotField,
-    }));
+  // Show all columns from the data
+  const allHeaders = headerMatches.map((m) => m.originalHeader);
 
   // Build a set of changed cells for highlighting
   const changedCells = new Set<string>();
@@ -476,7 +477,7 @@ function DataPreviewTable() {
         <div className="flex items-center gap-2">
           <span className="font-medium">Data Preview</span>
           <span className="text-sm text-gray-500">
-            ({processedData.length} rows, {mappedHeaders.length} mapped fields)
+            ({processedData.length} rows, {allHeaders.length} columns)
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -501,10 +502,9 @@ function DataPreviewTable() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 border-b whitespace-nowrap">#</th>
-                  {mappedHeaders.map((h) => (
-                    <th key={h.field} className="px-3 py-2 text-left text-xs font-medium text-gray-600 border-b whitespace-nowrap">
-                      {h.label}
-                      <span className="block text-gray-400 font-normal">{h.field}</span>
+                  {allHeaders.map((header) => (
+                    <th key={header} className="px-3 py-2 text-left text-xs font-medium text-gray-600 border-b whitespace-nowrap">
+                      {header}
                     </th>
                   ))}
                 </tr>
@@ -515,17 +515,20 @@ function DataPreviewTable() {
                   return (
                     <tr key={rowIndex} className="hover:bg-gray-50">
                       <td className="px-3 py-1.5 text-gray-400 whitespace-nowrap">{rowIndex + 1}</td>
-                      {mappedHeaders.map((h) => {
-                        const isChanged = changedCells.has(`${rowIndex}-${h.field}`);
+                      {allHeaders.map((header) => {
+                        // Check if this cell was changed by looking at the detected field name
+                        const match = headerMatches.find((m) => m.originalHeader === header);
+                        const fieldName = match?.matchedField?.hubspotField || header;
+                        const isChanged = changedCells.has(`${rowIndex}-${fieldName}`);
                         return (
                           <td
-                            key={h.field}
+                            key={header}
                             className={`px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate ${
                               isChanged ? 'bg-blue-50 text-blue-800 font-medium' : 'text-gray-700'
                             }`}
-                            title={String(row[h.original] || '')}
+                            title={String(row[header] || '')}
                           >
-                            {String(row[h.original] || '')}
+                            {String(row[header] || '')}
                           </td>
                         );
                       })}

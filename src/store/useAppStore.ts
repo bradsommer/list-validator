@@ -2,21 +2,14 @@ import { create } from 'zustand';
 import type {
   ParsedFile,
   ParsedRow,
-  FieldMapping,
   HeaderMatch,
   ValidationResult,
-  EnrichmentConfig,
-  EnrichmentResult,
-  HubSpotMatchResult,
   AuditResult,
   LogEntry,
-  UploadSession,
   ScriptRunnerResult,
   ValidationScript,
 } from '@/types';
 import { generateSessionId } from '@/lib/logger';
-import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
-import type { AdminMappingRule } from '@/lib/fuzzyMatcher';
 
 interface AppState {
   // Session
@@ -28,9 +21,7 @@ interface AppState {
   parsedFile: ParsedFile | null;
   processedData: ParsedRow[];
 
-  // Field mappings
-  fieldMappings: FieldMapping[];
-  adminMappings: AdminMappingRule[];
+  // Column detection (auto-detected from headers)
   headerMatches: HeaderMatch[];
   requiredFields: string[];
 
@@ -40,32 +31,13 @@ interface AppState {
   enabledScripts: string[];
   availableScripts: ValidationScript[];
 
-  // Enrichment
-  enrichmentConfigs: EnrichmentConfig[];
-  enrichmentResults: EnrichmentResult[];
-  isEnriching: boolean;
-  enrichmentProgress: { completed: number; total: number };
-
-  // HubSpot
-  hubspotResults: HubSpotMatchResult[];
-  isSyncing: boolean;
-  syncProgress: { completed: number; total: number };
-
   // Audit
   auditResult: AuditResult | null;
 
   // Logs
   logs: LogEntry[];
 
-  // Settings
-  defaultTaskAssignee: string;
-  notifyOnNewCompany: string[];
-
-  // Upload session tracking
-  uploadSession: UploadSession | null;
-
   // Actions
-  loadFieldMappingsFromHubSpot: () => Promise<void>;
   setSessionId: (id: string) => void;
   setCurrentStep: (step: number) => void;
   nextStep: () => void;
@@ -74,16 +46,9 @@ interface AppState {
   setParsedFile: (file: ParsedFile | null) => void;
   setProcessedData: (data: ParsedRow[]) => void;
 
-  setFieldMappings: (mappings: FieldMapping[]) => void;
-  addFieldMapping: (mapping: FieldMapping) => void;
-  updateFieldMapping: (id: string, updates: Partial<FieldMapping>) => void;
-  removeFieldMapping: (id: string) => void;
-
   setHeaderMatches: (matches: HeaderMatch[]) => void;
-  updateHeaderMatch: (index: number, match: HeaderMatch) => void;
 
   setRequiredFields: (fields: string[]) => void;
-  toggleRequiredField: (field: string) => void;
 
   setValidationResult: (result: ValidationResult | null) => void;
   setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
@@ -91,29 +56,10 @@ interface AppState {
   toggleScript: (scriptId: string) => void;
   setAvailableScripts: (scripts: ValidationScript[]) => void;
 
-  setEnrichmentConfigs: (configs: EnrichmentConfig[]) => void;
-  addEnrichmentConfig: (config: EnrichmentConfig) => void;
-  updateEnrichmentConfig: (id: string, updates: Partial<EnrichmentConfig>) => void;
-  removeEnrichmentConfig: (id: string) => void;
-
-  setEnrichmentResults: (results: EnrichmentResult[]) => void;
-  setIsEnriching: (isEnriching: boolean) => void;
-  setEnrichmentProgress: (progress: { completed: number; total: number }) => void;
-
-  setHubSpotResults: (results: HubSpotMatchResult[]) => void;
-  setIsSyncing: (isSyncing: boolean) => void;
-  setSyncProgress: (progress: { completed: number; total: number }) => void;
-
   setAuditResult: (result: AuditResult | null) => void;
 
   addLog: (log: LogEntry) => void;
   clearLogs: () => void;
-
-  setDefaultTaskAssignee: (assignee: string) => void;
-  setNotifyOnNewCompany: (users: string[]) => void;
-
-  setUploadSession: (session: UploadSession | null) => void;
-  updateUploadSessionStatus: (status: UploadSession['status']) => void;
 
   reset: () => void;
 }
@@ -121,170 +67,21 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Map Fields', 'Validate', 'Export'],
+  steps: ['Upload', 'Validate', 'Export'],
   parsedFile: null,
   processedData: [],
-  fieldMappings: [] as FieldMapping[],
-  adminMappings: [] as AdminMappingRule[],
   headerMatches: [],
-  requiredFields: ['email'],
+  requiredFields: [] as string[],
   validationResult: null,
   scriptRunnerResult: null,
-  enabledScripts: [], // Will be populated with all script IDs by default
-  availableScripts: [],
-  enrichmentConfigs: [],
-  enrichmentResults: [],
-  isEnriching: false,
-  enrichmentProgress: { completed: 0, total: 0 },
-  hubspotResults: [],
-  isSyncing: false,
-  syncProgress: { completed: 0, total: 0 },
+  enabledScripts: [] as string[],
+  availableScripts: [] as ValidationScript[],
   auditResult: null,
   logs: [],
-  defaultTaskAssignee: '',
-  notifyOnNewCompany: [],
-  uploadSession: null,
 };
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   ...initialState,
-
-  loadFieldMappingsFromHubSpot: async () => {
-    // Collect extra variants from all optional sources (each wrapped to never throw)
-    const extraVariants: Record<string, string[]> = {};
-
-    // Source 1: Learned header mappings from DB (past imports)
-    try {
-      const res = await fetch('/api/mappings');
-      const data = await res.json();
-      if (data.success && data.mappings) {
-        for (const [normalizedHeader, mapping] of Object.entries(
-          data.mappings as Record<string, { field: string }>
-        )) {
-          if (!extraVariants[mapping.field]) extraVariants[mapping.field] = [];
-          extraVariants[mapping.field].push(normalizedHeader);
-        }
-      }
-    } catch {
-      // DB learned mappings unavailable — non-blocking
-    }
-
-    // Source 2: Admin-configured mappings from localStorage (/admin/mappings page)
-    // These are stored both as variants AND as explicit override rules
-    let rawAdminMappings: AdminMappingRule[] = [];
-    try {
-      const adminJson = localStorage.getItem('admin_header_mappings');
-      if (adminJson) {
-        const adminMappings = JSON.parse(adminJson) as Array<{
-          original_header: string;
-          hubspot_field_name: string;
-          object_type: string;
-        }>;
-        rawAdminMappings = adminMappings.map((m) => ({
-          original_header: m.original_header,
-          hubspot_field_name: m.hubspot_field_name,
-          object_type: m.object_type || 'contacts',
-          priority: m.priority || 1,
-        }));
-        for (const m of adminMappings) {
-          if (!extraVariants[m.hubspot_field_name]) extraVariants[m.hubspot_field_name] = [];
-          extraVariants[m.hubspot_field_name].push(m.original_header.toLowerCase().trim());
-        }
-      }
-    } catch {
-      // localStorage unavailable — non-blocking
-    }
-
-    // Store raw admin mappings for use as hard overrides in matchHeaders
-    set({ adminMappings: rawAdminMappings });
-
-    // Source 3: Default field mappings (common header variants)
-    const defaultVariantsLookup: Record<string, string[]> = {};
-    for (const dm of defaultFieldMappings) {
-      defaultVariantsLookup[dm.hubspotField] = dm.variants;
-    }
-
-    // Try to load HubSpot properties from DB/API
-    let hubspotProperties: Array<{
-      field_name: string;
-      field_label: string;
-      field_type: string;
-      object_type: string;
-    }> = [];
-
-    try {
-      const res = await fetch('/api/hubspot/properties');
-      const data = await res.json();
-      if (data.success && data.properties?.length > 0) {
-        hubspotProperties = data.properties;
-      }
-    } catch {
-      // HubSpot properties unavailable — will use defaults
-    }
-
-    if (hubspotProperties.length > 0) {
-      // Build mappings from HubSpot properties, enriched with all variant sources
-      const mappings: FieldMapping[] = hubspotProperties.map((prop, i) => {
-        const baseVariants = [
-          prop.field_name,
-          prop.field_label.toLowerCase(),
-          prop.field_name.replace(/_/g, ' '),
-          prop.field_name.replace(/_/g, ''),
-        ];
-        const learned = extraVariants[prop.field_name] || [];
-        const defaults = defaultVariantsLookup[prop.field_name] || [];
-        const allVariants = [...baseVariants, ...defaults, ...learned]
-          .filter((v, idx, arr) => arr.indexOf(v) === idx);
-
-        return {
-          id: `hs_${i}`,
-          hubspotField: prop.field_name,
-          hubspotLabel: prop.field_label,
-          objectType: prop.object_type || 'contacts',
-          variants: allVariants,
-          isRequired: prop.field_name === 'email',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      });
-      // Deduplicate: keep only the first entry per objectType + hubspotField
-      const seen = new Set<string>();
-      const dedupedMappings = mappings.filter((m) => {
-        const key = `${m.objectType}_${m.hubspotField}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      set({ fieldMappings: dedupedMappings });
-    } else {
-      // Fallback: use default field mappings when HubSpot properties aren't available
-      const fallbackMappings: FieldMapping[] = defaultFieldMappings.map((dm, i) => {
-        const learned = extraVariants[dm.hubspotField] || [];
-        const allVariants = [...dm.variants, ...learned]
-          .filter((v, idx, arr) => arr.indexOf(v) === idx);
-
-        return {
-          id: `default_${i}`,
-          hubspotField: dm.hubspotField,
-          hubspotLabel: dm.hubspotLabel,
-          objectType: dm.objectType,
-          variants: allVariants,
-          isRequired: dm.isRequired,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      });
-      // Deduplicate: keep only the first entry per objectType + hubspotField
-      const seenFallback = new Set<string>();
-      const dedupedFallback = fallbackMappings.filter((m) => {
-        const key = `${m.objectType}_${m.hubspotField}`;
-        if (seenFallback.has(key)) return false;
-        seenFallback.add(key);
-        return true;
-      });
-      set({ fieldMappings: dedupedFallback });
-    }
-  },
 
   setSessionId: (id) => set({ sessionId: id }),
   setCurrentStep: (step) => set({ currentStep: step }),
@@ -298,30 +95,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setParsedFile: (file) => set({ parsedFile: file }),
   setProcessedData: (data) => set({ processedData: data }),
 
-  setFieldMappings: (mappings) => set({ fieldMappings: mappings }),
-  addFieldMapping: (mapping) => set((state) => ({
-    fieldMappings: [...state.fieldMappings, mapping]
-  })),
-  updateFieldMapping: (id, updates) => set((state) => ({
-    fieldMappings: state.fieldMappings.map((m) =>
-      m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m
-    )
-  })),
-  removeFieldMapping: (id) => set((state) => ({
-    fieldMappings: state.fieldMappings.filter((m) => m.id !== id)
-  })),
-
   setHeaderMatches: (matches) => set({ headerMatches: matches }),
-  updateHeaderMatch: (index, match) => set((state) => ({
-    headerMatches: state.headerMatches.map((m, i) => i === index ? match : m)
-  })),
 
   setRequiredFields: (fields) => set({ requiredFields: fields }),
-  toggleRequiredField: (field) => set((state) => ({
-    requiredFields: state.requiredFields.includes(field)
-      ? state.requiredFields.filter((f) => f !== field)
-      : [...state.requiredFields, field]
-  })),
 
   setValidationResult: (result) => set({ validationResult: result }),
   setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),
@@ -333,29 +109,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setAvailableScripts: (scripts) => set({
     availableScripts: scripts,
-    enabledScripts: scripts.map(s => s.id), // Enable all by default
+    enabledScripts: scripts.map(s => s.id),
   }),
-
-  setEnrichmentConfigs: (configs) => set({ enrichmentConfigs: configs }),
-  addEnrichmentConfig: (config) => set((state) => ({
-    enrichmentConfigs: [...state.enrichmentConfigs, config]
-  })),
-  updateEnrichmentConfig: (id, updates) => set((state) => ({
-    enrichmentConfigs: state.enrichmentConfigs.map((c) =>
-      c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-    )
-  })),
-  removeEnrichmentConfig: (id) => set((state) => ({
-    enrichmentConfigs: state.enrichmentConfigs.filter((c) => c.id !== id)
-  })),
-
-  setEnrichmentResults: (results) => set({ enrichmentResults: results }),
-  setIsEnriching: (isEnriching) => set({ isEnriching }),
-  setEnrichmentProgress: (progress) => set({ enrichmentProgress: progress }),
-
-  setHubSpotResults: (results) => set({ hubspotResults: results }),
-  setIsSyncing: (isSyncing) => set({ isSyncing }),
-  setSyncProgress: (progress) => set({ syncProgress: progress }),
 
   setAuditResult: (result) => set({ auditResult: result }),
 
@@ -363,16 +118,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     logs: [...state.logs, log]
   })),
   clearLogs: () => set({ logs: [] }),
-
-  setDefaultTaskAssignee: (assignee) => set({ defaultTaskAssignee: assignee }),
-  setNotifyOnNewCompany: (users) => set({ notifyOnNewCompany: users }),
-
-  setUploadSession: (session) => set({ uploadSession: session }),
-  updateUploadSessionStatus: (status) => set((state) => ({
-    uploadSession: state.uploadSession
-      ? { ...state.uploadSession, status, updatedAt: new Date().toISOString() }
-      : null
-  })),
 
   reset: () => set({
     ...initialState,
