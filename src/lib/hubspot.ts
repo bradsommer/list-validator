@@ -10,6 +10,43 @@ import { cache, CACHE_TTL, CACHE_KEYS } from './cache';
 const HUBSPOT_AUTH_URL = 'https://app.hubspot.com/oauth/authorize';
 const HUBSPOT_TOKEN_URL = 'https://api.hubapi.com/oauth/v1/token';
 
+// Cache for DB-loaded OAuth credentials so we don't query on every call
+let cachedClientId: string | null = null;
+let cachedClientSecret: string | null = null;
+let credentialsCacheTime = 0;
+const CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Load OAuth credentials from app_settings table in Supabase
+async function loadOAuthCredentialsFromDb(): Promise<{ clientId: string; clientSecret: string }> {
+  // Return cached values if fresh
+  if (cachedClientId !== null && Date.now() - credentialsCacheTime < CREDENTIALS_CACHE_TTL) {
+    return { clientId: cachedClientId, clientSecret: cachedClientSecret || '' };
+  }
+  try {
+    const { supabase } = await import('@/lib/supabase');
+    const { data } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['hubspot_client_id', 'hubspot_client_secret', 'hubspot_app_id']);
+
+    let clientId = '';
+    let clientSecret = '';
+    if (data) {
+      for (const row of data) {
+        const val = typeof row.value === 'string' ? row.value.replace(/^"|"$/g, '') : String(row.value ?? '').replace(/^"|"$/g, '');
+        if (row.key === 'hubspot_client_id') clientId = val;
+        if (row.key === 'hubspot_client_secret') clientSecret = val;
+      }
+    }
+    cachedClientId = clientId;
+    cachedClientSecret = clientSecret;
+    credentialsCacheTime = Date.now();
+    return { clientId, clientSecret };
+  } catch {
+    return { clientId: '', clientSecret: '' };
+  }
+}
+
 export function getHubSpotClientId(): string {
   return process.env.HUBSPOT_CLIENT_ID || '';
 }
@@ -18,13 +55,28 @@ export function getHubSpotClientSecret(): string {
   return process.env.HUBSPOT_CLIENT_SECRET || '';
 }
 
+// Async versions that fall back to DB if env vars are missing
+export async function getHubSpotClientIdAsync(): Promise<string> {
+  const envVal = process.env.HUBSPOT_CLIENT_ID;
+  if (envVal) return envVal;
+  const dbCreds = await loadOAuthCredentialsFromDb();
+  return dbCreds.clientId;
+}
+
+export async function getHubSpotClientSecretAsync(): Promise<string> {
+  const envVal = process.env.HUBSPOT_CLIENT_SECRET;
+  if (envVal) return envVal;
+  const dbCreds = await loadOAuthCredentialsFromDb();
+  return dbCreds.clientSecret;
+}
+
 export function getRedirectUri(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   return `${base}/api/hubspot/oauth/callback`;
 }
 
-export function getAuthorizeUrl(accountId?: string): string {
-  const clientId = getHubSpotClientId();
+export async function getAuthorizeUrl(accountId?: string): Promise<string> {
+  const clientId = await getHubSpotClientIdAsync();
   const redirectUri = getRedirectUri();
   const scopes = [
     'crm.objects.contacts.read',
@@ -67,13 +119,20 @@ export interface HubSpotTokens {
 }
 
 export async function exchangeCodeForTokens(code: string): Promise<HubSpotTokens> {
+  const clientId = await getHubSpotClientIdAsync();
+  const clientSecret = await getHubSpotClientSecretAsync();
+
+  if (!clientId || !clientSecret) {
+    throw new Error('HubSpot OAuth credentials not configured. Set HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET in .env.local or in Admin > App Settings (hubspot_client_id, hubspot_client_secret).');
+  }
+
   const response = await fetch(HUBSPOT_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: getHubSpotClientId(),
-      client_secret: getHubSpotClientSecret(),
+      client_id: clientId,
+      client_secret: clientSecret,
       redirect_uri: getRedirectUri(),
       code,
     }).toString(),
@@ -95,13 +154,20 @@ export async function exchangeCodeForTokens(code: string): Promise<HubSpotTokens
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<HubSpotTokens> {
+  const clientId = await getHubSpotClientIdAsync();
+  const clientSecret = await getHubSpotClientSecretAsync();
+
+  if (!clientId || !clientSecret) {
+    throw new Error('HubSpot OAuth credentials not configured. Cannot refresh token. Set HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET in .env.local or in Admin > App Settings.');
+  }
+
   const response = await fetch(HUBSPOT_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      client_id: getHubSpotClientId(),
-      client_secret: getHubSpotClientSecret(),
+      client_id: clientId,
+      client_secret: clientSecret,
       refresh_token: refreshToken,
     }).toString(),
   });
