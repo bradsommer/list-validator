@@ -15,6 +15,7 @@ import type {
   ValidationScript,
 } from '@/types';
 import { generateSessionId } from '@/lib/logger';
+import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
 
 interface AppState {
   // Session
@@ -164,13 +165,40 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Non-blocking — saved mappings are optional
       }
 
-      // Build a lookup: hubspotFieldName -> list of learned header strings
-      const learnedVariants: Record<string, string[]> = {};
+      // Build a lookup: hubspotFieldName -> list of extra variant strings
+      const extraVariants: Record<string, string[]> = {};
+
+      // Source 1: Learned header mappings from DB (past imports)
       for (const [normalizedHeader, mapping] of Object.entries(savedMappings)) {
-        if (!learnedVariants[mapping.field]) {
-          learnedVariants[mapping.field] = [];
+        if (!extraVariants[mapping.field]) {
+          extraVariants[mapping.field] = [];
         }
-        learnedVariants[mapping.field].push(normalizedHeader);
+        extraVariants[mapping.field].push(normalizedHeader);
+      }
+
+      // Source 2: Admin-configured mappings from localStorage (/admin/mappings page)
+      try {
+        const adminMappingsJson = localStorage.getItem('admin_header_mappings');
+        if (adminMappingsJson) {
+          const adminMappings = JSON.parse(adminMappingsJson) as Array<{
+            original_header: string;
+            hubspot_field_name: string;
+          }>;
+          for (const m of adminMappings) {
+            if (!extraVariants[m.hubspot_field_name]) {
+              extraVariants[m.hubspot_field_name] = [];
+            }
+            extraVariants[m.hubspot_field_name].push(m.original_header.toLowerCase().trim());
+          }
+        }
+      } catch {
+        // Non-blocking — admin mappings are optional
+      }
+
+      // Source 3: Default field mappings (common header variants like fname, email address, etc.)
+      const defaultVariantsLookup: Record<string, string[]> = {};
+      for (const dm of defaultFieldMappings) {
+        defaultVariantsLookup[dm.hubspotField] = dm.variants;
       }
 
       if (propertiesData.success && propertiesData.properties?.length > 0) {
@@ -182,9 +210,9 @@ export const useAppStore = create<AppState>((set, get) => ({
               prop.field_name.replace(/_/g, ' '),
               prop.field_name.replace(/_/g, ''),
             ];
-            // Merge in any learned header variants from past imports
-            const learned = learnedVariants[prop.field_name] || [];
-            const allVariants = [...baseVariants, ...learned]
+            const learned = extraVariants[prop.field_name] || [];
+            const defaults = defaultVariantsLookup[prop.field_name] || [];
+            const allVariants = [...baseVariants, ...defaults, ...learned]
               .filter((v, idx, arr) => arr.indexOf(v) === idx);
 
             return {
