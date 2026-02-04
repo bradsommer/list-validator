@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 const VALID_VALUES = new Set(['Yes', 'No', '']);
 
@@ -29,11 +30,9 @@ export class NewBusinessValidationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const match = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'new_business'
-    );
+    const header = findColumnHeader('new_business', headerMatches, rows);
 
-    if (!match) {
+    if (!header) {
       return {
         success: true,
         changes: [],
@@ -42,8 +41,6 @@ export class NewBusinessValidationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const header = match.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

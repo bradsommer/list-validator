@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // Common company suffixes and their standardized forms
 const COMPANY_SUFFIXES: Record<string, string> = {
@@ -59,9 +60,9 @@ export class CompanyNormalizationScript implements IValidationScript {
     const modifiedRows: ParsedRow[] = [];
 
     // Find the company field
-    const companyMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'company');
+    const companyHeader = findColumnHeader('company', headerMatches, rows);
 
-    if (!companyMatch) {
+    if (!companyHeader) {
       return {
         success: true,
         changes: [],
@@ -70,8 +71,6 @@ export class CompanyNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const companyHeader = companyMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

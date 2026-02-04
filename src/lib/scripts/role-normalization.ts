@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // Allowed role values (exact match required)
 const VALID_ROLES = new Set([
@@ -40,12 +41,9 @@ export class RoleNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find the role field
-    const roleMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'role'
-    );
+    const roleHeader = findColumnHeader('role', headerMatches, rows);
 
-    if (!roleMatch) {
+    if (!roleHeader) {
       return {
         success: true,
         changes: [],
@@ -54,8 +52,6 @@ export class RoleNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const roleHeader = roleMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

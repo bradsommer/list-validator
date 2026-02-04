@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // US State abbreviation to full name mapping
 const STATE_MAP: Record<string, string> = {
@@ -112,13 +113,11 @@ export class StateNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find the state field
-    const stateMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'state'
-    );
+    // Find the state column — tries headerMatches first, then scans row keys
+    const stateHeader = findColumnHeader('state', headerMatches, rows);
 
-    if (!stateMatch) {
-      // No state field mapped, nothing to do
+    if (!stateHeader) {
+      // No state field found, nothing to do
       return {
         success: true,
         changes: [],
@@ -127,8 +126,6 @@ export class StateNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const stateHeader = stateMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

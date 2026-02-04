@@ -228,6 +228,24 @@ export const dateNormalizationScript: IValidationScript = {
       }
     }
 
+    // Fallback: scan row keys for date-like headers not found via headerMatches
+    if (rows.length > 0) {
+      const rowKeys = Object.keys(rows[0]);
+      for (const key of rowKeys) {
+        const keyLower = key.toLowerCase().trim();
+        if (
+          (keyLower.includes('date') || keyLower.includes('birthday') || keyLower.includes('dob')) &&
+          !dateHeaders.some((d) => d.header === key)
+        ) {
+          dateHeaders.push({
+            header: key,
+            field: keyLower,
+            isDateTime: isDateTimeHeader(key),
+          });
+        }
+      }
+    }
+
     if (dateHeaders.length === 0) {
       return { success: true, changes: [], errors: [], warnings: [], modifiedRows: rows };
     }

@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // Allowed Program Type values (exact match required)
 const VALID_PROGRAM_TYPES = new Set([
@@ -74,11 +75,9 @@ export class ProgramTypeNormalizationScript implements IValidationScript {
     const modifiedRows: ParsedRow[] = [];
 
     // Find the program type field
-    const ptMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'program_type'
-    );
+    const ptHeader = findColumnHeader('program_type', headerMatches, rows);
 
-    if (!ptMatch) {
+    if (!ptHeader) {
       return {
         success: true,
         changes: [],
@@ -87,8 +86,6 @@ export class ProgramTypeNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const ptHeader = ptMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

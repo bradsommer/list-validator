@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 export class PhoneNormalizationScript implements IValidationScript {
   id = 'phone-normalization';
@@ -15,11 +16,9 @@ export class PhoneNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const phoneMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'phone'
-    );
+    const phoneHeader = findColumnHeader('phone', headerMatches, rows);
 
-    if (!phoneMatch) {
+    if (!phoneHeader) {
       return {
         success: true,
         changes: [],
@@ -28,8 +27,6 @@ export class PhoneNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const phoneHeader = phoneMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };
