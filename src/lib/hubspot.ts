@@ -518,35 +518,27 @@ export async function createCompany(companyData: {
 }
 
 // Create or update a contact in HubSpot
-export async function createOrUpdateContact(contactData: {
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  company?: string;
-  jobTitle?: string;
-  city?: string;
-  state?: string;
-  [key: string]: string | undefined;
-}): Promise<HubSpotContact> {
+// Accepts a flat object of HubSpot property names → values
+export async function createOrUpdateContact(
+  properties: Record<string, string>
+): Promise<HubSpotContact> {
   const client = await getHubSpotClient();
 
-  const properties: Record<string, string> = {
-    email: contactData.email,
-  };
+  // Filter out empty values
+  const cleanProperties: Record<string, string> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (value && value.trim()) {
+      cleanProperties[key] = value.trim();
+    }
+  }
 
-  if (contactData.firstName) properties.firstname = contactData.firstName;
-  if (contactData.lastName) properties.lastname = contactData.lastName;
-  if (contactData.phone) properties.phone = contactData.phone;
-  if (contactData.company) properties.company = contactData.company;
-  if (contactData.jobTitle) properties.jobtitle = contactData.jobTitle;
-  if (contactData.city) properties.city = contactData.city;
-  if (contactData.state) properties.state = contactData.state;
+  if (!cleanProperties.email) {
+    throw new Error('Email is required to create a HubSpot contact');
+  }
 
   try {
-    // Try to create the contact
     const response = await client.crm.contacts.basicApi.create({
-      properties,
+      properties: cleanProperties,
     });
 
     return {
@@ -567,7 +559,7 @@ export async function createOrUpdateContact(contactData: {
               {
                 propertyName: 'email',
                 operator: 'EQ',
-                value: contactData.email,
+                value: cleanProperties.email,
               },
             ],
           },
@@ -580,7 +572,7 @@ export async function createOrUpdateContact(contactData: {
         const existingContact = searchResponse.results[0];
         const updateResponse = await client.crm.contacts.basicApi.update(
           existingContact.id,
-          { properties }
+          { properties: cleanProperties }
         );
 
         return {
@@ -679,23 +671,36 @@ export async function getHubSpotOwners(): Promise<{ id: string; email: string; n
 }
 
 // Process a single row for HubSpot sync
+// rowData keys are expected to be HubSpot internal field names (email, firstname, company, etc.)
+// after transformToHubSpotFormat has been applied on the client side.
 export async function processRowForHubSpot(
   rowIndex: number,
   rowData: ParsedRow,
   defaultTaskAssigneeId: string
 ): Promise<HubSpotMatchResult> {
-  const contactData = {
-    email: String(rowData.email || ''),
-    institution: String(rowData.institution || rowData.company || ''),
-    officialName: String(rowData.official_company_name || ''),
-    domain: String(rowData.domain || ''),
-    city: String(rowData.city || ''),
-    state: String(rowData.state || ''),
-    programType: String(rowData.program_type || ''),
-  };
+  const email = String(rowData.email || '');
+  const companyName = String(rowData.company || '');
+  const domain = String(rowData.website || '');
+  const city = String(rowData.city || '');
+  const state = String(rowData.state || '');
+
+  // Build contact properties from all row fields (already in HubSpot field name format)
+  const contactProperties: Record<string, string> = {};
+  for (const [key, value] of Object.entries(rowData)) {
+    if (value !== null && value !== undefined && String(value).trim()) {
+      contactProperties[key] = String(value).trim();
+    }
+  }
 
   // Find best company match
-  const matchResult = await findBestCompanyMatch(contactData);
+  const matchResult = await findBestCompanyMatch({
+    email,
+    institution: companyName,
+    officialName: companyName,
+    domain,
+    city,
+    state,
+  });
 
   let company = matchResult.company;
   let matchType = matchResult.matchType;
@@ -703,35 +708,30 @@ export async function processRowForHubSpot(
   let taskId: string | undefined;
 
   // If no match found, create new company and task
-  if (!company && contactData.officialName) {
+  if (!company && companyName) {
     company = await createCompany({
-      name: contactData.officialName,
-      domain: contactData.domain,
-      city: contactData.city,
-      state: contactData.state,
+      name: companyName,
+      domain,
+      city,
+      state,
     });
     matchType = 'created_new';
 
-    // Create task for new company
-    taskId = await createTask({
-      subject: `Review new company: ${company.name}`,
-      body: `A new company was created during list import.\n\nCompany: ${company.name}\nDomain: ${contactData.domain || 'N/A'}\nCity: ${contactData.city || 'N/A'}\nState: ${contactData.state || 'N/A'}\n\nPlease review and verify the company information.`,
-      ownerId: defaultTaskAssigneeId,
-      priority: 'MEDIUM',
-      associatedCompanyId: company.id,
-    });
-    taskCreated = true;
+    // Create task for new company if assignee is set
+    if (defaultTaskAssigneeId) {
+      taskId = await createTask({
+        subject: `Review new company: ${company.name}`,
+        body: `A new company was created during list import.\n\nCompany: ${company.name}\nDomain: ${domain || 'N/A'}\nCity: ${city || 'N/A'}\nState: ${state || 'N/A'}\n\nPlease review and verify the company information.`,
+        ownerId: defaultTaskAssigneeId,
+        priority: 'MEDIUM',
+        associatedCompanyId: company.id,
+      });
+      taskCreated = true;
+    }
   }
 
-  // Create or update the contact
-  const contact = await createOrUpdateContact({
-    email: contactData.email,
-    firstName: String(rowData.firstname || rowData.first_name || ''),
-    lastName: String(rowData.lastname || rowData.last_name || ''),
-    company: contactData.officialName || contactData.institution,
-    city: contactData.city,
-    state: contactData.state,
-  });
+  // Create or update the contact with ALL mapped properties
+  const contact = await createOrUpdateContact(contactProperties);
 
   // Associate contact with company
   if (company) {
