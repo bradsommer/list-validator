@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { processRowForHubSpot, getValidAccessToken, resetClient } from '@/lib/hubspot';
+import { upsertCrmRecord } from '@/lib/crmRecords';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 
 interface SyncRow {
@@ -98,6 +99,18 @@ export async function POST(request: NextRequest) {
             );
 
             consecutiveAuthErrors = 0; // Reset on success
+
+            // Store in local CRM records (non-blocking — don't fail sync on CRM error)
+            try {
+              if (rows[i].contactProperties && Object.keys(rows[i].contactProperties).length > 0) {
+                await upsertCrmRecord('contacts', rows[i].contactProperties, result.contact?.id, sessionId);
+              }
+              if (rows[i].companyProperties && Object.keys(rows[i].companyProperties).length > 0) {
+                await upsertCrmRecord('companies', rows[i].companyProperties, result.matchedCompany?.id, sessionId);
+              }
+            } catch (crmErr) {
+              console.error(`CRM storage error for row ${i}:`, crmErr);
+            }
 
             // Send result
             controller.enqueue(

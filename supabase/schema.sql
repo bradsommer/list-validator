@@ -281,6 +281,48 @@ CREATE INDEX IF NOT EXISTS idx_upload_rows_status ON upload_rows(status);
 CREATE INDEX IF NOT EXISTS idx_upload_rows_session_status ON upload_rows(session_id, status);
 
 -- ============================================================================
+-- CRM RECORDS & CUSTOM PROPERTIES
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS crm_properties (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  object_type VARCHAR(50) NOT NULL, -- 'contacts', 'companies', 'deals'
+  name VARCHAR(255) NOT NULL,
+  label VARCHAR(255) NOT NULL,
+  field_type VARCHAR(50) NOT NULL DEFAULT 'text',
+  options JSONB DEFAULT '[]',
+  is_required BOOLEAN NOT NULL DEFAULT FALSE,
+  is_system BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(account_id, object_type, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_properties_account_type ON crm_properties(account_id, object_type);
+
+CREATE TABLE IF NOT EXISTS crm_records (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  object_type VARCHAR(50) NOT NULL,
+  properties JSONB NOT NULL DEFAULT '{}',
+  dedup_key VARCHAR(500),
+  hubspot_record_id VARCHAR(255),
+  upload_session_id UUID,
+  synced_at TIMESTAMP WITH TIME ZONE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() + INTERVAL '15 days'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_records_account_type ON crm_records(account_id, object_type);
+CREATE INDEX IF NOT EXISTS idx_crm_records_dedup ON crm_records(account_id, object_type, dedup_key);
+CREATE INDEX IF NOT EXISTS idx_crm_records_expires ON crm_records(expires_at);
+CREATE INDEX IF NOT EXISTS idx_crm_records_hubspot_id ON crm_records(hubspot_record_id);
+CREATE INDEX IF NOT EXISTS idx_crm_records_properties ON crm_records USING gin(properties);
+
+-- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
@@ -366,6 +408,16 @@ CREATE TRIGGER update_upload_sessions_updated_at
 DROP TRIGGER IF EXISTS update_upload_rows_updated_at ON upload_rows;
 CREATE TRIGGER update_upload_rows_updated_at
   BEFORE UPDATE ON upload_rows
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_crm_properties_updated_at ON crm_properties;
+CREATE TRIGGER update_crm_properties_updated_at
+  BEFORE UPDATE ON crm_properties
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_crm_records_updated_at ON crm_records;
+CREATE TRIGGER update_crm_records_updated_at
+  BEFORE UPDATE ON crm_records
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
@@ -519,6 +571,36 @@ INSERT INTO app_settings (key, value) VALUES
   ('session_timeout_minutes', '60')
 ON CONFLICT (key) DO NOTHING;
 
+-- Default CRM properties per object type
+INSERT INTO crm_properties (account_id, object_type, name, label, field_type, is_system, sort_order) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'email', 'Email', 'text', TRUE, 0),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'firstname', 'First Name', 'text', TRUE, 1),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'lastname', 'Last Name', 'text', TRUE, 2),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'phone', 'Phone', 'text', TRUE, 3),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'company', 'Company', 'text', TRUE, 4),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'jobtitle', 'Job Title', 'text', TRUE, 5),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'city', 'City', 'text', TRUE, 6),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'state', 'State/Region', 'text', TRUE, 7),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'country', 'Country', 'text', TRUE, 8),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'zip', 'Postal Code', 'text', TRUE, 9),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'website', 'Website', 'text', TRUE, 10),
+  ('00000000-0000-0000-0000-000000000001', 'contacts', 'address', 'Street Address', 'text', TRUE, 11),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'name', 'Company Name', 'text', TRUE, 0),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'domain', 'Domain', 'text', TRUE, 1),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'city', 'City', 'text', TRUE, 2),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'state', 'State/Region', 'text', TRUE, 3),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'country', 'Country', 'text', TRUE, 4),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'phone', 'Phone', 'text', TRUE, 5),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'industry', 'Industry', 'text', TRUE, 6),
+  ('00000000-0000-0000-0000-000000000001', 'companies', 'website', 'Website', 'text', TRUE, 7),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'dealname', 'Deal Name', 'text', TRUE, 0),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'amount', 'Amount', 'number', TRUE, 1),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'dealstage', 'Deal Stage', 'text', TRUE, 2),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'pipeline', 'Pipeline', 'text', TRUE, 3),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'closedate', 'Close Date', 'date', TRUE, 4),
+  ('00000000-0000-0000-0000-000000000001', 'deals', 'description', 'Description', 'text', TRUE, 5)
+ON CONFLICT (account_id, object_type, name) DO NOTHING;
+
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================================
@@ -536,6 +618,8 @@ ALTER TABLE account_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE import_audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_rows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE crm_properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE crm_records ENABLE ROW LEVEL SECURITY;
 
 -- Policies for authenticated users
 CREATE POLICY "Allow all for authenticated" ON accounts FOR ALL TO authenticated USING (true);
@@ -551,6 +635,8 @@ CREATE POLICY "Allow all for authenticated" ON account_integrations FOR ALL TO a
 CREATE POLICY "Allow all for authenticated" ON import_audit_log FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON upload_sessions FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON upload_rows FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated" ON crm_properties FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated" ON crm_records FOR ALL TO authenticated USING (true);
 
 -- Development policies (remove in production)
 CREATE POLICY "Allow all for anon" ON accounts FOR ALL TO anon USING (true);
@@ -566,3 +652,5 @@ CREATE POLICY "Allow all for anon" ON account_integrations FOR ALL TO anon USING
 CREATE POLICY "Allow all for anon" ON import_audit_log FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON upload_sessions FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON upload_rows FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON crm_properties FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON crm_records FOR ALL TO anon USING (true);

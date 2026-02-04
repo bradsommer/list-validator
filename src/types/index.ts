@@ -285,3 +285,37 @@ export interface PipelineProgress {
   retryCount: number;
   expiresAt: string;
 }
+
+// CRM Records & Properties
+export type CrmObjectType = 'contacts' | 'companies' | 'deals';
+
+export type CrmFieldType = 'text' | 'number' | 'date' | 'select' | 'boolean';
+
+export interface CrmProperty {
+  id: string;
+  accountId: string;
+  objectType: CrmObjectType;
+  name: string;
+  label: string;
+  fieldType: CrmFieldType;
+  options: { value: string; label: string }[];
+  isRequired: boolean;
+  isSystem: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmRecord {
+  id: string;
+  accountId: string;
+  objectType: CrmObjectType;
+  properties: Record<string, string | number | boolean | null>;
+  dedupKey: string | null;
+  hubspotRecordId: string | null;
+  uploadSessionId: string | null;
+  syncedAt: string | null;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
