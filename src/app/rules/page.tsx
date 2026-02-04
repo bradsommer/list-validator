@@ -7,8 +7,17 @@ import type { ValidationScript } from '@/types';
 
 // Script source code for display (descriptions of what each rule does)
 const SCRIPT_SOURCE: Record<string, string> = {
-  'yes-no-validation': `// Yes/No Field Validation Rule
-// Targets: "Whitespace" and "New Business" columns
+  'whitespace-validation': `// Whitespace Validation Rule
+// Targets: "Whitespace" column
+// - Value must be "Yes", "No", or blank
+// - Normalizes common variants:
+//   "y" / "n"         → "Yes" / "No"
+//   "true" / "false"  → "Yes" / "No"
+//   "1" / "0"         → "Yes" / "No"
+// - Any other value is cleared to blank and flagged as a warning`,
+
+  'new-business-validation': `// New Business Validation Rule
+// Targets: "New Business" column
 // - Value must be "Yes", "No", or blank
 // - Normalizes common variants:
 //   "y" / "n"         → "Yes" / "No"
@@ -46,7 +55,8 @@ const VALID_ROLES = [
   'program-type-normalization': `// Program Type Normalization Rule
 // - Checks Program Type values against an allowed list
 // - Case-insensitive matching fixes casing mismatches
-// - Non-matching values are flagged as warnings (kept as-is)
+// - Non-matching values are set to "Other"
+// - Blank values are left blank
 
 const VALID_PROGRAM_TYPES = [
   'ADN', 'BSN', 'OTHER-BSN', 'RN', 'PN',
@@ -67,11 +77,12 @@ const VALID_PROGRAM_TYPES = [
   'solution-normalization': `// Solution Normalization Rule
 // - Checks Solution values against an allowed list
 // - Case-insensitive matching fixes casing mismatches
-// - Non-matching values are flagged as warnings (kept as-is)
+// - Non-matching values are cleared to empty
+// - Blank values are left blank
 
 const VALID_SOLUTIONS = [
-  'OPTIMAL', 'SUPREME', 'STO', 'CARP',
-  'BASIC', 'MID-MARKET', 'COMPLETE',
+  'CARP', 'BASIC', 'SUPREME', 'OPTIMAL',
+  'COMPLETE', 'STO', 'MID-MARKET',
 ];`,
 
   'email-validation': `// Email Validation Rule
@@ -94,42 +105,42 @@ const DISPOSABLE_DOMAINS = [
 // Detects: invalid format, disposable domains, personal domains, typos`,
 
   'phone-normalization': `// Phone Number Normalization Rule
-// - Standardizes US numbers to (XXX) XXX-XXXX format
-// - Handles international phone numbers
-// - Strips leading country code "1" for US numbers
+// - Standardizes all phone numbers to +1XXXXXXXXXX format
+// - Assumes US country code (+1) when not present
+// - Strips all formatting (dashes, spaces, parentheses)
 // - Warns about numbers with too few digits (< 7)
-// - Warns about numbers missing area code (7-9 digits)
-// - Warns about unusually long numbers (> 15 digits)
+// - International numbers keep their country code
 
 // Example transformations:
-//   "5551234567"     → "(555) 123-4567"
-//   "1-555-123-4567" → "(555) 123-4567"
-//   "+44 20 7946 0958" → "+44 207 946 0958"`,
+//   "5551234567"     → "+15551234567"
+//   "1-555-123-4567" → "+15551234567"
+//   "(555) 123-4567" → "+15551234567"
+//   "+44207946095"   → "+44207946095"`,
 
   'state-normalization': `// US State Normalization Rule
-// - Converts full state names to 2-letter abbreviations
-// - Case-insensitive matching ("california" → "CA")
-// - Also normalizes existing abbreviations ("ca" → "CA")
-// - Supports all 50 US states + DC
-// - Warns about unrecognized state values
+// - Converts 2-letter abbreviations to full state names
+// - Case-insensitive matching ("ca" → "California")
+// - Fixes common misspellings ("Califronia" → "California")
+// - Supports all 50 US states + DC + territories
+// - Detects "State", "State/Region", "State/Province" headers
 
 // Example transformations:
-//   "California"  → "CA"
-//   "new york"    → "NY"
-//   "tx"          → "TX"`,
+//   "AZ"          → "Arizona"
+//   "ca"          → "California"
+//   "NY"          → "New York"
+//   "Califronia"  → "California"`,
 
   'date-normalization': `// Date Normalization Rule
-// - Standardizes dates to YYYY-MM-DD format
+// - Standardizes date fields to MM/DD/YYYY format
+// - Date/time fields (headers with "time") → DD/MM/YYYY HH:MM
 // - Handles multiple input formats:
-//   MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD,
-//   Month DD YYYY, DD-Mon-YY
-// - Validates date is reasonable (not in far future/past)
+//   YYYY-MM-DD, DD-MM-YYYY, Month DD YYYY, timestamps
 // - Warns about ambiguous date formats
 
 // Example transformations:
-//   "01/15/2024"    → "2024-01-15"
-//   "January 15, 2024" → "2024-01-15"
-//   "15-Jan-24"     → "2024-01-15"`,
+//   "2024-01-15"       → "01/15/2024"
+//   "January 15, 2024" → "01/15/2024"
+//   "2024-01-15T14:30" → "15/01/2024 14:30" (datetime field)`,
 
   'name-capitalization': `// Name Capitalization Rule
 // - Properly capitalizes first and last names
@@ -182,11 +193,20 @@ export default function RulesPage() {
 
     // Load enabled state from localStorage
     const saved = localStorage.getItem('enabled_validation_rules');
+    const allIds = new Set(available.map((s) => s.id));
     if (saved) {
-      setEnabledScripts(new Set(JSON.parse(saved)));
+      const savedIds = JSON.parse(saved) as string[];
+      // Filter to only include IDs that still exist
+      const validIds = savedIds.filter((id) => allIds.has(id));
+      if (validIds.length > 0) {
+        setEnabledScripts(new Set(validIds));
+      } else {
+        // All saved IDs were stale — enable all
+        setEnabledScripts(allIds);
+      }
     } else {
       // Enable all by default
-      setEnabledScripts(new Set(available.map((s) => s.id)));
+      setEnabledScripts(allIds);
     }
   }, []);
 

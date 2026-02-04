@@ -62,7 +62,7 @@ for (const pt of VALID_PROGRAM_TYPES) {
 export class ProgramTypeNormalizationScript implements IValidationScript {
   id = 'program-type-normalization';
   name = 'Program Type Normalization';
-  description = 'Validates Program Type values against an allowed list. Non-matching values are flagged as warnings.';
+  description = 'Validates Program Type values against an allowed list. Non-matching values are set to "Other". Blank values stay blank.';
   type: 'transform' = 'transform';
   targetFields = ['program_type'];
   order = 16;
@@ -120,13 +120,21 @@ export class ProgramTypeNormalizationScript implements IValidationScript {
             reason: `Fixed casing "${valueStr}" → "${matched}"`,
           });
         } else {
-          // No match — flag as warning but keep original value
+          // No match — set to "Other"
+          newRow[ptHeader] = 'Other';
+          changes.push({
+            rowIndex: index,
+            field: 'program_type',
+            originalValue,
+            newValue: 'Other',
+            reason: `"${valueStr}" is not a valid Program Type — set to "Other"`,
+          });
           warnings.push({
             rowIndex: index,
             field: 'program_type',
             value: originalValue,
             warningType: 'invalid_program_type',
-            message: `"${valueStr}" is not a recognized Program Type`,
+            message: `"${valueStr}" is not a recognized Program Type — set to "Other"`,
           });
         }
       }
