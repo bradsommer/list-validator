@@ -33,13 +33,13 @@ const FIELD_PATTERNS: Record<string, string[]> = {
  */
 export function autoDetectColumns(headers: string[]): HeaderMatch[] {
   return headers.map((header) => {
-    const normalized = header.toLowerCase().trim().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ');
+    const normalized = header.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
 
     let bestMatch: { field: string; confidence: number; patternLength: number } | null = null;
 
     for (const [fieldName, patterns] of Object.entries(FIELD_PATTERNS)) {
       for (const pattern of patterns) {
-        const normalizedPattern = pattern.replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ');
+        const normalizedPattern = pattern.replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
         if (normalized === normalizedPattern) {
           bestMatch = { field: fieldName, confidence: 1.0, patternLength: normalizedPattern.length };
           break;
