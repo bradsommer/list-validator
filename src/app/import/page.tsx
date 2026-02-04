@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
@@ -12,7 +13,12 @@ import { HubSpotSync } from '@/components/hubspot/HubSpotSync';
 import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
-  const { currentStep } = useAppStore();
+  const { currentStep, reset } = useAppStore();
+
+  // Reset state on mount so the import page always starts fresh
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   const renderStep = () => {
     switch (currentStep) {
