@@ -160,20 +160,6 @@ export function HeaderMapper() {
   const handleMappingChange = (index: number, fieldId: string | null) => {
     const field = fieldId ? fieldMappings.find((f) => f.id === fieldId) : null;
 
-    // If this field is already mapped to another header, clear that mapping first
-    if (field) {
-      headerMatches.forEach((match, i) => {
-        if (i !== index && match.isMatched && match.matchedField?.id === field.id) {
-          updateHeaderMatch(i, {
-            ...match,
-            matchedField: null,
-            confidence: 0,
-            isMatched: false,
-          });
-        }
-      });
-    }
-
     const updatedMatch: HeaderMatch = {
       ...headerMatches[index],
       matchedField: field || null,
