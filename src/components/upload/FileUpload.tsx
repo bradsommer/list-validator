@@ -84,7 +84,13 @@ export function FileUpload() {
         }
 
         // Match headers to field mappings
-        const matches = matchHeaders(parsed.headers, fieldMappings);
+        // If fieldMappings haven't loaded yet, fetch them now before matching
+        let mappingsToUse = fieldMappings;
+        if (mappingsToUse.length === 0) {
+          await loadFieldMappingsFromHubSpot();
+          mappingsToUse = useAppStore.getState().fieldMappings;
+        }
+        const matches = matchHeaders(parsed.headers, mappingsToUse);
         setHeaderMatches(matches);
 
         const matchedCount = matches.filter((m) => m.isMatched).length;

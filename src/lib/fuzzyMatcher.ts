@@ -151,7 +151,11 @@ export function matchHeaders(
     if (bestAvailable && bestAvailable.score !== undefined) {
       const confidence = 1 - (bestAvailable.score || 0);
 
-      if (confidence >= 0.6) {
+      // Always pre-select the best guess — mark as matched if confidence is
+      // reasonable (>= 0.4) so users see the suggestion and can verify/change it.
+      // Reserve the field to prevent duplicate assignments.
+      const isSuggested = confidence >= 0.4;
+      if (isSuggested) {
         usedFieldIds.add(bestAvailable.item.mapping.id);
       }
 
@@ -159,7 +163,7 @@ export function matchHeaders(
         originalHeader: header,
         matchedField: bestAvailable.item.mapping,
         confidence,
-        isMatched: confidence >= 0.6,
+        isMatched: isSuggested,
       });
     } else {
       results.push({
