@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
     try {
       const response = await fetch('/api/integrations', {
         headers: {
-          'x-account-id': user?.accountId || 'dev-account-id',
+          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
         },
       });
       const data = await response.json();
@@ -75,7 +75,7 @@ export default function IntegrationsPage() {
     try {
       const response = await fetch('/api/hubspot/oauth', {
         headers: {
-          'x-account-id': user?.accountId || 'dev-account-id',
+          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
         },
       });
       const data = await response.json();
@@ -95,7 +95,7 @@ export default function IntegrationsPage() {
         await fetch('/api/hubspot/oauth', {
           method: 'DELETE',
           headers: {
-            'x-account-id': user?.accountId || 'dev-account-id',
+            'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
           },
         });
       }

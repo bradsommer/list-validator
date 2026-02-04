@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-    const accountId = state || 'dev-account-id';
+    const accountId = state || '00000000-0000-0000-0000-000000000001';
 
     // Fetch the portal ID (hub_id) from HubSpot token info
     let portalId: string | undefined;
@@ -31,9 +31,12 @@ export async function GET(request: NextRequest) {
       if (tokenInfoResponse.ok) {
         const tokenInfo = await tokenInfoResponse.json();
         portalId = tokenInfo.hub_id?.toString();
+        console.log('HubSpot portal ID fetched:', portalId);
+      } else {
+        console.error('Failed to fetch HubSpot token info:', tokenInfoResponse.status);
       }
-    } catch {
-      // Non-critical - continue without portal ID
+    } catch (err) {
+      console.error('Error fetching HubSpot token info:', err);
     }
 
     // Store tokens to in-memory, file, and database
