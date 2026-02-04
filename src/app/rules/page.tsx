@@ -77,7 +77,7 @@ const VALID_PROGRAM_TYPES = [
   'solution-normalization': `// Solution Normalization Rule
 // - Checks Solution values against an allowed list
 // - Case-insensitive matching fixes casing mismatches
-// - Non-matching values are cleared to empty
+// - Non-matching values are set to "Other"
 // - Blank values are left blank
 
 const VALID_SOLUTIONS = [
