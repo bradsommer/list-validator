@@ -191,43 +191,38 @@ export default function RulesPage() {
     const available = getAvailableScripts();
     setScripts(available);
 
-    // Load enabled state from localStorage
-    const saved = localStorage.getItem('enabled_validation_rules');
-    const knownRaw = localStorage.getItem('known_validation_rules');
     const allIds = new Set(available.map((s) => s.id));
 
-    if (saved) {
-      const savedIds = JSON.parse(saved) as string[];
-      const knownIds = knownRaw ? new Set(JSON.parse(knownRaw) as string[]) : new Set<string>();
-
-      // Start with the saved enabled scripts (filter out stale ones)
-      const enabledSet = new Set(savedIds.filter((id) => allIds.has(id)));
-
-      // Auto-enable any NEW scripts that weren't known at save time
-      for (const id of allIds) {
-        if (!knownIds.has(id)) {
-          enabledSet.add(id);
+    // Load DISABLED scripts from localStorage — everything else is enabled by default.
+    // This means new scripts are always enabled automatically.
+    try {
+      const disabledRaw = localStorage.getItem('disabled_validation_rules');
+      if (disabledRaw) {
+        const disabledIds = new Set(JSON.parse(disabledRaw) as string[]);
+        const enabledSet = new Set<string>();
+        for (const id of allIds) {
+          if (!disabledIds.has(id)) {
+            enabledSet.add(id);
+          }
         }
-      }
-
-      if (enabledSet.size > 0) {
         setEnabledScripts(enabledSet);
       } else {
         setEnabledScripts(allIds);
       }
-    } else {
-      // Enable all by default
+    } catch {
       setEnabledScripts(allIds);
     }
 
-    // Always save the current known script IDs
-    localStorage.setItem('known_validation_rules', JSON.stringify(Array.from(allIds)));
+    // Clean up legacy keys from the old enabled-list approach
+    localStorage.removeItem('enabled_validation_rules');
+    localStorage.removeItem('known_validation_rules');
   }, []);
 
-  const saveEnabledToStorage = (ids: Set<string>) => {
-    localStorage.setItem('enabled_validation_rules', JSON.stringify(Array.from(ids)));
-    // Also persist the full list of known scripts so we can detect new ones later
-    localStorage.setItem('known_validation_rules', JSON.stringify(scripts.map((s) => s.id)));
+  const saveDisabledToStorage = (enabledIds: Set<string>) => {
+    // Save only the DISABLED script IDs — new scripts default to enabled
+    const allIds = scripts.map((s) => s.id);
+    const disabledIds = allIds.filter((id) => !enabledIds.has(id));
+    localStorage.setItem('disabled_validation_rules', JSON.stringify(disabledIds));
   };
 
   const toggleRule = (scriptId: string) => {
@@ -238,7 +233,7 @@ export default function RulesPage() {
       } else {
         next.add(scriptId);
       }
-      saveEnabledToStorage(next);
+      saveDisabledToStorage(next);
       return next;
     });
   };
@@ -246,12 +241,12 @@ export default function RulesPage() {
   const enableAll = () => {
     const all = new Set(scripts.map((s) => s.id));
     setEnabledScripts(all);
-    saveEnabledToStorage(all);
+    saveDisabledToStorage(all);
   };
 
   const disableAll = () => {
     setEnabledScripts(new Set());
-    saveEnabledToStorage(new Set());
+    saveDisabledToStorage(new Set());
   };
 
   return (
