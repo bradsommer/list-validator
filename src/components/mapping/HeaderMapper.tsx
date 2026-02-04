@@ -34,6 +34,9 @@ export function HeaderMapper() {
   const [isSaving, setIsSaving] = useState(false);
   const [ignoreUnmapped, setIgnoreUnmapped] = useState(false);
 
+  // Store original object types before bulk-skipping, so we can restore on uncheck
+  const [savedObjectTypes, setSavedObjectTypes] = useState<Record<number, string>>({});
+
   // Track selected object type per row (default to 'contacts', or '__skip__' for don't import)
   const [rowObjectTypes, setRowObjectTypes] = useState<Record<number, string>>(() => {
     const initial: Record<number, string> = {};
@@ -49,6 +52,34 @@ export function HeaderMapper() {
 
   const isRowSkipped = (index: number): boolean => {
     return getRowObjectType(index) === SKIP_IMPORT_VALUE;
+  };
+
+  const handleIgnoreUnmapped = (checked: boolean) => {
+    setIgnoreUnmapped(checked);
+    if (checked) {
+      // Save current object types for unmapped rows, then skip them
+      const saved: Record<number, string> = {};
+      const updated: Record<number, string> = { ...rowObjectTypes };
+      headerMatches.forEach((match, i) => {
+        if (!match.isMatched && !isRowSkipped(i)) {
+          saved[i] = getRowObjectType(i);
+          updated[i] = SKIP_IMPORT_VALUE;
+        }
+      });
+      setSavedObjectTypes(saved);
+      setRowObjectTypes(updated);
+    } else {
+      // Restore previously saved object types
+      const updated: Record<number, string> = { ...rowObjectTypes };
+      Object.entries(savedObjectTypes).forEach(([idx, objectType]) => {
+        const i = Number(idx);
+        if (isRowSkipped(i)) {
+          updated[i] = objectType;
+        }
+      });
+      setRowObjectTypes(updated);
+      setSavedObjectTypes({});
+    }
   };
 
   const setRowObjectType = (index: number, objectType: string) => {
@@ -382,21 +413,27 @@ export function HeaderMapper() {
       </div>
 
       {/* Ignore unmapped checkbox */}
-      {unmappedCount > 0 && (
+      {(unmappedCount > 0 || ignoreUnmapped) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={ignoreUnmapped}
-              onChange={(e) => setIgnoreUnmapped(e.target.checked)}
+              onChange={(e) => handleIgnoreUnmapped(e.target.checked)}
               className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
             />
             <div>
               <span className="text-sm font-medium text-yellow-800">
-                Ignore {unmappedCount} unmapped propert{unmappedCount === 1 ? 'y' : 'ies'}
+                {ignoreUnmapped
+                  ? `Ignoring ${Object.keys(savedObjectTypes).length} unmapped propert${Object.keys(savedObjectTypes).length === 1 ? 'y' : 'ies'}`
+                  : `Ignore ${unmappedCount} unmapped propert${unmappedCount === 1 ? 'y' : 'ies'}`
+                }
               </span>
               <p className="text-xs text-yellow-600 mt-0.5">
-                Columns set to &quot;Choose a property&quot; will not be imported
+                {ignoreUnmapped
+                  ? 'Unmapped columns are set to Don\u2019t Import and will be skipped'
+                  : 'Columns set to \u201CChoose a property\u201D will not be imported'
+                }
               </p>
             </div>
           </label>
