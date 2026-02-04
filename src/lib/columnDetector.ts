@@ -22,6 +22,7 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   program_type: ['program type', 'program_type', 'programtype', 'program'],
   title: ['title', 'job_title', 'jobtitle', 'job title', 'position'],
   website: ['website', 'url', 'web', 'homepage', 'domain'],
+  solution: ['solution', 'solution_type', 'solution type'],
   deal_name: ['deal_name', 'deal name', 'dealname', 'deal', 'opportunity'],
   amount: ['amount', 'deal_amount', 'value', 'revenue', 'price'],
 };

@@ -64,6 +64,16 @@ const VALID_PROGRAM_TYPES = [
   'TEAS Only', 'Test Program Type', 'Therapeutic Massage',
 ];`,
 
+  'solution-normalization': `// Solution Normalization Rule
+// - Checks Solution values against an allowed list
+// - Case-insensitive matching fixes casing mismatches
+// - Non-matching values are flagged as warnings (kept as-is)
+
+const VALID_SOLUTIONS = [
+  'OPTIMAL', 'SUPREME', 'STO', 'CARP',
+  'BASIC', 'MID-MARKET', 'COMPLETE',
+];`,
+
   'email-validation': `// Email Validation Rule
 // - Trims whitespace and converts to lowercase
 // - Validates email format (RFC-compliant regex)

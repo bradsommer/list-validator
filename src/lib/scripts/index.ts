@@ -12,6 +12,7 @@ import { companyNormalizationScript } from './company-normalization';
 import { roleNormalizationScript } from './role-normalization';
 import { yesNoValidationScript } from './yes-no-validation';
 import { programTypeNormalizationScript } from './program-type-normalization';
+import { solutionNormalizationScript } from './solution-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
@@ -19,6 +20,7 @@ const ALL_SCRIPTS: IValidationScript[] = [
   yesNoValidationScript,               // order: 12
   roleNormalizationScript,             // order: 15
   programTypeNormalizationScript,      // order: 16
+  solutionNormalizationScript,         // order: 17
   emailValidationScript,               // order: 20
   phoneNormalizationScript,            // order: 30
   dateNormalizationScript,             // order: 35
@@ -166,6 +168,7 @@ export {
   yesNoValidationScript,
   roleNormalizationScript,
   programTypeNormalizationScript,
+  solutionNormalizationScript,
   emailValidationScript,
   phoneNormalizationScript,
   dateNormalizationScript,
