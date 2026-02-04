@@ -147,25 +147,57 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadFieldMappingsFromHubSpot: async () => {
     try {
-      const response = await fetch('/api/hubspot/properties');
-      const data = await response.json();
-      if (data.success && data.properties?.length > 0) {
-        const mappings: FieldMapping[] = data.properties.map(
-          (prop: { field_name: string; field_label: string; field_type: string; object_type: string }, i: number) => ({
-            id: `hs_${i}`,
-            hubspotField: prop.field_name,
-            hubspotLabel: prop.field_label,
-            objectType: prop.object_type || 'contacts',
-            variants: [
+      // Fetch HubSpot properties and saved header mappings in parallel
+      const [propertiesRes, mappingsRes] = await Promise.all([
+        fetch('/api/hubspot/properties'),
+        fetch('/api/mappings'),
+      ]);
+
+      const propertiesData = await propertiesRes.json();
+      let savedMappings: Record<string, { field: string; label: string; confidence: number }> = {};
+      try {
+        const mappingsData = await mappingsRes.json();
+        if (mappingsData.success && mappingsData.mappings) {
+          savedMappings = mappingsData.mappings;
+        }
+      } catch {
+        // Non-blocking — saved mappings are optional
+      }
+
+      // Build a lookup: hubspotFieldName -> list of learned header strings
+      const learnedVariants: Record<string, string[]> = {};
+      for (const [normalizedHeader, mapping] of Object.entries(savedMappings)) {
+        if (!learnedVariants[mapping.field]) {
+          learnedVariants[mapping.field] = [];
+        }
+        learnedVariants[mapping.field].push(normalizedHeader);
+      }
+
+      if (propertiesData.success && propertiesData.properties?.length > 0) {
+        const mappings: FieldMapping[] = propertiesData.properties.map(
+          (prop: { field_name: string; field_label: string; field_type: string; object_type: string }, i: number) => {
+            const baseVariants = [
               prop.field_name,
               prop.field_label.toLowerCase(),
               prop.field_name.replace(/_/g, ' '),
               prop.field_name.replace(/_/g, ''),
-            ].filter((v, idx, arr) => arr.indexOf(v) === idx),
-            isRequired: prop.field_name === 'email',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          })
+            ];
+            // Merge in any learned header variants from past imports
+            const learned = learnedVariants[prop.field_name] || [];
+            const allVariants = [...baseVariants, ...learned]
+              .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+            return {
+              id: `hs_${i}`,
+              hubspotField: prop.field_name,
+              hubspotLabel: prop.field_label,
+              objectType: prop.object_type || 'contacts',
+              variants: allVariants,
+              isRequired: prop.field_name === 'email',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+          }
         );
         set({ fieldMappings: mappings });
       }
