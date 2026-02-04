@@ -22,7 +22,7 @@ export function getRedirectUri(): string {
   return `${base}/api/hubspot/oauth/callback`;
 }
 
-export function getAuthorizeUrl(): string {
+export function getAuthorizeUrl(accountId?: string): string {
   const clientId = getHubSpotClientId();
   const redirectUri = getRedirectUri();
   const scopes = [
@@ -40,6 +40,11 @@ export function getAuthorizeUrl(): string {
     scope: scopes,
     response_type: 'code',
   });
+
+  // Pass account_id as state so callback can associate with the right account
+  if (accountId) {
+    params.set('state', accountId);
+  }
 
   return `${HUBSPOT_AUTH_URL}?${params.toString()}`;
 }

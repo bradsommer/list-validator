@@ -7,6 +7,21 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
+-- ACCOUNTS (Multi-tenant: each company has its own account)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_accounts_slug ON accounts(slug);
+
+-- ============================================================================
 -- USER MANAGEMENT (Admin-managed accounts, no email verification)
 -- ============================================================================
 
@@ -17,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   display_name VARCHAR(255),
   role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'admin' or 'user'
+  account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_login TIMESTAMP WITH TIME ZONE,
   created_by UUID REFERENCES users(id),
@@ -26,6 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Create index on username for login
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_account_id ON users(account_id);
 
 -- Sessions table for token-based auth
 CREATE TABLE IF NOT EXISTS user_sessions (
@@ -152,6 +169,30 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 -- ============================================================================
+-- ACCOUNT INTEGRATIONS (Per-account OAuth integrations)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS account_integrations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  provider VARCHAR(100) NOT NULL, -- 'hubspot', 'salesforce', etc.
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at BIGINT, -- Unix timestamp ms
+  portal_id VARCHAR(255), -- Provider-specific account ID (e.g. HubSpot portal ID)
+  metadata JSONB DEFAULT '{}', -- Extra provider-specific data
+  connected_by UUID REFERENCES users(id),
+  connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(account_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_integrations_account ON account_integrations(account_id);
+CREATE INDEX IF NOT EXISTS idx_account_integrations_provider ON account_integrations(provider);
+
+-- ============================================================================
 -- AUDIT LOG (Anonymized - no PII)
 -- ============================================================================
 
@@ -208,6 +249,11 @@ $$ LANGUAGE plpgsql;
 -- TRIGGERS
 -- ============================================================================
 
+DROP TRIGGER IF EXISTS update_accounts_updated_at ON accounts;
+CREATE TRIGGER update_accounts_updated_at
+  BEFORE UPDATE ON accounts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
   BEFORE UPDATE ON users
@@ -243,13 +289,23 @@ CREATE TRIGGER update_app_settings_updated_at
   BEFORE UPDATE ON app_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_account_integrations_updated_at ON account_integrations;
+CREATE TRIGGER update_account_integrations_updated_at
+  BEFORE UPDATE ON account_integrations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================================================
 -- SEED DATA
 -- ============================================================================
 
+-- Insert default account
+INSERT INTO accounts (id, name, slug) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Default Account', 'default')
+ON CONFLICT (slug) DO NOTHING;
+
 -- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
-INSERT INTO users (username, password_hash, display_name, role) VALUES
-  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin')
+INSERT INTO users (username, password_hash, display_name, role, account_id) VALUES
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert default HubSpot fields
@@ -393,6 +449,7 @@ ON CONFLICT (key) DO NOTHING;
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_models ENABLE ROW LEVEL SECURITY;
@@ -401,9 +458,11 @@ ALTER TABLE header_mappings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrichment_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE validation_scripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE import_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Policies for authenticated users
+CREATE POLICY "Allow all for authenticated" ON accounts FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON users FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON user_sessions FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON ai_models FOR ALL TO authenticated USING (true);
@@ -412,9 +471,11 @@ CREATE POLICY "Allow all for authenticated" ON header_mappings FOR ALL TO authen
 CREATE POLICY "Allow all for authenticated" ON enrichment_configs FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON validation_scripts FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON app_settings FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated" ON account_integrations FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON import_audit_log FOR ALL TO authenticated USING (true);
 
 -- Development policies (remove in production)
+CREATE POLICY "Allow all for anon" ON accounts FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON users FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON user_sessions FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON ai_models FOR ALL TO anon USING (true);
@@ -423,4 +484,5 @@ CREATE POLICY "Allow all for anon" ON header_mappings FOR ALL TO anon USING (tru
 CREATE POLICY "Allow all for anon" ON enrichment_configs FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON validation_scripts FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON app_settings FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON account_integrations FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON import_audit_log FOR ALL TO anon USING (true);

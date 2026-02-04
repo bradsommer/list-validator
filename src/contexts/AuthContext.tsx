@@ -7,6 +7,8 @@ export interface User {
   username: string;
   displayName: string | null;
   role: 'admin' | 'user';
+  accountId: string | null;
+  accountName: string | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
