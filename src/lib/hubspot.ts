@@ -30,8 +30,17 @@ export function getAuthorizeUrl(accountId?: string): string {
     'crm.objects.contacts.write',
     'crm.objects.companies.read',
     'crm.objects.companies.write',
+    'crm.objects.deals.read',
+    'crm.objects.deals.write',
+    'crm.objects.marketing_events.read',
+    'crm.objects.marketing_events.write',
     'crm.schemas.contacts.read',
+    'crm.schemas.contacts.write',
     'crm.schemas.companies.read',
+    'crm.schemas.companies.write',
+    'crm.schemas.deals.read',
+    'crm.schemas.deals.write',
+    'crm.dealsplits.read_write',
   ].join(' ');
 
   const params = new URLSearchParams({
