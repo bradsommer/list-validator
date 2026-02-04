@@ -314,32 +314,39 @@ export function HeaderMapper() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={skipped ? '' : (match.matchedField?.id || '')}
-                      onChange={(e) => handleMappingChange(index, e.target.value || null)}
-                      disabled={skipped}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
-                        skipped ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="">Choose a property</option>
-                      {filteredFields
-                        .sort((a, b) => a.hubspotLabel.localeCompare(b.hubspotLabel))
-                        .map((field) => {
-                          const isUsed = usedFieldIds.has(field.id);
-                          return (
-                            <option
-                              key={field.id}
-                              value={field.id}
-                              disabled={isUsed}
-                            >
-                              {field.hubspotLabel}
-                              {requiredFields.includes(field.hubspotField) ? ' *' : ''}
-                              {isUsed ? ' (already mapped)' : ''}
-                            </option>
-                          );
-                        })}
-                    </select>
+                    {(() => {
+                      // If the matched field is already used by another row, show "Choose a property"
+                      const selectedFieldId = match.matchedField?.id || '';
+                      const isSelectedFieldUsedElsewhere = selectedFieldId && usedFieldIds.has(selectedFieldId);
+                      const effectiveValue = skipped ? '' : (isSelectedFieldUsedElsewhere ? '' : selectedFieldId);
+                      return (
+                        <select
+                          value={effectiveValue}
+                          onChange={(e) => handleMappingChange(index, e.target.value || null)}
+                          disabled={skipped}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
+                            skipped ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300'
+                          }`}
+                        >
+                          <option value="">Choose a property</option>
+                          {filteredFields
+                            .sort((a, b) => a.hubspotLabel.localeCompare(b.hubspotLabel))
+                            .map((field) => {
+                              const isUsed = usedFieldIds.has(field.id);
+                              if (isUsed) return null; // hide already-mapped properties
+                              return (
+                                <option
+                                  key={field.id}
+                                  value={field.id}
+                                >
+                                  {field.hubspotLabel}
+                                  {requiredFields.includes(field.hubspotField) ? ' *' : ''}
+                                </option>
+                              );
+                            })}
+                        </select>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     {skipped ? (

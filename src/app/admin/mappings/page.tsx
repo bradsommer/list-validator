@@ -20,6 +20,7 @@ interface HeaderMapping {
   object_type: ObjectType;
   hubspot_field_name: string;
   hubspot_field_label: string;
+  priority: number;
   created_at: string;
 }
 
@@ -132,17 +133,13 @@ export default function MappingsPage() {
       return;
     }
 
-    // Each HubSpot property can only be mapped once
-    const existingForField = mappings.find(
-      m => m.hubspot_field_name === field.field_name && m.object_type === newObjectType
-    );
-    if (existingForField) {
-      setError(`"${field.field_label}" is already mapped to "${existingForField.original_header}". Delete that mapping first.`);
-      return;
-    }
-
     setIsAdding(true);
     setError('');
+
+    // Auto-assign priority: count existing mappings for this field, new one gets next priority
+    const existingCount = mappings.filter(
+      m => m.hubspot_field_name === field.field_name && m.object_type === newObjectType
+    ).length;
 
     const newMapping: HeaderMapping = {
       id: `mapping_${Date.now()}`,
@@ -150,6 +147,7 @@ export default function MappingsPage() {
       object_type: newObjectType,
       hubspot_field_name: field.field_name,
       hubspot_field_label: field.field_label,
+      priority: existingCount + 1,
       created_at: new Date().toISOString(),
     };
 
@@ -164,14 +162,12 @@ export default function MappingsPage() {
     saveMappings(mappings.filter(m => m.id !== id));
   };
 
+  const handlePriorityChange = (id: string, newPriority: number) => {
+    saveMappings(mappings.map(m => m.id === id ? { ...m, priority: newPriority } : m));
+  };
+
   // Properties filtered by the selected object type in the "Add" form
-  // Exclude properties that are already mapped (each HubSpot property can only be mapped once)
-  const alreadyMappedFields = new Set(
-    mappings.filter(m => m.object_type === newObjectType).map(m => m.hubspot_field_name)
-  );
-  const filteredProperties = allProperties.filter(
-    p => p.object_type === newObjectType && !alreadyMappedFields.has(p.field_name)
-  );
+  const filteredProperties = allProperties.filter(p => p.object_type === newObjectType);
 
   // Mappings filtered by the view filter
   const filteredMappings = filterObjectType === 'all'
@@ -348,6 +344,7 @@ export default function MappingsPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Header Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Object Type</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">HubSpot Property</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Priority</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
               </tr>
             </thead>
@@ -367,6 +364,15 @@ export default function MappingsPage() {
                   <td className="px-4 py-3 text-gray-700">
                     {mapping.hubspot_field_label}
                     <span className="ml-2 text-xs text-gray-400">({mapping.hubspot_field_name})</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="number"
+                      min={1}
+                      value={mapping.priority || 1}
+                      onChange={(e) => handlePriorityChange(mapping.id, parseInt(e.target.value) || 1)}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

@@ -184,6 +184,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           original_header: m.original_header,
           hubspot_field_name: m.hubspot_field_name,
           object_type: m.object_type || 'contacts',
+          priority: m.priority || 1,
         }));
         for (const m of adminMappings) {
           if (!extraVariants[m.hubspot_field_name]) extraVariants[m.hubspot_field_name] = [];
