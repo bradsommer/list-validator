@@ -57,10 +57,16 @@ export interface EnrichmentConfig {
   prompt: string;
   inputFields: string[];
   outputField: string;
-  service: 'serp' | 'clearbit' | 'custom';
+  service: 'serp' | 'clearbit' | 'custom' | 'ai';
   isEnabled: boolean;
   createdAt: string;
   updatedAt: string;
+  aiModel?: {
+    provider: string;
+    modelId: string;
+    apiKey?: string;
+    baseUrl?: string;
+  };
 }
 
 export interface EnrichmentResult {

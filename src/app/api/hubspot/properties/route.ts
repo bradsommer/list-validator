@@ -1,48 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/hubspot';
-import * as fs from 'fs';
-import * as path from 'path';
+import { supabase } from '@/lib/supabase';
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
-const PROPERTIES_CACHE_FILE = path.join(process.cwd(), '.hubspot-properties.json');
+const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';
 const OBJECT_TYPES: ObjectType[] = ['contacts', 'companies', 'deals'];
 
-interface CachedProperty {
+interface HubSpotProperty {
   field_name: string;
   field_label: string;
   field_type: string;
   group_name: string;
-  object_type: ObjectType;
+  object_type: string;
   description: string | null;
   hubspot_type: string;
   options: Array<{ label: string; value: string }> | null;
 }
 
-function loadCachedProperties(): CachedProperty[] {
-  try {
-    if (fs.existsSync(PROPERTIES_CACHE_FILE)) {
-      return JSON.parse(fs.readFileSync(PROPERTIES_CACHE_FILE, 'utf8'));
-    }
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function saveCachedProperties(properties: CachedProperty[]) {
-  try {
-    fs.writeFileSync(PROPERTIES_CACHE_FILE, JSON.stringify(properties, null, 2));
-  } catch {
-    // ignore
-  }
-}
-
-async function fetchPropertiesForObjectType(
+async function fetchPropertiesFromHubSpot(
   accessToken: string,
   objectType: ObjectType
-): Promise<CachedProperty[]> {
+): Promise<HubSpotProperty[]> {
   const response = await fetch(`${HUBSPOT_API_BASE}/crm/v3/properties/${objectType}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -78,84 +58,149 @@ async function fetchPropertiesForObjectType(
   }));
 }
 
-// GET - return cached properties (or fetch live if requested)
+async function savePropertiesToDB(accountId: string, properties: HubSpotProperty[]): Promise<void> {
+  // Delete existing properties for this account, then insert fresh
+  await supabase
+    .from('hubspot_properties')
+    .delete()
+    .eq('account_id', accountId);
+
+  // Insert in batches of 500
+  for (let i = 0; i < properties.length; i += 500) {
+    const batch = properties.slice(i, i + 500).map((p) => ({
+      account_id: accountId,
+      field_name: p.field_name,
+      field_label: p.field_label,
+      field_type: p.field_type,
+      group_name: p.group_name,
+      object_type: p.object_type,
+      description: p.description,
+      hubspot_type: p.hubspot_type,
+      options: p.options,
+    }));
+
+    const { error } = await supabase
+      .from('hubspot_properties')
+      .insert(batch);
+
+    if (error) {
+      console.error(`Failed to insert properties batch ${i}:`, error.message);
+    }
+  }
+}
+
+// Exported for use by OAuth callback
+export async function fetchAndStoreProperties(accountId: string): Promise<{
+  total: number;
+  counts: Record<string, number>;
+}> {
+  const accessToken = await getValidAccessToken();
+  if (!accessToken) {
+    throw new Error('HubSpot not connected');
+  }
+
+  const allProperties: HubSpotProperty[] = [];
+  const counts: Record<string, number> = {};
+
+  for (const objectType of OBJECT_TYPES) {
+    const props = await fetchPropertiesFromHubSpot(accessToken, objectType);
+    allProperties.push(...props);
+    counts[objectType] = props.length;
+  }
+
+  if (allProperties.length > 0) {
+    await savePropertiesToDB(accountId, allProperties);
+  }
+
+  return { total: allProperties.length, counts };
+}
+
+// GET - return properties from DB
 export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') as ObjectType | null;
+  const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
 
-  // Try cached first
-  let cached = loadCachedProperties();
+  let query = supabase
+    .from('hubspot_properties')
+    .select('field_name, field_label, field_type, group_name, object_type, description, hubspot_type, options')
+    .eq('account_id', accountId)
+    .order('field_label');
 
-  if (cached.length === 0) {
-    // No cache - try fetching live
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
+  if (objectType) {
+    query = query.eq('object_type', objectType);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Failed to load properties from DB:', error.message);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to load properties',
+      properties: [],
+    }, { status: 500 });
+  }
+
+  // If no properties in DB, try fetching from HubSpot
+  if (!data || data.length === 0) {
+    try {
+      const result = await fetchAndStoreProperties(accountId);
+      // Re-query after storing
+      let retryQuery = supabase
+        .from('hubspot_properties')
+        .select('field_name, field_label, field_type, group_name, object_type, description, hubspot_type, options')
+        .eq('account_id', accountId)
+        .order('field_label');
+
+      if (objectType) {
+        retryQuery = retryQuery.eq('object_type', objectType);
+      }
+
+      const { data: freshData } = await retryQuery;
+
+      return NextResponse.json({
+        success: true,
+        properties: freshData || [],
+        count: freshData?.length || 0,
+        synced: true,
+        total: result.total,
+      });
+    } catch {
       return NextResponse.json({
         success: false,
         error: 'HubSpot not connected. Go to Admin > Integrations to connect.',
         properties: [],
       }, { status: 400 });
     }
-
-    // Fetch all object types
-    const allProperties: CachedProperty[] = [];
-    for (const type of OBJECT_TYPES) {
-      const props = await fetchPropertiesForObjectType(accessToken, type);
-      allProperties.push(...props);
-    }
-
-    if (allProperties.length > 0) {
-      saveCachedProperties(allProperties);
-      cached = allProperties;
-    }
   }
-
-  // Filter by object type if specified
-  const filtered = objectType
-    ? cached.filter(p => p.object_type === objectType)
-    : cached;
 
   return NextResponse.json({
     success: true,
-    properties: filtered,
-    count: filtered.length,
+    properties: data,
+    count: data.length,
   });
 }
 
-// POST - sync/refresh properties from HubSpot
-export async function POST() {
+// POST - manually sync/refresh properties from HubSpot
+export async function POST(request: NextRequest) {
   try {
-    const accessToken = await getValidAccessToken();
+    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { success: false, error: 'HubSpot not connected. Go to Admin > Integrations to connect.' },
-        { status: 400 }
-      );
-    }
+    // Get existing count for comparison
+    const { count: previousCount } = await supabase
+      .from('hubspot_properties')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', accountId);
 
-    const allProperties: CachedProperty[] = [];
-    const counts: Record<string, number> = {};
+    const result = await fetchAndStoreProperties(accountId);
 
-    for (const objectType of OBJECT_TYPES) {
-      const props = await fetchPropertiesForObjectType(accessToken, objectType);
-      allProperties.push(...props);
-      counts[objectType] = props.length;
-    }
-
-    // Check what was previously cached
-    const previousCache = loadCachedProperties();
-    const previousCount = previousCache.length;
-
-    // Save to file cache
-    saveCachedProperties(allProperties);
-
-    const newCount = allProperties.length - previousCount;
+    const newCount = result.total - (previousCount || 0);
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${allProperties.length} properties (${counts.contacts} contacts, ${counts.companies} companies, ${counts.deals} deals)${previousCount > 0 ? ` — ${newCount > 0 ? newCount + ' new' : 'all up to date'}` : ''}`,
-      total: allProperties.length,
-      counts,
+      message: `Synced ${result.total} properties (${result.counts.contacts} contacts, ${result.counts.companies} companies, ${result.counts.deals} deals)${previousCount ? ` — ${newCount > 0 ? newCount + ' new' : 'all up to date'}` : ''}`,
+      total: result.total,
+      counts: result.counts,
     });
   } catch (error) {
     console.error('Error syncing HubSpot properties:', error);

@@ -16,7 +16,15 @@ interface DbEnrichmentConfig {
   output_field: string;
   is_enabled: boolean;
   execution_order: number;
-  ai_model: { name: string; provider: string } | null;
+  ai_model: {
+    name: string;
+    provider: string;
+    model_id: string;
+    api_key_encrypted: string | null;
+    use_env_key: boolean;
+    env_key_name: string | null;
+    base_url: string | null;
+  } | null;
 }
 
 export function EnrichmentPanel() {
@@ -46,7 +54,7 @@ export function EnrichmentPanel() {
       try {
         const { data, error } = await supabase
           .from('enrichment_configs')
-          .select('*, ai_model:ai_models(name, provider)')
+          .select('*, ai_model:ai_models(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
           .eq('is_enabled', true)
           .order('execution_order');
 
@@ -69,18 +77,29 @@ export function EnrichmentPanel() {
   const buildSelectedConfigs = (): EnrichmentConfig[] => {
     return dbConfigs
       .filter((c) => selectedConfigIds.has(c.id))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description || '',
-        prompt: c.prompt_template,
-        inputFields: c.input_fields || [],
-        outputField: c.output_field,
-        service: 'serp' as const,
-        isEnabled: true,
-        createdAt: '',
-        updatedAt: '',
-      }));
+      .map((c) => {
+        const hasAiModel = c.ai_model && c.ai_model.provider !== 'serp';
+        return {
+          id: c.id,
+          name: c.name,
+          description: c.description || '',
+          prompt: c.prompt_template,
+          inputFields: c.input_fields || [],
+          outputField: c.output_field,
+          service: hasAiModel ? 'ai' as const : 'serp' as const,
+          isEnabled: true,
+          createdAt: '',
+          updatedAt: '',
+          aiModel: hasAiModel && c.ai_model ? {
+            provider: c.ai_model.provider,
+            modelId: c.ai_model.model_id,
+            apiKey: c.ai_model.use_env_key
+              ? undefined
+              : (c.ai_model.api_key_encrypted || undefined),
+            baseUrl: c.ai_model.base_url || undefined,
+          } : undefined,
+        };
+      });
   };
 
   const toggleConfig = (id: string) => {

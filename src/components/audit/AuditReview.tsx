@@ -245,27 +245,28 @@ export function AuditReview() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button
+          onClick={handleExportAll}
+          className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex flex-col items-center"
+        >
+          <span className="font-medium">Export Data</span>
+          <span className="text-sm opacity-80">{summary.totalRows} rows — includes all enriched values</span>
+        </button>
+
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={handleExportClean}
-            className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex flex-col items-center"
+            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex flex-col items-center text-sm"
           >
-            <span className="font-medium">Export Clean Data</span>
-            <span className="text-sm opacity-80">{summary.cleanRows} rows - HubSpot ready</span>
+            <span className="font-medium">Export Clean Only</span>
+            <span className="text-xs text-gray-500">{summary.cleanRows} rows</span>
           </button>
           <button
             onClick={handleExportFlagged}
-            className="px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex flex-col items-center"
+            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex flex-col items-center text-sm"
           >
-            <span className="font-medium">Export Flagged</span>
-            <span className="text-sm opacity-80">{summary.flaggedRows} rows - For review</span>
-          </button>
-          <button
-            onClick={handleExportAll}
-            className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex flex-col items-center"
-          >
-            <span className="font-medium">Export All</span>
-            <span className="text-sm opacity-80">{summary.totalRows} rows - Complete data</span>
+            <span className="font-medium">Export Flagged Only</span>
+            <span className="text-xs text-gray-500">{summary.flaggedRows} rows</span>
           </button>
         </div>
       </div>
