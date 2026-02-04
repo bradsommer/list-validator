@@ -6,18 +6,15 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
 import { LogViewer } from '@/components/layout/LogViewer';
 import { FileUpload } from '@/components/upload/FileUpload';
-import { HeaderMapper } from '@/components/mapping/HeaderMapper';
 import { ValidationResults } from '@/components/validation/ValidationResults';
 import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
-  const { currentStep, reset, loadFieldMappingsFromHubSpot } = useAppStore();
+  const { currentStep, reset } = useAppStore();
 
-  // Reset import state on mount so the page always starts fresh,
-  // then reload field mappings since reset() clears them
+  // Reset import state on mount so the page always starts fresh
   useEffect(() => {
     reset();
-    loadFieldMappingsFromHubSpot();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderStep = () => {
@@ -25,10 +22,8 @@ export default function ImportPage() {
       case 0:
         return <FileUpload />;
       case 1:
-        return <HeaderMapper />;
-      case 2:
         return <ValidationResults />;
-      case 3:
+      case 2:
         return <AuditReview />;
       default:
         return <FileUpload />;

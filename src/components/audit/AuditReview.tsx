@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { runAudit, getAuditSummary, getCleanData, getFlaggedData } from '@/lib/audit';
 import { exportToCSV, exportToExcel } from '@/lib/fileParser';
-import { transformToHubSpotFormat } from '@/lib/validator';
 import { logInfo, logSuccess } from '@/lib/logger';
 
 export function AuditReview() {
@@ -50,13 +49,12 @@ export function AuditReview() {
     if (!auditResult) return;
 
     const cleanData = getCleanData(processedData, auditResult);
-    const formatted = transformToHubSpotFormat(cleanData, headerMatches);
     const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_clean`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(formatted, `${fileName}.csv`);
+      exportToCSV(cleanData, `${fileName}.csv`);
     } else {
-      exportToExcel(formatted, `${fileName}.xlsx`);
+      exportToExcel(cleanData, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported ${cleanData.length} clean rows`, sessionId);
@@ -82,13 +80,12 @@ export function AuditReview() {
   };
 
   const handleExportAll = () => {
-    const formatted = transformToHubSpotFormat(processedData, headerMatches);
-    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_formatted`;
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_cleaned`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(formatted, `${fileName}.csv`);
+      exportToCSV(processedData, `${fileName}.csv`);
     } else {
-      exportToExcel(formatted, `${fileName}.xlsx`);
+      exportToExcel(processedData, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported all ${processedData.length} rows`, sessionId);
