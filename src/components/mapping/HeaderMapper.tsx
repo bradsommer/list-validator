@@ -10,6 +10,8 @@ const OBJECT_TYPE_LABELS: Record<HubSpotObjectType, string> = {
   deals: 'Deals',
 };
 
+const SKIP_IMPORT_VALUE = '__skip__';
+
 export function HeaderMapper() {
   const {
     parsedFile,
@@ -32,22 +34,26 @@ export function HeaderMapper() {
   const [isSaving, setIsSaving] = useState(false);
   const [ignoreUnmapped, setIgnoreUnmapped] = useState(false);
 
-  // Track selected object type per row (default to 'contacts')
-  const [rowObjectTypes, setRowObjectTypes] = useState<Record<number, HubSpotObjectType>>(() => {
-    const initial: Record<number, HubSpotObjectType> = {};
+  // Track selected object type per row (default to 'contacts', or '__skip__' for don't import)
+  const [rowObjectTypes, setRowObjectTypes] = useState<Record<number, string>>(() => {
+    const initial: Record<number, string> = {};
     headerMatches.forEach((match, i) => {
       initial[i] = match.matchedField?.objectType || 'contacts';
     });
     return initial;
   });
 
-  const getRowObjectType = (index: number): HubSpotObjectType => {
+  const getRowObjectType = (index: number): string => {
     return rowObjectTypes[index] || 'contacts';
   };
 
-  const setRowObjectType = (index: number, objectType: HubSpotObjectType) => {
+  const isRowSkipped = (index: number): boolean => {
+    return getRowObjectType(index) === SKIP_IMPORT_VALUE;
+  };
+
+  const setRowObjectType = (index: number, objectType: string) => {
     setRowObjectTypes(prev => ({ ...prev, [index]: objectType }));
-    // Clear the current mapping since the property list changed
+    // Clear the current mapping since the property list changed or row is skipped
     const match = headerMatches[index];
     if (match.isMatched) {
       updateHeaderMatch(index, {
@@ -159,9 +165,10 @@ export function HeaderMapper() {
     return 'bg-gray-100 text-gray-600';
   };
 
-  // Count mapped and unmapped headers
+  // Count mapped, skipped, and unmapped headers
+  const skippedCount = headerMatches.filter((_, i) => isRowSkipped(i)).length;
   const mappedCount = headerMatches.filter((m) => m.isMatched).length;
-  const unmappedCount = headerMatches.length - mappedCount;
+  const unmappedCount = headerMatches.length - mappedCount - skippedCount;
 
   return (
     <div className="space-y-6">
@@ -170,7 +177,8 @@ export function HeaderMapper() {
           <h2 className="text-xl font-semibold">Map Headers to HubSpot Fields</h2>
           <p className="text-sm text-gray-500 mt-1">
             {mappedCount} of {headerMatches.length} headers mapped
-            {unmappedCount > 0 && ` (${unmappedCount} will not be imported)`}
+            {skippedCount > 0 && ` (${skippedCount} skipped)`}
+            {unmappedCount > 0 && ` (${unmappedCount} unmapped)`}
           </p>
         </div>
         <button
@@ -280,7 +288,7 @@ export function HeaderMapper() {
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                 Spreadsheet Header
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700" style={{ minWidth: '150px' }}>
                 Object Type
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
@@ -298,29 +306,36 @@ export function HeaderMapper() {
             {headerMatches.map((match, index) => {
               const usedFieldIds = getUsedFieldIds(index);
               const objectType = getRowObjectType(index);
-              const filteredFields = fieldMappings.filter(f => f.objectType === objectType);
+              const skipped = isRowSkipped(index);
+              const filteredFields = skipped ? [] : fieldMappings.filter(f => f.objectType === objectType);
 
               return (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className={`hover:bg-gray-50 ${skipped ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3">
                     <span className="font-medium">{match.originalHeader}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" style={{ minWidth: '150px' }}>
                     <select
                       value={objectType}
-                      onChange={(e) => setRowObjectType(index, e.target.value as HubSpotObjectType)}
-                      className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                      onChange={(e) => setRowObjectType(index, e.target.value)}
+                      className={`w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 text-sm ${
+                        skipped ? 'border-red-300 bg-red-50 text-red-600' : 'border-gray-300'
+                      }`}
                     >
                       {(Object.keys(OBJECT_TYPE_LABELS) as HubSpotObjectType[]).map(type => (
                         <option key={type} value={type}>{OBJECT_TYPE_LABELS[type]}</option>
                       ))}
+                      <option value={SKIP_IMPORT_VALUE}>Don&apos;t Import</option>
                     </select>
                   </td>
                   <td className="px-4 py-3">
                     <select
-                      value={match.matchedField?.id || ''}
+                      value={skipped ? '' : (match.matchedField?.id || '')}
                       onChange={(e) => handleMappingChange(index, e.target.value || null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      disabled={skipped}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
+                        skipped ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300'
+                      }`}
                     >
                       <option value="">Choose a property</option>
                       {filteredFields
@@ -342,13 +357,19 @@ export function HeaderMapper() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${getConfidenceColor(
-                        match.confidence
-                      )}`}
-                    >
-                      {Math.round(match.confidence * 100)}%
-                    </span>
+                    {skipped ? (
+                      <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-600">
+                        Skipped
+                      </span>
+                    ) : (
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${getConfidenceColor(
+                          match.confidence
+                        )}`}
+                      >
+                        {Math.round(match.confidence * 100)}%
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {parsedFile.rows[0]?.[match.originalHeader]?.toString().substring(0, 30) || '-'}
