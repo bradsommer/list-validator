@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, setTokens, resetClient } from '@/lib/hubspot';
-import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
@@ -21,28 +20,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-
-    // Store in-memory for immediate use
-    setTokens(tokens);
-    resetClient();
-
-    // Also persist to account_integrations table if we have an account
     const accountId = state || 'dev-account-id';
-    if (accountId) {
-      await supabase
-        .from('account_integrations')
-        .upsert({
-          account_id: accountId,
-          provider: 'hubspot',
-          is_active: true,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          token_expires_at: tokens.expires_at,
-          connected_at: new Date().toISOString(),
-        }, {
-          onConflict: 'account_id,provider',
-        });
-    }
+
+    // Store tokens to in-memory, file, and database
+    await setTokens(tokens, accountId);
+    resetClient();
 
     return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_connected=true`);
   } catch (err) {
