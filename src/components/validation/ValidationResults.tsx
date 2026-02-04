@@ -20,6 +20,7 @@ export function ValidationResults() {
     setScriptRunnerResult,
     setProcessedData,
     setAvailableScripts,
+    setEnabledScripts,
     toggleScript,
     nextStep,
     prevStep,
