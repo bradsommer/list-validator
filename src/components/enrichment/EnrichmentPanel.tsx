@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { supabase } from '@/lib/supabase';
-import { enrichData, applyEnrichmentResults } from '@/lib/enrichment';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import type { EnrichmentConfig } from '@/types';
 
@@ -118,6 +117,7 @@ export function EnrichmentPanel() {
     const configs = buildSelectedConfigs();
     setEnrichmentConfigs(configs);
     setIsEnriching(true);
+    setEnrichmentProgress({ completed: 0, total: processedData.length });
 
     await logInfo('enrich', 'Starting data enrichment', sessionId, {
       totalRows: processedData.length,
@@ -125,21 +125,53 @@ export function EnrichmentPanel() {
     });
 
     try {
-      const results = await enrichData(
-        processedData,
-        configs,
-        (completed, total) => setEnrichmentProgress({ completed, total })
-      );
+      // Run enrichment through the server-side API route.
+      // AI API calls (OpenAI, Anthropic) require server-side env vars and
+      // cannot be made from the browser due to CORS restrictions.
+      const response = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: processedData, configs }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Enrichment request failed');
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.results) {
+        throw new Error(data.error || 'Enrichment returned no results');
+      }
+
+      // Convert API results to EnrichmentResult format
+      const results = data.results.map((r: { rowIndex: number; enrichedData: Record<string, unknown>; success: boolean; error?: string }) => ({
+        rowIndex: r.rowIndex,
+        originalData: processedData[r.rowIndex],
+        enrichedData: r.enrichedData,
+        success: r.success,
+        error: r.error,
+      }));
 
       setEnrichmentResults(results);
+      setEnrichmentProgress({ completed: processedData.length, total: processedData.length });
 
-      const enrichedData = applyEnrichmentResults(processedData, results);
+      // Apply enrichment results back to the data
+      const enrichedData = processedData.map((row, index) => {
+        const result = results.find((r: { rowIndex: number }) => r.rowIndex === index);
+        if (result && Object.keys(result.enrichedData).length > 0) {
+          return { ...row, ...result.enrichedData };
+        }
+        return row;
+      });
       setProcessedData(enrichedData);
 
-      const successCount = results.filter((r) => r.success).length;
+      const successCount = results.filter((r: { success: boolean }) => r.success).length;
       await logSuccess('enrich', `Enrichment complete: ${successCount}/${results.length} successful`, sessionId);
     } catch (error) {
-      await logError('enrich', 'Enrichment failed', sessionId, { error });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await logError('enrich', `Enrichment failed: ${errorMessage}`, sessionId, { error });
     } finally {
       setIsEnriching(false);
     }

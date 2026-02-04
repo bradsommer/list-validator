@@ -136,10 +136,8 @@ export function transformToHubSpotFormat(
       const hubspotField = headerToHubspot.get(header);
       if (hubspotField) {
         transformedRow[hubspotField] = value;
-      } else {
-        // Keep unmapped fields with original header
-        transformedRow[header] = value;
       }
+      // Unmapped fields are dropped — HubSpot rejects unknown field names
     });
 
     return transformedRow;
