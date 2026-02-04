@@ -109,13 +109,13 @@ function getObjectTypePriority(objectType: string): number {
   return OBJECT_TYPE_PRIORITY[objectType] ?? 3;
 }
 
-// Match headers to field mappings using fuzzy matching
+// Match headers to field mappings using fuzzy matching.
+// Two-pass approach: exact matches first (all headers), then fuzzy for the rest.
+// This prevents a fuzzy match from stealing a field that another header matches exactly.
 export function matchHeaders(
   headers: string[],
   fieldMappings: FieldMapping[]
 ): HeaderMatch[] {
-  const results: HeaderMatch[] = [];
-
   // Create a searchable list of all variants
   const searchItems = fieldMappings.flatMap((mapping) =>
     mapping.variants.map((variant) => ({
@@ -124,42 +124,52 @@ export function matchHeaders(
     }))
   );
 
-  // Configure Fuse for fuzzy searching
-  const fuse = new Fuse(searchItems, {
-    keys: ['variant'],
-    threshold: 0.4, // Lower = stricter matching
-    includeScore: true,
-  });
-
   // Track which HubSpot fields have already been mapped to prevent duplicates
   const usedFieldIds = new Set<string>();
 
-  for (const header of headers) {
+  // Results indexed by header position
+  const results: (HeaderMatch | null)[] = headers.map(() => null);
+
+  // ── Pass 1: Exact matches for ALL headers first ──
+  // This ensures "Last Name" claims the lastname field before "Middle Name"
+  // can grab it via fuzzy matching.
+  for (let i = 0; i < headers.length; i++) {
+    const header = headers[i];
     const normalizedHeader = normalizeString(header);
 
-    // First, try exact match — prefer contact properties over company/deal
     const exactMatches = searchItems.filter(
       (item) => item.variant === normalizedHeader && !usedFieldIds.has(item.mapping.id)
     );
 
     if (exactMatches.length > 0) {
-      // Sort by object type priority: contacts > companies > deals
+      // Prefer contact > company > deal when multiple exact matches exist
       exactMatches.sort((a, b) =>
         getObjectTypePriority(a.mapping.objectType) - getObjectTypePriority(b.mapping.objectType)
       );
       const bestExact = exactMatches[0];
       usedFieldIds.add(bestExact.mapping.id);
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: bestExact.mapping,
         confidence: 1,
         isMatched: true,
-      });
-      continue;
+      };
     }
+  }
 
-    // Try fuzzy match (skip fields already mapped)
-    // Prioritize contact properties when scores are close
+  // ── Pass 2: Fuzzy matches for remaining unmatched headers ──
+  const fuse = new Fuse(searchItems, {
+    keys: ['variant'],
+    threshold: 0.4,
+    includeScore: true,
+  });
+
+  for (let i = 0; i < headers.length; i++) {
+    if (results[i] !== null) continue; // already matched exactly
+
+    const header = headers[i];
+    const normalizedHeader = normalizeString(header);
+
     const fuzzyResults = fuse.search(normalizedHeader);
     const availableResults = fuzzyResults.filter(
       (r) => !usedFieldIds.has(r.item.mapping.id)
@@ -182,32 +192,28 @@ export function matchHeaders(
 
     if (bestAvailable && bestAvailable.score !== undefined) {
       const confidence = 1 - (bestAvailable.score || 0);
-
-      // Always pre-select the best guess — mark as matched if confidence is
-      // reasonable (>= 0.4) so users see the suggestion and can verify/change it.
-      // Reserve the field to prevent duplicate assignments.
       const isSuggested = confidence >= 0.4;
       if (isSuggested) {
         usedFieldIds.add(bestAvailable.item.mapping.id);
       }
 
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: bestAvailable.item.mapping,
         confidence,
         isMatched: isSuggested,
-      });
+      };
     } else {
-      results.push({
+      results[i] = {
         originalHeader: header,
         matchedField: null,
         confidence: 0,
         isMatched: false,
-      });
+      };
     }
   }
 
-  return results;
+  return results as HeaderMatch[];
 }
 
 // Fuzzy match company names for HubSpot company matching
