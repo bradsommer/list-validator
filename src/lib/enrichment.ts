@@ -95,6 +95,7 @@ async function callAIModel(
 ): Promise<string | null> {
   switch (provider.toLowerCase()) {
     case 'openai':
+    case 'azure-openai':
       return callOpenAI(prompt, modelId, apiKey, baseUrl);
     case 'anthropic':
       return callAnthropic(prompt, modelId, apiKey, baseUrl);

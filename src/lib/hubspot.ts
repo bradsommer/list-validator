@@ -302,8 +302,20 @@ export async function getValidAccessToken(): Promise<string | null> {
       tokens = refreshed;
       // Reset the cached client so it picks up the new token
       hubspotClient = null;
-    } catch {
-      await clearTokens();
+      hubspotClientToken = null;
+    } catch (refreshErr) {
+      console.error('Token refresh failed, re-reading DB for possibly re-authed tokens:', refreshErr);
+      // Don't clear tokens — the user may have re-authenticated and the DB
+      // has fresh tokens. Re-read from DB as a last resort.
+      const freshDbTokens = await loadTokensFromDb(DEFAULT_ACCOUNT_ID);
+      if (freshDbTokens && freshDbTokens.access_token !== tokens.access_token) {
+        // DB has different tokens — use them (likely from a re-auth)
+        storedTokens = freshDbTokens;
+        hubspotClient = null;
+        hubspotClientToken = null;
+        return freshDbTokens.access_token;
+      }
+      // DB has the same expired token — nothing we can do
       return null;
     }
   }

@@ -45,14 +45,15 @@ export async function POST(request: NextRequest) {
     if (configIds.length > 0) {
       const { data: configData } = await supabase
         .from('enrichment_configs')
-        .select('*, ai_model:ai_models(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
+        .select('*, ai_model:ai_models!ai_model_id(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
         .in('id', configIds)
         .eq('is_enabled', true)
         .order('execution_order');
 
       if (configData) {
         configs = configData.map((c: Record<string, unknown>) => {
-          const aiModel = c.ai_model as {
+          // Supabase may return ai_model as null, an object, or an array
+          let aiModel = c.ai_model as {
             provider: string;
             model_id: string;
             api_key_encrypted: string | null;
@@ -60,7 +61,10 @@ export async function POST(request: NextRequest) {
             env_key_name: string | null;
             base_url: string | null;
           } | null;
-          const hasAiModel = aiModel && aiModel.provider !== 'serp';
+          if (Array.isArray(aiModel)) {
+            aiModel = aiModel[0] || null;
+          }
+          const hasAiModel = aiModel && aiModel.provider && aiModel.provider !== 'serp';
 
           return {
             id: c.id as string,
