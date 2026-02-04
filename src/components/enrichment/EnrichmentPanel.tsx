@@ -54,13 +54,20 @@ export function EnrichmentPanel() {
       try {
         const { data, error } = await supabase
           .from('enrichment_configs')
-          .select('*, ai_model:ai_models(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
+          .select('*, ai_model:ai_models!ai_model_id(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
           .eq('is_enabled', true)
           .order('execution_order');
 
         if (error) {
           console.error('Failed to fetch enrichment configs:', error.message);
         } else if (data) {
+          // Log raw data to debug ai_model join issues
+          console.log('Raw enrichment configs from DB:', JSON.stringify(data.map((d: Record<string, unknown>) => ({
+            id: d.id,
+            name: d.name,
+            ai_model_id: d.ai_model_id,
+            ai_model: d.ai_model,
+          }))));
           setDbConfigs(data as DbEnrichmentConfig[]);
         }
       } catch (err) {
@@ -78,7 +85,15 @@ export function EnrichmentPanel() {
     return dbConfigs
       .filter((c) => selectedConfigIds.has(c.id))
       .map((c) => {
-        const hasAiModel = c.ai_model && c.ai_model.provider !== 'serp';
+        // Supabase may return ai_model as null, an object, or an array (if relationship is ambiguous)
+        let aiModelData = c.ai_model;
+        if (Array.isArray(aiModelData)) {
+          aiModelData = aiModelData[0] || null;
+        }
+        const hasAiModel = aiModelData && aiModelData.provider && aiModelData.provider !== 'serp';
+
+        console.log(`Building config "${c.name}": ai_model=`, aiModelData, `hasAiModel=${hasAiModel}, service=${hasAiModel ? 'ai' : 'serp'}`);
+
         return {
           id: c.id,
           name: c.name,
@@ -90,14 +105,14 @@ export function EnrichmentPanel() {
           isEnabled: true,
           createdAt: '',
           updatedAt: '',
-          aiModel: hasAiModel && c.ai_model ? {
-            provider: c.ai_model.provider,
-            modelId: c.ai_model.model_id,
-            apiKey: c.ai_model.use_env_key
+          aiModel: hasAiModel && aiModelData ? {
+            provider: aiModelData.provider,
+            modelId: aiModelData.model_id,
+            apiKey: aiModelData.use_env_key
               ? undefined
-              : (c.ai_model.api_key_encrypted || undefined),
-            baseUrl: c.ai_model.base_url || undefined,
-            envKeyName: c.ai_model.env_key_name || undefined,
+              : (aiModelData.api_key_encrypted || undefined),
+            baseUrl: aiModelData.base_url || undefined,
+            envKeyName: aiModelData.env_key_name || undefined,
           } : undefined,
         };
       });
