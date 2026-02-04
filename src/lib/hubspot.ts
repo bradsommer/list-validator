@@ -266,11 +266,20 @@ async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null
 
     if (error || !data?.access_token) return null;
 
+    // Supabase may return BIGINT as string — ensure it's a number
+    let expiresAt = 0;
+    if (data.token_expires_at != null) {
+      expiresAt = typeof data.token_expires_at === 'string'
+        ? parseInt(data.token_expires_at, 10)
+        : Number(data.token_expires_at);
+      if (isNaN(expiresAt)) expiresAt = 0;
+    }
+
     return {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       expires_in: 0,
-      expires_at: data.token_expires_at || 0,
+      expires_at: expiresAt,
     };
   } catch {
     return null;
@@ -358,10 +367,21 @@ export async function getValidAccessToken(): Promise<string | null> {
   }
 
   let tokens = storedTokens || await getTokens();
-  if (!tokens) return null;
+  if (!tokens) {
+    console.log('[HubSpot Auth] No tokens found in DB, memory, or file');
+    return null;
+  }
+
+  const now = Date.now();
+  const expiresAt = Number(tokens.expires_at) || 0;
+  const bufferMs = 5 * 60 * 1000;
+  const isExpired = expiresAt === 0 || now > expiresAt - bufferMs;
+
+  console.log(`[HubSpot Auth] Token check: now=${now}, expires_at=${expiresAt} (type=${typeof tokens.expires_at}), isExpired=${isExpired}, gap=${Math.round((expiresAt - now) / 1000)}s`);
 
   // Refresh if expired (with 5 min buffer)
-  if (Date.now() > tokens.expires_at - 5 * 60 * 1000) {
+  if (isExpired) {
+    console.log('[HubSpot Auth] Token expired or missing expiry, attempting refresh...');
     try {
       const refreshed = await refreshAccessToken(tokens.refresh_token);
       await setTokens(refreshed);
@@ -369,21 +389,37 @@ export async function getValidAccessToken(): Promise<string | null> {
       // Reset the cached client so it picks up the new token
       hubspotClient = null;
       hubspotClientToken = null;
+      console.log(`[HubSpot Auth] Token refreshed successfully, new expires_at=${refreshed.expires_at}`);
     } catch (refreshErr) {
-      console.error('Token refresh failed, re-reading DB for possibly re-authed tokens:', refreshErr);
+      console.error('[HubSpot Auth] Token refresh failed:', refreshErr);
       // Don't clear tokens — the user may have re-authenticated and the DB
       // has fresh tokens. Re-read from DB as a last resort.
       const freshDbTokens = await loadTokensFromDb(DEFAULT_ACCOUNT_ID);
       if (freshDbTokens && freshDbTokens.access_token !== tokens.access_token) {
-        // DB has different tokens — use them (likely from a re-auth)
+        const freshExpiry = Number(freshDbTokens.expires_at) || 0;
+        // Only use the DB tokens if they're actually newer/valid
+        if (freshExpiry === 0 || now > freshExpiry - bufferMs) {
+          console.log('[HubSpot Auth] DB has different token but it is also expired');
+          return null;
+        }
+        // DB has different, non-expired tokens — use them (likely from a re-auth)
+        console.log('[HubSpot Auth] Found fresh re-authed token in DB');
         storedTokens = freshDbTokens;
         hubspotClient = null;
         hubspotClientToken = null;
         return freshDbTokens.access_token;
       }
       // DB has the same expired token — nothing we can do
+      console.log('[HubSpot Auth] No valid tokens available, returning null');
       return null;
     }
+  }
+
+  // Final safety guard: never return a token we know is expired
+  const finalExpiry = Number(tokens.expires_at) || 0;
+  if (finalExpiry > 0 && now > finalExpiry) {
+    console.error(`[HubSpot Auth] SAFETY: token still expired after refresh flow (expires_at=${finalExpiry}, now=${now})`);
+    return null;
   }
 
   return tokens.access_token;
