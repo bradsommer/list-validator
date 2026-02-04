@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthorizeUrl, getHubSpotClientId, isConnected, getTokens, clearTokens } from '@/lib/hubspot';
+import { getAuthorizeUrl, getHubSpotClientId, isConnected, getTokens, getPortalId, clearTokens } from '@/lib/hubspot';
 
 // GET - returns connection status or redirect URL
 export async function GET(request: NextRequest) {
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const connected = await isConnected();
   const tokens = await getTokens(accountId);
   const expiresAt = tokens?.expires_at || null;
+  const portalId = connected ? await getPortalId(accountId) : null;
 
   const authorizeUrl = connected ? null : getAuthorizeUrl(accountId);
 
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     connected,
     authorizeUrl,
     expiresAt,
+    portalId,
   });
 }
 

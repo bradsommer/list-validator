@@ -155,20 +155,24 @@ function loadTokensFromFile(): HubSpotTokens | null {
 
 // --- Supabase storage ---
 
-async function saveTokensToDb(tokens: HubSpotTokens, accountId: string): Promise<boolean> {
+async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId?: string): Promise<boolean> {
   try {
+    const upsertData: Record<string, unknown> = {
+      account_id: accountId,
+      provider: 'hubspot',
+      is_active: true,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: tokens.expires_at,
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (portalId) {
+      upsertData.portal_id = portalId;
+    }
     const { error } = await supabase
       .from('account_integrations')
-      .upsert({
-        account_id: accountId,
-        provider: 'hubspot',
-        is_active: true,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        token_expires_at: tokens.expires_at,
-        connected_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, {
+      .upsert(upsertData, {
         onConflict: 'account_id,provider',
       });
     if (error) {
@@ -204,6 +208,23 @@ async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null
   }
 }
 
+export async function getPortalId(accountId?: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('account_integrations')
+      .select('portal_id')
+      .eq('account_id', accountId || DEFAULT_ACCOUNT_ID)
+      .eq('provider', 'hubspot')
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data?.portal_id) return null;
+    return data.portal_id;
+  } catch {
+    return null;
+  }
+}
+
 async function clearTokensFromDb(accountId: string): Promise<void> {
   try {
     await supabase
@@ -220,10 +241,10 @@ async function clearTokensFromDb(accountId: string): Promise<void> {
 
 let storedTokens: HubSpotTokens | null = null;
 
-export async function setTokens(tokens: HubSpotTokens, accountId?: string) {
+export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
   storedTokens = tokens;
   saveTokensToFile(tokens);
-  await saveTokensToDb(tokens, accountId || DEFAULT_ACCOUNT_ID);
+  await saveTokensToDb(tokens, accountId || DEFAULT_ACCOUNT_ID, portalId);
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {

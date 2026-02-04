@@ -22,8 +22,22 @@ export async function GET(request: NextRequest) {
     const tokens = await exchangeCodeForTokens(code);
     const accountId = state || 'dev-account-id';
 
+    // Fetch the portal ID (hub_id) from HubSpot token info
+    let portalId: string | undefined;
+    try {
+      const tokenInfoResponse = await fetch(
+        `https://api.hubapi.com/oauth/v1/access-tokens/${tokens.access_token}`
+      );
+      if (tokenInfoResponse.ok) {
+        const tokenInfo = await tokenInfoResponse.json();
+        portalId = tokenInfo.hub_id?.toString();
+      }
+    } catch {
+      // Non-critical - continue without portal ID
+    }
+
     // Store tokens to in-memory, file, and database
-    await setTokens(tokens, accountId);
+    await setTokens(tokens, accountId, portalId);
     resetClient();
 
     return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_connected=true`);
