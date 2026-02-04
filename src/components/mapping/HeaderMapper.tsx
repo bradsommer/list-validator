@@ -301,13 +301,12 @@ export function HeaderMapper() {
                   </td>
                   <td className="px-4 py-3">
                     {(() => {
-                      // If the matched field is already used by another row, show "Choose a property"
-                      const selectedFieldId = match.matchedField?.id || '';
-                      const isSelectedFieldUsedElsewhere = selectedFieldId && usedFieldIds.has(selectedFieldId);
-                      const effectiveValue = skipped ? '' : (isSelectedFieldUsedElsewhere ? '' : selectedFieldId);
+                      // Always show the actual matched field — never blank it out dynamically.
+                      // The dropdown options hide already-used fields to prevent NEW duplicates.
+                      const selectedFieldId = skipped ? '' : (match.matchedField?.id || '');
                       return (
                         <select
-                          value={effectiveValue}
+                          value={selectedFieldId}
                           onChange={(e) => handleMappingChange(index, e.target.value || null)}
                           disabled={skipped}
                           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
@@ -319,7 +318,9 @@ export function HeaderMapper() {
                             .sort((a, b) => a.hubspotLabel.localeCompare(b.hubspotLabel))
                             .map((field) => {
                               const isUsed = usedFieldIds.has(field.id);
-                              if (isUsed) return null; // hide already-mapped properties
+                              // Always show the currently selected field in the list;
+                              // hide other already-mapped properties to prevent duplicates
+                              if (isUsed && field.id !== selectedFieldId) return null;
                               return (
                                 <option
                                   key={field.id}

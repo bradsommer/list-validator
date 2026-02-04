@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
-import { transformToHubSpotFormat } from '@/lib/validator';
 
 export function HubSpotSync() {
   const {
@@ -57,14 +56,50 @@ export function HubSpotSync() {
     });
 
     try {
-      // Transform rows from original CSV headers to HubSpot field names
-      const hubspotRows = transformToHubSpotFormat(processedData, headerMatches);
+      // Transform rows from original CSV headers to HubSpot field names,
+      // separating contact and company properties so the sync API can
+      // use them correctly (contact props for contacts, company props for matching/creating companies).
+      const transformedRows = processedData.map((row) => {
+        const contactProperties: Record<string, string> = {};
+        const companyProperties: Record<string, string> = {};
+
+        Object.entries(row).forEach(([header, value]) => {
+          if (value === null || value === undefined) return;
+          const strValue = String(value).trim();
+          if (!strValue) return;
+
+          const match = headerMatches.find((m) => m.originalHeader === header);
+          if (match?.matchedField) {
+            const field = match.matchedField.hubspotField;
+            if (match.matchedField.objectType === 'companies') {
+              companyProperties[field] = strValue;
+            } else {
+              // contacts and deals — send as contact properties
+              contactProperties[field] = strValue;
+            }
+          }
+        });
+
+        // Also include any enriched fields (keys that aren't original CSV headers)
+        // These were added by the enrichment step with HubSpot field names
+        const originalHeaders = new Set(headerMatches.map((m) => m.originalHeader));
+        Object.entries(row).forEach(([key, value]) => {
+          if (originalHeaders.has(key)) return; // already handled above
+          if (value === null || value === undefined) return;
+          const strValue = String(value).trim();
+          if (!strValue) return;
+          // Enriched fields go to contact properties by default
+          contactProperties[key] = strValue;
+        });
+
+        return { contactProperties, companyProperties };
+      });
 
       const response = await fetch('/api/hubspot/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rows: hubspotRows,
+          rows: transformedRows,
           taskAssigneeId: defaultTaskAssignee,
           sessionId,
         }),

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { processRowForHubSpot } from '@/lib/hubspot';
-import type { ParsedRow } from '@/types';
 
 const BATCH_SIZE = 50;
 
@@ -87,13 +86,19 @@ export async function POST(request: NextRequest) {
 
         try {
           // Merge raw + enriched data for HubSpot
-          const mergedData: ParsedRow = {
-            ...(row.raw_data as Record<string, unknown>),
-            ...(row.enriched_data as Record<string, unknown>),
-          } as ParsedRow;
+          // Pipeline rows store data as flat objects with HubSpot field names.
+          // Pass all as contact properties; company matching uses fallback lookups.
+          const mergedData: Record<string, string> = {};
+          const rawData = row.raw_data as Record<string, unknown> || {};
+          const enrichedData = row.enriched_data as Record<string, unknown> || {};
+          for (const [key, value] of Object.entries({ ...rawData, ...enrichedData })) {
+            if (value !== null && value !== undefined && String(value).trim()) {
+              mergedData[key] = String(value).trim();
+            }
+          }
 
-          // Process the row through HubSpot
-          const result = await processRowForHubSpot(row.row_index, mergedData, taskAssigneeId);
+          // Process the row through HubSpot (contact props, empty company props — pipeline doesn't separate)
+          const result = await processRowForHubSpot(row.row_index, mergedData, {}, taskAssigneeId);
 
           // Mark as synced
           await supabase

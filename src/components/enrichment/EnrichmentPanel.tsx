@@ -30,6 +30,7 @@ export function EnrichmentPanel() {
   const {
     sessionId,
     processedData,
+    headerMatches,
     enrichmentResults,
     isEnriching,
     enrichmentProgress,
@@ -125,13 +126,32 @@ export function EnrichmentPanel() {
     });
 
     try {
+      // Transform rows from original CSV headers to HubSpot field names
+      // so enrichment configs can find input values by HubSpot property name.
+      const headerToHubspot = new Map<string, string>();
+      headerMatches.forEach((match) => {
+        if (match.matchedField) {
+          headerToHubspot.set(match.originalHeader, match.matchedField.hubspotField);
+        }
+      });
+      const transformedRows = processedData.map((row: Record<string, string | number | boolean | null>) => {
+        const transformed: Record<string, string | number | boolean | null> = {};
+        Object.entries(row).forEach(([header, value]) => {
+          const hubspotField = headerToHubspot.get(header);
+          if (hubspotField) {
+            transformed[hubspotField] = value as string | number | boolean | null;
+          }
+        });
+        return transformed;
+      });
+
       // Run enrichment through the server-side API route.
       // AI API calls (OpenAI, Anthropic) require server-side env vars and
       // cannot be made from the browser due to CORS restrictions.
       const response = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: processedData, configs }),
+        body: JSON.stringify({ rows: transformedRows, configs }),
       });
 
       if (!response.ok) {
