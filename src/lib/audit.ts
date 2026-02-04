@@ -1,8 +1,7 @@
-import type { ParsedRow, HeaderMatch, AuditFlag, AuditResult, HubSpotMatchResult } from '@/types';
+import type { ParsedRow, HeaderMatch, AuditFlag, AuditResult } from '@/types';
 
 // Audit thresholds
 const CONFIDENCE_THRESHOLD = 0.7; // Matches below this are flagged for review
-const FUZZY_MATCH_THRESHOLD = 0.8; // Company name matches below this are flagged
 
 // Flag rows with low-confidence header matches
 function auditHeaderMatches(headerMatches: HeaderMatch[]): AuditFlag[] {
@@ -16,43 +15,6 @@ function auditHeaderMatches(headerMatches: HeaderMatch[]): AuditFlag[] {
         reason: `Low confidence header match (${Math.round(match.confidence * 100)}%)`,
         suggestedValue: match.matchedField?.hubspotLabel,
         confidence: match.confidence,
-      });
-    }
-  });
-
-  return flags;
-}
-
-// Flag rows with low-confidence company matches
-function auditCompanyMatches(matchResults: HubSpotMatchResult[]): AuditFlag[] {
-  const flags: AuditFlag[] = [];
-
-  matchResults.forEach((result) => {
-    if (result.matchType === 'fuzzy_name' && result.matchConfidence < FUZZY_MATCH_THRESHOLD) {
-      flags.push({
-        rowIndex: result.rowIndex,
-        field: 'company',
-        reason: `Low confidence company match (${Math.round(result.matchConfidence * 100)}%)`,
-        suggestedValue: result.matchedCompany?.name,
-        confidence: result.matchConfidence,
-      });
-    }
-
-    if (result.matchType === 'no_match') {
-      flags.push({
-        rowIndex: result.rowIndex,
-        field: 'company',
-        reason: 'No matching company found in HubSpot',
-        confidence: 0,
-      });
-    }
-
-    if (result.matchType === 'created_new') {
-      flags.push({
-        rowIndex: result.rowIndex,
-        field: 'company',
-        reason: `New company created: ${result.matchedCompany?.name}`,
-        confidence: 1,
       });
     }
   });
@@ -148,8 +110,7 @@ function auditDataQuality(rows: ParsedRow[], headerMatches: HeaderMatch[]): Audi
 // Run full audit
 export function runAudit(
   rows: ParsedRow[],
-  headerMatches: HeaderMatch[],
-  matchResults?: HubSpotMatchResult[]
+  headerMatches: HeaderMatch[]
 ): AuditResult {
   const allFlags: AuditFlag[] = [];
 
@@ -158,11 +119,6 @@ export function runAudit(
 
   // Audit data quality
   allFlags.push(...auditDataQuality(rows, headerMatches));
-
-  // Audit company matches if available
-  if (matchResults) {
-    allFlags.push(...auditCompanyMatches(matchResults));
-  }
 
   // Determine which rows are clean vs need review
   const flaggedRowIndices = new Set(allFlags.map((f) => f.rowIndex));

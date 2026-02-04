@@ -8,8 +8,6 @@ import { LogViewer } from '@/components/layout/LogViewer';
 import { FileUpload } from '@/components/upload/FileUpload';
 import { HeaderMapper } from '@/components/mapping/HeaderMapper';
 import { ValidationResults } from '@/components/validation/ValidationResults';
-import { EnrichmentPanel } from '@/components/enrichment/EnrichmentPanel';
-import { HubSpotSync } from '@/components/hubspot/HubSpotSync';
 import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
@@ -31,10 +29,6 @@ export default function ImportPage() {
       case 2:
         return <ValidationResults />;
       case 3:
-        return <EnrichmentPanel />;
-      case 4:
-        return <HubSpotSync />;
-      case 5:
         return <AuditReview />;
       default:
         return <FileUpload />;

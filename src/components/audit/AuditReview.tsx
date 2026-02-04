@@ -12,7 +12,6 @@ export function AuditReview() {
     sessionId,
     processedData,
     headerMatches,
-    hubspotResults,
     auditResult,
     parsedFile,
     setAuditResult,
@@ -33,8 +32,7 @@ export function AuditReview() {
 
       const result = runAudit(
         processedData,
-        headerMatches,
-        hubspotResults.length > 0 ? hubspotResults : undefined
+        headerMatches
       );
       setAuditResult(result);
 
@@ -46,19 +44,19 @@ export function AuditReview() {
     };
 
     runAuditProcess();
-  }, [processedData, headerMatches, hubspotResults, sessionId, setAuditResult, auditResult]);
+  }, [processedData, headerMatches, sessionId, setAuditResult, auditResult]);
 
   const handleExportClean = () => {
     if (!auditResult) return;
 
     const cleanData = getCleanData(processedData, auditResult);
-    const hubspotReady = transformToHubSpotFormat(cleanData, headerMatches);
-    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_clean_hubspot_ready`;
+    const formatted = transformToHubSpotFormat(cleanData, headerMatches);
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_clean`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(hubspotReady, `${fileName}.csv`);
+      exportToCSV(formatted, `${fileName}.csv`);
     } else {
-      exportToExcel(hubspotReady, `${fileName}.xlsx`);
+      exportToExcel(formatted, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported ${cleanData.length} clean rows`, sessionId);
@@ -84,13 +82,13 @@ export function AuditReview() {
   };
 
   const handleExportAll = () => {
-    const hubspotReady = transformToHubSpotFormat(processedData, headerMatches);
-    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_all_hubspot_ready`;
+    const formatted = transformToHubSpotFormat(processedData, headerMatches);
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_formatted`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(hubspotReady, `${fileName}.csv`);
+      exportToCSV(formatted, `${fileName}.csv`);
     } else {
-      exportToExcel(hubspotReady, `${fileName}.xlsx`);
+      exportToExcel(formatted, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported all ${processedData.length} rows`, sessionId);
@@ -118,7 +116,7 @@ export function AuditReview() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Final Audit & Export</h2>
+      <h2 className="text-xl font-semibold">Review & Export</h2>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -166,7 +164,7 @@ export function AuditReview() {
           >
             {showFlagged ? 'Hide' : 'Show'} flagged rows ({flaggedData.length})
           </button>
-          <span className="text-xs text-gray-500">These are advisory warnings only — all rows were synced to HubSpot regardless of flags.</span>
+          <span className="text-xs text-gray-500">These are advisory warnings only — all rows will still be included in the export.</span>
         </div>
       )}
 
@@ -175,7 +173,7 @@ export function AuditReview() {
         <div className="border border-yellow-200 rounded-lg overflow-hidden">
           <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-200">
             <h3 className="font-medium text-yellow-700">Rows Flagged for Review</h3>
-            <p className="text-xs text-yellow-600 mt-0.5">These flags highlight potential data quality issues for your review. They did not prevent any rows from being processed or synced.</p>
+            <p className="text-xs text-yellow-600 mt-0.5">These flags highlight potential data quality issues for your review. They do not prevent rows from being exported.</p>
           </div>
           <div className="max-h-64 overflow-auto">
             <table className="w-full">
@@ -254,7 +252,7 @@ export function AuditReview() {
           className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex flex-col items-center"
         >
           <span className="font-medium">Export Data</span>
-          <span className="text-sm opacity-80">{summary.totalRows} rows — includes all enriched values</span>
+          <span className="text-sm opacity-80">{summary.totalRows} rows — cleaned and formatted</span>
         </button>
 
         <div className="grid grid-cols-2 gap-3">

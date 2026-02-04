@@ -121,7 +121,7 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Map Fields', 'Validate', 'Enrich', 'HubSpot Sync', 'Audit & Export'],
+  steps: ['Upload', 'Map Fields', 'Validate', 'Export'],
   parsedFile: null,
   processedData: [],
   fieldMappings: [] as FieldMapping[],
