@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthorizeUrl, getHubSpotClientId, isConnected, getTokens, getPortalId, clearTokens } from '@/lib/hubspot';
+import { getAuthorizeUrl, getHubSpotClientIdAsync, isConnected, getTokens, getPortalId, clearTokens } from '@/lib/hubspot';
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 
 interface ConnectionStatus {
@@ -10,21 +10,21 @@ interface ConnectionStatus {
 
 // GET - returns connection status or redirect URL
 export async function GET(request: NextRequest) {
-  const clientId = getHubSpotClientId();
+  const clientId = await getHubSpotClientIdAsync();
   const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
 
   if (!clientId) {
     return NextResponse.json({
       success: false,
       connected: false,
-      error: 'HubSpot Client ID not configured. Set HUBSPOT_CLIENT_ID in .env.local',
+      error: 'HubSpot Client ID not configured. Set HUBSPOT_CLIENT_ID in .env.local or add hubspot_client_id to app_settings table.',
     });
   }
 
   // Check cache for connection status
   const cached = cache.get<ConnectionStatus>(CACHE_KEYS.HUBSPOT_CONNECTION);
   if (cached) {
-    const authorizeUrl = cached.connected ? null : getAuthorizeUrl(accountId);
+    const authorizeUrl = cached.connected ? null : await getAuthorizeUrl(accountId);
     return NextResponse.json({
       success: true,
       connected: cached.connected,
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     portalId,
   }, CACHE_TTL.CONNECTION);
 
-  const authorizeUrl = connected ? null : getAuthorizeUrl(accountId);
+  const authorizeUrl = connected ? null : await getAuthorizeUrl(accountId);
 
   return NextResponse.json({
     success: true,

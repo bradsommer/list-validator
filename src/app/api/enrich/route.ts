@@ -21,6 +21,16 @@ export async function POST(request: NextRequest) {
     }
 
     const enabledConfigs = configs.filter((c) => c.isEnabled);
+
+    // Log received configs for debugging service type detection
+    console.log('Enrich API received configs:', JSON.stringify(enabledConfigs.map(c => ({
+      name: c.name,
+      service: c.service,
+      hasAiModel: !!c.aiModel,
+      provider: c.aiModel?.provider,
+      modelId: c.aiModel?.modelId,
+    }))));
+
     const results: {
       rowIndex: number;
       enrichedData: Record<string, unknown>;
