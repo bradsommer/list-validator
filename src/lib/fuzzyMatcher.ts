@@ -134,8 +134,12 @@ export function matchHeaders(
     }))
   );
 
-  // Track which HubSpot fields have already been mapped to prevent duplicates
-  const usedFieldIds = new Set<string>();
+  // Track which HubSpot fields have already been mapped to prevent duplicates.
+  // Uses composite key (objectType_hubspotField) so the same property can't be
+  // assigned to multiple spreadsheet headers, even if fieldMappings has multiple
+  // entries with different IDs for the same logical property.
+  const usedFieldKeys = new Set<string>();
+  const fieldKey = (fm: FieldMapping) => `${fm.objectType}_${fm.hubspotField}`;
 
   // Results indexed by header position
   const results: (HeaderMatch | null)[] = headers.map(() => null);
@@ -180,9 +184,9 @@ export function matchHeaders(
     const assignedHeaders = new Set<number>();
     for (const candidate of candidates) {
       if (assignedHeaders.has(candidate.headerIndex)) continue;
-      if (usedFieldIds.has(candidate.fieldMapping.id)) continue;
+      if (usedFieldKeys.has(fieldKey(candidate.fieldMapping))) continue;
 
-      usedFieldIds.add(candidate.fieldMapping.id);
+      usedFieldKeys.add(fieldKey(candidate.fieldMapping));
       assignedHeaders.add(candidate.headerIndex);
       results[candidate.headerIndex] = {
         originalHeader: headers[candidate.headerIndex],
@@ -201,7 +205,7 @@ export function matchHeaders(
     const normalizedHeader = normalizeString(header);
 
     const exactMatches = searchItems.filter(
-      (item) => item.variant === normalizedHeader && !usedFieldIds.has(item.mapping.id)
+      (item) => item.variant === normalizedHeader && !usedFieldKeys.has(fieldKey(item.mapping))
     );
 
     if (exactMatches.length > 0) {
@@ -210,7 +214,7 @@ export function matchHeaders(
         getObjectTypePriority(a.mapping.objectType) - getObjectTypePriority(b.mapping.objectType)
       );
       const bestExact = exactMatches[0];
-      usedFieldIds.add(bestExact.mapping.id);
+      usedFieldKeys.add(fieldKey(bestExact.mapping));
       results[i] = {
         originalHeader: header,
         matchedField: bestExact.mapping,
@@ -235,7 +239,7 @@ export function matchHeaders(
 
     const fuzzyResults = fuse.search(normalizedHeader);
     const availableResults = fuzzyResults.filter(
-      (r) => !usedFieldIds.has(r.item.mapping.id)
+      (r) => !usedFieldKeys.has(fieldKey(r.item.mapping))
     );
 
     // Among results with similar scores (within 0.1), prefer contact > company > deal
@@ -257,7 +261,7 @@ export function matchHeaders(
       const confidence = 1 - (bestAvailable.score || 0);
       const isSuggested = confidence >= 0.4;
       if (isSuggested) {
-        usedFieldIds.add(bestAvailable.item.mapping.id);
+        usedFieldKeys.add(fieldKey(bestAvailable.item.mapping));
       }
 
       results[i] = {

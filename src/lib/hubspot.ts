@@ -273,6 +273,7 @@ export async function getTokens(accountId?: string): Promise<HubSpotTokens | nul
 export async function clearTokens(accountId?: string) {
   storedTokens = null;
   hubspotClient = null;
+  hubspotClientToken = null;
   saveTokensToFile(null);
   await clearTokensFromDb(accountId || DEFAULT_ACCOUNT_ID);
 }
@@ -283,7 +284,14 @@ export async function getValidAccessToken(): Promise<string | null> {
     return process.env.HUBSPOT_ACCESS_TOKEN;
   }
 
-  let tokens = await getTokens();
+  // Always check DB for the latest tokens — the in-memory cache may be stale
+  // if the user re-authenticated in another request or the token was refreshed.
+  const dbTokens = await loadTokensFromDb(DEFAULT_ACCOUNT_ID);
+  if (dbTokens) {
+    storedTokens = dbTokens;
+  }
+
+  let tokens = storedTokens || await getTokens();
   if (!tokens) return null;
 
   // Refresh if expired (with 5 min buffer)
@@ -292,6 +300,8 @@ export async function getValidAccessToken(): Promise<string | null> {
       const refreshed = await refreshAccessToken(tokens.refresh_token);
       await setTokens(refreshed);
       tokens = refreshed;
+      // Reset the cached client so it picks up the new token
+      hubspotClient = null;
     } catch {
       await clearTokens();
       return null;
@@ -312,14 +322,19 @@ export async function isConnected(): Promise<boolean> {
 // ============================================================================
 
 let hubspotClient: Client | null = null;
+let hubspotClientToken: string | null = null;
 
 export async function getHubSpotClient(): Promise<Client> {
-  if (!hubspotClient) {
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
-    }
+  // Always get a valid token first — this handles refresh and DB re-reads.
+  // If the token changed (due to refresh or re-auth), recreate the client.
+  const accessToken = await getValidAccessToken();
+  if (!accessToken) {
+    throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
+  }
+
+  if (!hubspotClient || hubspotClientToken !== accessToken) {
     hubspotClient = new Client({ accessToken });
+    hubspotClientToken = accessToken;
   }
   return hubspotClient;
 }
@@ -327,6 +342,7 @@ export async function getHubSpotClient(): Promise<Client> {
 // Reset client when tokens change
 export function resetClient() {
   hubspotClient = null;
+  hubspotClientToken = null;
 }
 
 // Search for companies by domain (cached during sync batches)
