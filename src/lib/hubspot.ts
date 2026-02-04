@@ -120,20 +120,55 @@ export async function refreshAccessToken(refreshToken: string): Promise<HubSpotT
   };
 }
 
-// In-memory token store (persists across requests in the same server process)
+// Token persistence - uses file storage in dev to survive hot reloads and restarts
+import * as fs from 'fs';
+import * as path from 'path';
+
+const TOKEN_FILE = path.join(process.cwd(), '.hubspot-tokens.json');
+
+function saveTokensToFile(tokens: HubSpotTokens | null) {
+  try {
+    if (tokens) {
+      fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
+    } else {
+      if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
+    }
+  } catch {
+    // Silently fail - file persistence is best-effort
+  }
+}
+
+function loadTokensFromFile(): HubSpotTokens | null {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
+      return data;
+    }
+  } catch {
+    // Silently fail
+  }
+  return null;
+}
+
+// In-memory token store with file-based fallback
 let storedTokens: HubSpotTokens | null = null;
 
 export function setTokens(tokens: HubSpotTokens) {
   storedTokens = tokens;
+  saveTokensToFile(tokens);
 }
 
 export function getTokens(): HubSpotTokens | null {
+  if (!storedTokens) {
+    storedTokens = loadTokensFromFile();
+  }
   return storedTokens;
 }
 
 export function clearTokens() {
   storedTokens = null;
   hubspotClient = null;
+  saveTokensToFile(null);
 }
 
 export async function getValidAccessToken(): Promise<string | null> {
