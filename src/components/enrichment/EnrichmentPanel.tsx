@@ -1,57 +1,119 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { supabase } from '@/lib/supabase';
 import { enrichData, applyEnrichmentResults } from '@/lib/enrichment';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import type { EnrichmentConfig } from '@/types';
+
+interface DbEnrichmentConfig {
+  id: string;
+  name: string;
+  description: string | null;
+  prompt_template: string;
+  input_fields: string[];
+  output_field: string;
+  is_enabled: boolean;
+  execution_order: number;
+  ai_model: { name: string; provider: string } | null;
+}
 
 export function EnrichmentPanel() {
   const {
     sessionId,
     processedData,
-    enrichmentConfigs,
     enrichmentResults,
     isEnriching,
     enrichmentProgress,
+    setEnrichmentConfigs,
     setEnrichmentResults,
     setIsEnriching,
     setEnrichmentProgress,
     setProcessedData,
-    updateEnrichmentConfig,
-    addEnrichmentConfig,
-    removeEnrichmentConfig,
     nextStep,
     prevStep,
   } = useAppStore();
 
-  const [showAddConfig, setShowAddConfig] = useState(false);
-  const [newConfig, setNewConfig] = useState({
-    name: '',
-    description: '',
-    prompt: '',
-    inputFields: '',
-    outputField: '',
-    service: 'serp' as const,
-  });
+  const [dbConfigs, setDbConfigs] = useState<DbEnrichmentConfig[]>([]);
+  const [selectedConfigIds, setSelectedConfigIds] = useState<Set<string>>(new Set());
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
+
+  // Fetch enrichment configs from database
+  useEffect(() => {
+    const fetchConfigs = async () => {
+      setIsLoadingConfigs(true);
+      try {
+        const { data, error } = await supabase
+          .from('enrichment_configs')
+          .select('*, ai_model:ai_models(name, provider)')
+          .eq('is_enabled', true)
+          .order('execution_order');
+
+        if (error) {
+          console.error('Failed to fetch enrichment configs:', error.message);
+        } else if (data) {
+          setDbConfigs(data as DbEnrichmentConfig[]);
+        }
+      } catch (err) {
+        console.error('Error fetching enrichment configs:', err);
+      } finally {
+        setIsLoadingConfigs(false);
+      }
+    };
+
+    fetchConfigs();
+  }, []);
+
+  // Convert selected DB configs to the EnrichmentConfig format the enrichment engine expects
+  const buildSelectedConfigs = (): EnrichmentConfig[] => {
+    return dbConfigs
+      .filter((c) => selectedConfigIds.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description || '',
+        prompt: c.prompt_template,
+        inputFields: c.input_fields || [],
+        outputField: c.output_field,
+        service: 'serp' as const,
+        isEnabled: true,
+        createdAt: '',
+        updatedAt: '',
+      }));
+  };
+
+  const toggleConfig = (id: string) => {
+    setSelectedConfigIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const handleRunEnrichment = async () => {
+    const configs = buildSelectedConfigs();
+    setEnrichmentConfigs(configs);
     setIsEnriching(true);
+
     await logInfo('enrich', 'Starting data enrichment', sessionId, {
       totalRows: processedData.length,
-      enabledConfigs: enrichmentConfigs.filter((c) => c.isEnabled).length,
+      enabledConfigs: configs.length,
     });
 
     try {
       const results = await enrichData(
         processedData,
-        enrichmentConfigs,
+        configs,
         (completed, total) => setEnrichmentProgress({ completed, total })
       );
 
       setEnrichmentResults(results);
 
-      // Apply enrichment results to processed data
       const enrichedData = applyEnrichmentResults(processedData, results);
       setProcessedData(enrichedData);
 
@@ -64,187 +126,109 @@ export function EnrichmentPanel() {
     }
   };
 
-  const handleAddConfig = () => {
-    if (!newConfig.name || !newConfig.outputField) return;
-
-    addEnrichmentConfig({
-      id: `enrich_${Date.now()}`,
-      name: newConfig.name,
-      description: newConfig.description,
-      prompt: newConfig.prompt,
-      inputFields: newConfig.inputFields.split(',').map((f) => f.trim()).filter((f) => f),
-      outputField: newConfig.outputField,
-      service: newConfig.service,
-      isEnabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    setNewConfig({
-      name: '',
-      description: '',
-      prompt: '',
-      inputFields: '',
-      outputField: '',
-      service: 'serp',
-    });
-    setShowAddConfig(false);
+  // Parse output fields for display
+  const parseOutputFields = (raw: string): string => {
+    if (!raw) return '';
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((f: { id: string; type: string }) => `${f.id} (${f.type})`).join(', ');
+      }
+    } catch {
+      // Legacy single string
+    }
+    return raw;
   };
 
-  const handleSkipEnrichment = () => {
-    nextStep();
+  // Parse input fields for display
+  const formatInputField = (field: string): string => {
+    if (field.includes(':')) {
+      const [objectType, prop] = field.split(':', 2);
+      return `${objectType}.${prop}`;
+    }
+    return field;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Data Enrichment</h2>
-        <button
-          onClick={() => setShowAddConfig(true)}
-          className="px-4 py-2 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200"
-        >
-          + Add Enrichment Rule
-        </button>
+        <span className="text-sm text-gray-500">
+          {processedData.length} rows to process
+        </span>
       </div>
 
-      {/* Add config modal */}
-      {showAddConfig && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h3 className="text-lg font-semibold mb-4">Add Enrichment Configuration</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={newConfig.name}
-                  onChange={(e) => setNewConfig({ ...newConfig, name: e.target.value })}
-                  placeholder="e.g., Find Company Website"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newConfig.description}
-                  onChange={(e) => setNewConfig({ ...newConfig, description: e.target.value })}
-                  placeholder="What this enrichment does"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-                <textarea
-                  value={newConfig.prompt}
-                  onChange={(e) => setNewConfig({ ...newConfig, prompt: e.target.value })}
-                  placeholder="Given a user's email, city, state, and institution, find..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg h-24"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Input Fields (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={newConfig.inputFields}
-                  onChange={(e) => setNewConfig({ ...newConfig, inputFields: e.target.value })}
-                  placeholder="email, city, state, institution"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Output Field</label>
-                <input
-                  type="text"
-                  value={newConfig.outputField}
-                  onChange={(e) => setNewConfig({ ...newConfig, outputField: e.target.value })}
-                  placeholder="e.g., website_url"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                <select
-                  value={newConfig.service}
-                  onChange={(e) =>
-                    setNewConfig({ ...newConfig, service: e.target.value as 'serp' })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="serp">SERP API</option>
-                  <option value="clearbit">Clearbit (coming soon)</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowAddConfig(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+      {/* Available enrichment configs from database */}
+      {isLoadingConfigs ? (
+        <div className="text-center py-8 text-gray-500">
+          <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+          Loading enrichment configurations...
+        </div>
+      ) : dbConfigs.length === 0 ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800 font-medium">No enrichment configurations found</p>
+          <p className="text-yellow-600 text-sm mt-1">
+            Create enrichment configs in the{' '}
+            <a href="/admin/enrichment" className="underline hover:text-yellow-800">
+              Admin &gt; Enrichment
+            </a>{' '}
+            page, then return here to use them.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            Select the enrichment steps to run on your data:
+          </p>
+          {dbConfigs.map((config) => {
+            const isSelected = selectedConfigIds.has(config.id);
+            return (
+              <div
+                key={config.id}
+                onClick={() => toggleConfig(config.id)}
+                className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-400'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddConfig}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                Add Configuration
-              </button>
-            </div>
-          </div>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleConfig(config.id)}
+                    className="w-4 h-4 text-blue-600 rounded mt-1 cursor-pointer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{config.name}</span>
+                      {config.ai_model && (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                          {config.ai_model.provider.toUpperCase()}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded">
+                        Order: {config.execution_order}
+                      </span>
+                    </div>
+                    {config.description && (
+                      <p className="text-sm text-gray-600 mt-1">{config.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+                      <span>
+                        Input: {config.input_fields.map(formatInputField).join(', ')}
+                      </span>
+                      <span>
+                        Output: {parseOutputFields(config.output_field)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {/* Enrichment configs */}
-      <div className="space-y-4">
-        {enrichmentConfigs.map((config) => (
-          <div
-            key={config.id}
-            className={`border rounded-lg p-4 ${
-              config.isEnabled ? 'border-primary-200 bg-primary-50' : 'border-gray-200 bg-gray-50'
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.isEnabled}
-                      onChange={(e) =>
-                        updateEnrichmentConfig(config.id, { isEnabled: e.target.checked })
-                      }
-                      className="w-4 h-4 text-primary-600 rounded"
-                    />
-                    <span className="font-medium">{config.name}</span>
-                  </label>
-                  <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">
-                    {config.service.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">{config.description}</p>
-                <div className="mt-2 text-xs text-gray-500">
-                  Input: {config.inputFields.join(', ')} → Output: {config.outputField}
-                </div>
-              </div>
-              <button
-                onClick={() => removeEnrichmentConfig(config.id)}
-                className="text-gray-400 hover:text-red-500 p-1"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Progress */}
       {isEnriching && (
@@ -288,7 +272,7 @@ export function EnrichmentPanel() {
         </button>
         <div className="flex gap-3">
           <button
-            onClick={handleSkipEnrichment}
+            onClick={nextStep}
             className="px-6 py-2 text-gray-600 hover:text-gray-800"
           >
             Skip Enrichment
@@ -296,19 +280,19 @@ export function EnrichmentPanel() {
           {enrichmentResults.length === 0 ? (
             <button
               onClick={handleRunEnrichment}
-              disabled={isEnriching || !enrichmentConfigs.some((c) => c.isEnabled)}
+              disabled={isEnriching || selectedConfigIds.size === 0}
               className={`px-6 py-2 rounded-lg ${
-                isEnriching || !enrichmentConfigs.some((c) => c.isEnabled)
+                isEnriching || selectedConfigIds.size === 0
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-primary-600 text-white hover:bg-primary-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              Run Enrichment
+              Run Enrichment ({selectedConfigIds.size} selected)
             </button>
           ) : (
             <button
               onClick={nextStep}
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Continue to HubSpot Sync
             </button>
