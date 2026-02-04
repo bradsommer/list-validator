@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, setTokens, resetClient } from '@/lib/hubspot';
+import { cache, CACHE_KEYS } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
     // Store tokens to in-memory, file, and database
     await setTokens(tokens, accountId, portalId);
     resetClient();
+
+    // Invalidate cached connection status so next check reflects new connection
+    cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
 
     return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_connected=true`);
   } catch (err) {

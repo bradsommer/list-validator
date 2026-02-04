@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/hubspot';
+import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -21,9 +22,17 @@ interface CachedProperty {
 }
 
 function loadCachedProperties(): CachedProperty[] {
+  // Check in-memory cache first
+  const memCached = cache.get<CachedProperty[]>(CACHE_KEYS.HUBSPOT_PROPERTIES);
+  if (memCached) return memCached;
+
+  // Fall back to file cache
   try {
     if (fs.existsSync(PROPERTIES_CACHE_FILE)) {
-      return JSON.parse(fs.readFileSync(PROPERTIES_CACHE_FILE, 'utf8'));
+      const data = JSON.parse(fs.readFileSync(PROPERTIES_CACHE_FILE, 'utf8'));
+      // Store in memory for subsequent requests
+      cache.set(CACHE_KEYS.HUBSPOT_PROPERTIES, data, CACHE_TTL.PROPERTIES);
+      return data;
     }
   } catch {
     // ignore
@@ -32,6 +41,8 @@ function loadCachedProperties(): CachedProperty[] {
 }
 
 function saveCachedProperties(properties: CachedProperty[]) {
+  // Save to both memory and file
+  cache.set(CACHE_KEYS.HUBSPOT_PROPERTIES, properties, CACHE_TTL.PROPERTIES);
   try {
     fs.writeFileSync(PROPERTIES_CACHE_FILE, JSON.stringify(properties, null, 2));
   } catch {
@@ -78,15 +89,13 @@ async function fetchPropertiesForObjectType(
   }));
 }
 
-// GET - return cached properties (or fetch live if requested)
+// GET - return cached properties (or fetch live if cache empty)
 export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') as ObjectType | null;
 
-  // Try cached first
   let cached = loadCachedProperties();
 
   if (cached.length === 0) {
-    // No cache - try fetching live
     const accessToken = await getValidAccessToken();
     if (!accessToken) {
       return NextResponse.json({
@@ -96,7 +105,6 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Fetch all object types
     const allProperties: CachedProperty[] = [];
     for (const type of OBJECT_TYPES) {
       const props = await fetchPropertiesForObjectType(accessToken, type);
@@ -109,7 +117,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Filter by object type if specified
   const filtered = objectType
     ? cached.filter(p => p.object_type === objectType)
     : cached;
@@ -121,7 +128,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// POST - sync/refresh properties from HubSpot
+// POST - sync/refresh properties from HubSpot (invalidates cache)
 export async function POST() {
   try {
     const accessToken = await getValidAccessToken();
@@ -142,11 +149,10 @@ export async function POST() {
       counts[objectType] = props.length;
     }
 
-    // Check what was previously cached
     const previousCache = loadCachedProperties();
     const previousCount = previousCache.length;
 
-    // Save to file cache
+    // Save to both memory and file cache
     saveCachedProperties(allProperties);
 
     const newCount = allProperties.length - previousCount;

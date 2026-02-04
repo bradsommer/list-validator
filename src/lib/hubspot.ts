@@ -1,6 +1,7 @@
 import { Client } from '@hubspot/api-client';
 import type { HubSpotCompany, HubSpotContact, HubSpotMatchResult, ParsedRow } from '@/types';
 import { fuzzyMatchCompanyName } from './fuzzyMatcher';
+import { cache, CACHE_TTL, CACHE_KEYS } from './cache';
 
 // ============================================================================
 // HubSpot OAuth
@@ -328,8 +329,12 @@ export function resetClient() {
   hubspotClient = null;
 }
 
-// Search for companies by domain
+// Search for companies by domain (cached during sync batches)
 export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCompany[]> {
+  const cacheKey = CACHE_KEYS.companyDomain(domain);
+  const cached = cache.get<HubSpotCompany[]>(cacheKey);
+  if (cached) return cached;
+
   const client = await getHubSpotClient();
 
   try {
@@ -349,7 +354,7 @@ export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCo
       limit: 10,
     });
 
-    return response.results.map((company) => ({
+    const results = response.results.map((company) => ({
       id: company.id,
       name: company.properties.name || '',
       domain: company.properties.domain || '',
@@ -357,14 +362,21 @@ export async function searchCompaniesByDomain(domain: string): Promise<HubSpotCo
       state: company.properties.state,
       properties: company.properties,
     }));
+
+    cache.set(cacheKey, results, CACHE_TTL.COMPANY_SEARCH);
+    return results;
   } catch (error) {
     console.error('Error searching companies by domain:', error);
     return [];
   }
 }
 
-// Search for companies by name
+// Search for companies by name (cached during sync batches)
 export async function searchCompaniesByName(name: string): Promise<HubSpotCompany[]> {
+  const cacheKey = CACHE_KEYS.companyName(name);
+  const cached = cache.get<HubSpotCompany[]>(cacheKey);
+  if (cached) return cached;
+
   const client = await getHubSpotClient();
 
   try {
@@ -384,7 +396,7 @@ export async function searchCompaniesByName(name: string): Promise<HubSpotCompan
       limit: 10,
     });
 
-    return response.results.map((company) => ({
+    const results = response.results.map((company) => ({
       id: company.id,
       name: company.properties.name || '',
       domain: company.properties.domain || '',
@@ -392,6 +404,9 @@ export async function searchCompaniesByName(name: string): Promise<HubSpotCompan
       state: company.properties.state,
       properties: company.properties,
     }));
+
+    cache.set(cacheKey, results, CACHE_TTL.COMPANY_SEARCH);
+    return results;
   } catch (error) {
     console.error('Error searching companies by name:', error);
     return [];
@@ -482,7 +497,7 @@ export async function createCompany(companyData: {
     properties,
   });
 
-  return {
+  const newCompany: HubSpotCompany = {
     id: response.id,
     name: response.properties.name || '',
     domain: response.properties.domain || '',
@@ -490,6 +505,16 @@ export async function createCompany(companyData: {
     state: response.properties.state,
     properties: response.properties,
   };
+
+  // Cache the new company so subsequent contacts with same domain/name find it
+  if (companyData.domain) {
+    cache.set(CACHE_KEYS.companyDomain(companyData.domain), [newCompany], CACHE_TTL.COMPANY_SEARCH);
+  }
+  if (companyData.name) {
+    cache.set(CACHE_KEYS.companyName(companyData.name), [newCompany], CACHE_TTL.COMPANY_SEARCH);
+  }
+
+  return newCompany;
 }
 
 // Create or update a contact in HubSpot
