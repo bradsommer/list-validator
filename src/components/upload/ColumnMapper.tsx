@@ -6,6 +6,9 @@ import type { ColumnMapping } from '@/store/useAppStore';
 import {
   getColumnHeadings,
   addColumnHeading,
+  getMappingHistory,
+  saveMappingHistory,
+  autoMatchHeader,
   type ColumnHeading,
 } from '@/lib/columnHeadings';
 
@@ -238,12 +241,22 @@ export function ColumnMapper() {
   const [mapping, setMapping] = useState<ColumnMapping>({});
 
   useEffect(() => {
-    setHeadings(getColumnHeadings());
+    const currentHeadings = getColumnHeadings();
+    setHeadings(currentHeadings);
 
     if (parsedFile) {
+      const headingNames = currentHeadings.map((h) => h.name);
+      const history = getMappingHistory();
       const initial: ColumnMapping = {};
+
       for (const header of parsedFile.headers) {
-        initial[header] = columnMapping[header] || '';
+        // If already set from store (e.g. user went back and forward), keep it
+        if (columnMapping[header]) {
+          initial[header] = columnMapping[header];
+        } else {
+          // Auto-match: history first, then exact, then fuzzy
+          initial[header] = autoMatchHeader(header, headingNames, history);
+        }
       }
       setMapping(initial);
     }
@@ -271,6 +284,8 @@ export function ColumnMapper() {
 
   const handleContinue = () => {
     setColumnMapping(mapping);
+    // Save to history so future imports remember these choices
+    saveMappingHistory(mapping);
     nextStep();
   };
 
