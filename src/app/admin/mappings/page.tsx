@@ -36,10 +36,24 @@ export default function MappingsPage() {
   const [error, setError] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hubspotConnected, setHubspotConnected] = useState<boolean | null>(null);
+  const [hubspotAuthorizeUrl, setHubspotAuthorizeUrl] = useState<string | null>(null);
 
   // Fetch data
   useEffect(() => {
     fetchData();
+    checkHubSpotConnection();
+
+    // Check for OAuth callback params
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('hubspot_connected') === 'true') {
+      setSyncMessage({ type: 'success', text: 'HubSpot connected successfully! Click "Fetch HubSpot Properties" to sync.' });
+      setHubspotConnected(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('hubspot_error')) {
+      setSyncMessage({ type: 'error', text: `HubSpot connection failed: ${params.get('hubspot_error')}` });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const fetchData = async () => {
@@ -138,6 +152,24 @@ export default function MappingsPage() {
     }
   };
 
+  const checkHubSpotConnection = async () => {
+    try {
+      const response = await fetch('/api/hubspot/oauth');
+      const data = await response.json();
+      setHubspotConnected(data.connected);
+      setHubspotAuthorizeUrl(data.authorizeUrl || null);
+    } catch {
+      setHubspotConnected(false);
+    }
+  };
+
+  const handleDisconnectHubSpot = async () => {
+    if (!confirm('Disconnect from HubSpot?')) return;
+    await fetch('/api/hubspot/oauth', { method: 'DELETE' });
+    setHubspotConnected(false);
+    checkHubSpotConnection();
+  };
+
   // Sync HubSpot properties
   const handleSyncHubSpotProperties = async () => {
     setIsSyncing(true);
@@ -195,30 +227,65 @@ export default function MappingsPage() {
               you map headers during import.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-500">{mappings.length} mappings / {hubspotFields.length} fields</div>
-            <button
-              onClick={handleSyncHubSpotProperties}
-              disabled={isSyncing}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 flex items-center gap-2"
-            >
-              {isSyncing ? (
+          <div className="text-sm text-gray-500">{mappings.length} mappings / {hubspotFields.length} fields</div>
+        </div>
+
+        {/* HubSpot Connection */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${hubspotConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <div>
+                <span className="font-medium text-gray-900">
+                  {hubspotConnected ? 'Connected to HubSpot' : 'Not connected to HubSpot'}
+                </span>
+                {!hubspotConnected && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Connect to pull available properties and sync contacts
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {hubspotConnected ? (
                 <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Syncing...
+                  <button
+                    onClick={handleSyncHubSpotProperties}
+                    disabled={isSyncing}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 flex items-center gap-2 text-sm"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Syncing...
+                      </>
+                    ) : (
+                      'Fetch HubSpot Properties'
+                    )}
+                  </button>
+                  <button
+                    onClick={handleDisconnectHubSpot}
+                    className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                  >
+                    Disconnect
+                  </button>
                 </>
+              ) : hubspotAuthorizeUrl ? (
+                <a
+                  href={hubspotAuthorizeUrl}
+                  className="px-4 py-2 bg-[#ff7a59] text-white rounded-lg hover:bg-[#e66b4d] text-sm font-medium"
+                >
+                  Connect to HubSpot
+                </a>
               ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Fetch HubSpot Properties
-                </>
+                <span className="text-sm text-gray-500">
+                  Set HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET in .env.local
+                </span>
               )}
-            </button>
+            </div>
           </div>
         </div>
 

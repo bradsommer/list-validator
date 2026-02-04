@@ -2,17 +2,175 @@ import { Client } from '@hubspot/api-client';
 import type { HubSpotCompany, HubSpotContact, HubSpotMatchResult, ParsedRow } from '@/types';
 import { fuzzyMatchCompanyName } from './fuzzyMatcher';
 
+// ============================================================================
+// HubSpot OAuth
+// ============================================================================
+
+const HUBSPOT_AUTH_URL = 'https://app.hubspot.com/oauth/authorize';
+const HUBSPOT_TOKEN_URL = 'https://api.hubapi.com/oauth/v1/token';
+
+export function getHubSpotClientId(): string {
+  return process.env.HUBSPOT_CLIENT_ID || '';
+}
+
+export function getHubSpotClientSecret(): string {
+  return process.env.HUBSPOT_CLIENT_SECRET || '';
+}
+
+export function getRedirectUri(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  return `${base}/api/hubspot/oauth/callback`;
+}
+
+export function getAuthorizeUrl(): string {
+  const clientId = getHubSpotClientId();
+  const redirectUri = getRedirectUri();
+  const scopes = [
+    'crm.objects.contacts.read',
+    'crm.objects.contacts.write',
+    'crm.objects.companies.read',
+    'crm.objects.companies.write',
+    'crm.schemas.contacts.read',
+    'crm.schemas.companies.read',
+  ].join(' ');
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: scopes,
+    response_type: 'code',
+  });
+
+  return `${HUBSPOT_AUTH_URL}?${params.toString()}`;
+}
+
+export interface HubSpotTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  expires_at: number;
+}
+
+export async function exchangeCodeForTokens(code: string): Promise<HubSpotTokens> {
+  const response = await fetch(HUBSPOT_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: getHubSpotClientId(),
+      client_secret: getHubSpotClientSecret(),
+      redirect_uri: getRedirectUri(),
+      code,
+    }).toString(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('HubSpot token exchange error:', error);
+    throw new Error(`Token exchange failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_in: data.expires_in,
+    expires_at: Date.now() + data.expires_in * 1000,
+  };
+}
+
+export async function refreshAccessToken(refreshToken: string): Promise<HubSpotTokens> {
+  const response = await fetch(HUBSPOT_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: getHubSpotClientId(),
+      client_secret: getHubSpotClientSecret(),
+      refresh_token: refreshToken,
+    }).toString(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('HubSpot token refresh error:', error);
+    throw new Error(`Token refresh failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_in: data.expires_in,
+    expires_at: Date.now() + data.expires_in * 1000,
+  };
+}
+
+// In-memory token store (persists across requests in the same server process)
+let storedTokens: HubSpotTokens | null = null;
+
+export function setTokens(tokens: HubSpotTokens) {
+  storedTokens = tokens;
+}
+
+export function getTokens(): HubSpotTokens | null {
+  return storedTokens;
+}
+
+export function clearTokens() {
+  storedTokens = null;
+  hubspotClient = null;
+}
+
+export async function getValidAccessToken(): Promise<string | null> {
+  // First check for env var fallback
+  if (process.env.HUBSPOT_ACCESS_TOKEN) {
+    return process.env.HUBSPOT_ACCESS_TOKEN;
+  }
+
+  let tokens = getTokens();
+  if (!tokens) return null;
+
+  // Refresh if expired (with 5 min buffer)
+  if (Date.now() > tokens.expires_at - 5 * 60 * 1000) {
+    try {
+      const refreshed = await refreshAccessToken(tokens.refresh_token);
+      setTokens(refreshed);
+      tokens = refreshed;
+    } catch {
+      clearTokens();
+      return null;
+    }
+  }
+
+  return tokens.access_token;
+}
+
+export function isConnected(): boolean {
+  return !!storedTokens || !!process.env.HUBSPOT_ACCESS_TOKEN;
+}
+
+// ============================================================================
+// HubSpot Client
+// ============================================================================
+
 let hubspotClient: Client | null = null;
 
 export function getHubSpotClient(): Client {
   if (!hubspotClient) {
-    const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
+    const tokens = getTokens();
+    const accessToken = tokens?.access_token || process.env.HUBSPOT_ACCESS_TOKEN;
     if (!accessToken) {
-      throw new Error('HubSpot access token not configured');
+      throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
     }
     hubspotClient = new Client({ accessToken });
   }
   return hubspotClient;
+}
+
+// Reset client when tokens change
+export function resetClient() {
+  hubspotClient = null;
 }
 
 // Search for companies by domain
