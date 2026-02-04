@@ -13,12 +13,14 @@ import { HubSpotSync } from '@/components/hubspot/HubSpotSync';
 import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
-  const { currentStep, reset } = useAppStore();
+  const { currentStep, reset, loadFieldMappingsFromHubSpot } = useAppStore();
 
-  // Reset state on mount so the import page always starts fresh
+  // Reset import state on mount so the page always starts fresh,
+  // then reload field mappings since reset() clears them
   useEffect(() => {
     reset();
-  }, [reset]);
+    loadFieldMappingsFromHubSpot();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderStep = () => {
     switch (currentStep) {
