@@ -44,7 +44,12 @@ export function ValidationResults() {
         const saved = localStorage.getItem('enabled_validation_rules');
         if (saved) {
           const savedIds = JSON.parse(saved) as string[];
-          setEnabledScripts(savedIds);
+          // Filter to only include IDs that still exist in the registry
+          const validIds = savedIds.filter((id) => scripts.some((s) => s.id === id));
+          if (validIds.length > 0) {
+            setEnabledScripts(validIds);
+          }
+          // If all saved IDs were stale, keep the defaults (all enabled)
         }
       } catch {
         // localStorage unavailable — use defaults (all enabled)

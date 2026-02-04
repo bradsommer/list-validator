@@ -20,7 +20,7 @@ for (const s of VALID_SOLUTIONS) {
 export class SolutionNormalizationScript implements IValidationScript {
   id = 'solution-normalization';
   name = 'Solution Normalization';
-  description = 'Validates Solution values against an allowed list. Fixes casing mismatches; non-matching values are flagged as warnings.';
+  description = 'Validates Solution values against an allowed list. Fixes casing mismatches; non-matching values are cleared to empty.';
   type: 'transform' = 'transform';
   targetFields = ['solution'];
   order = 17;
@@ -77,12 +77,21 @@ export class SolutionNormalizationScript implements IValidationScript {
             reason: `Fixed casing "${valueStr}" → "${matched}"`,
           });
         } else {
+          // Non-matching — clear to empty
+          newRow[solHeader] = '';
+          changes.push({
+            rowIndex: index,
+            field: 'solution',
+            originalValue,
+            newValue: '',
+            reason: `"${valueStr}" is not a valid Solution — cleared`,
+          });
           warnings.push({
             rowIndex: index,
             field: 'solution',
             value: originalValue,
             warningType: 'invalid_solution',
-            message: `"${valueStr}" is not a recognized Solution value`,
+            message: `"${valueStr}" is not a recognized Solution value — cleared`,
           });
         }
       }
