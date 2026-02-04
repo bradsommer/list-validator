@@ -11,6 +11,9 @@ import type {
 } from '@/types';
 import { generateSessionId } from '@/lib/logger';
 
+// Column mapping: original spreadsheet header → HubSpot column heading name
+export type ColumnMapping = Record<string, string>;
+
 interface AppState {
   // Session
   sessionId: string;
@@ -24,6 +27,9 @@ interface AppState {
   // Column detection (auto-detected from headers)
   headerMatches: HeaderMatch[];
   requiredFields: string[];
+
+  // Column mapping (spreadsheet header → export heading name)
+  columnMapping: ColumnMapping;
 
   // Validation
   validationResult: ValidationResult | null;
@@ -50,6 +56,8 @@ interface AppState {
 
   setRequiredFields: (fields: string[]) => void;
 
+  setColumnMapping: (mapping: ColumnMapping) => void;
+
   setValidationResult: (result: ValidationResult | null) => void;
   setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
   setEnabledScripts: (scriptIds: string[]) => void;
@@ -67,7 +75,8 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Validate', 'Export'],
+  steps: ['Upload', 'Map Columns', 'Validate', 'Export'],
+  columnMapping: {} as ColumnMapping,
   parsedFile: null,
   processedData: [],
   headerMatches: [],
@@ -98,6 +107,8 @@ export const useAppStore = create<AppState>((set) => ({
   setHeaderMatches: (matches) => set({ headerMatches: matches }),
 
   setRequiredFields: (fields) => set({ requiredFields: fields }),
+
+  setColumnMapping: (mapping) => set({ columnMapping: mapping }),
 
   setValidationResult: (result) => set({ validationResult: result }),
   setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),

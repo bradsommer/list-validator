@@ -41,7 +41,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/import" className="bg-blue-50 rounded-lg p-5 border border-blue-200 hover:bg-blue-100 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -66,6 +66,20 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-semibold text-purple-900">Validation Rules</p>
                 <p className="text-sm text-purple-700">Configure which rules run during import</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/column-headings" className="bg-green-50 rounded-lg p-5 border border-green-200 hover:bg-green-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-900">Column Headings</p>
+                <p className="text-sm text-green-700">Manage HubSpot column heading names</p>
               </div>
             </div>
           </Link>

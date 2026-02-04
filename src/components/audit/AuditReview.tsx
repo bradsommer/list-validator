@@ -5,6 +5,23 @@ import { useAppStore } from '@/store/useAppStore';
 import { runAudit, getAuditSummary, getCleanData, getFlaggedData } from '@/lib/audit';
 import { exportToCSV, exportToExcel } from '@/lib/fileParser';
 import { logInfo, logSuccess } from '@/lib/logger';
+import type { ParsedRow } from '@/types';
+
+/** Remap row keys using the column mapping (original header → HubSpot heading) */
+function remapRows(rows: ParsedRow[], mapping: Record<string, string>): ParsedRow[] {
+  // Build key rename map — only for columns that have a mapping set
+  const hasRenames = Object.values(mapping).some((v) => v);
+  if (!hasRenames) return rows;
+
+  return rows.map((row) => {
+    const newRow: ParsedRow = {};
+    for (const [key, value] of Object.entries(row)) {
+      const renamed = mapping[key];
+      newRow[renamed || key] = value;
+    }
+    return newRow;
+  });
+}
 
 export function AuditReview() {
   const {
@@ -13,6 +30,7 @@ export function AuditReview() {
     headerMatches,
     auditResult,
     parsedFile,
+    columnMapping,
     setAuditResult,
     prevStep,
     reset,
@@ -49,12 +67,13 @@ export function AuditReview() {
     if (!auditResult) return;
 
     const cleanData = getCleanData(processedData, auditResult);
+    const exportData = remapRows(cleanData, columnMapping);
     const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_clean`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(cleanData, `${fileName}.csv`);
+      exportToCSV(exportData, `${fileName}.csv`);
     } else {
-      exportToExcel(cleanData, `${fileName}.xlsx`);
+      exportToExcel(exportData, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported ${cleanData.length} clean rows`, sessionId);
@@ -64,10 +83,11 @@ export function AuditReview() {
     if (!auditResult) return;
 
     const flaggedData = getFlaggedData(processedData, auditResult);
-    const exportData = flaggedData.map(({ row, flags }) => ({
+    const flaggedExport = flaggedData.map(({ row, flags }) => ({
       ...row,
       _audit_flags: flags.map((f) => f.reason).join('; '),
     }));
+    const exportData = remapRows(flaggedExport, columnMapping);
     const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_flagged_review`;
 
     if (exportFormat === 'csv') {
@@ -80,12 +100,13 @@ export function AuditReview() {
   };
 
   const handleExportAll = () => {
+    const exportData = remapRows(processedData, columnMapping);
     const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_cleaned`;
 
     if (exportFormat === 'csv') {
-      exportToCSV(processedData, `${fileName}.csv`);
+      exportToCSV(exportData, `${fileName}.csv`);
     } else {
-      exportToExcel(processedData, `${fileName}.xlsx`);
+      exportToExcel(exportData, `${fileName}.xlsx`);
     }
 
     logSuccess('export', `Exported all ${processedData.length} rows`, sessionId);

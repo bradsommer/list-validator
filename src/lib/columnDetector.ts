@@ -35,18 +35,23 @@ export function autoDetectColumns(headers: string[]): HeaderMatch[] {
   return headers.map((header) => {
     const normalized = header.toLowerCase().trim().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ');
 
-    let bestMatch: { field: string; confidence: number } | null = null;
+    let bestMatch: { field: string; confidence: number; patternLength: number } | null = null;
 
     for (const [fieldName, patterns] of Object.entries(FIELD_PATTERNS)) {
       for (const pattern of patterns) {
         const normalizedPattern = pattern.replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ');
         if (normalized === normalizedPattern) {
-          bestMatch = { field: fieldName, confidence: 1.0 };
+          bestMatch = { field: fieldName, confidence: 1.0, patternLength: normalizedPattern.length };
           break;
         }
-        // Partial match: header contains the pattern
-        if (normalized.includes(normalizedPattern) && (!bestMatch || bestMatch.confidence < 0.8)) {
-          bestMatch = { field: fieldName, confidence: 0.8 };
+        // Partial match: header contains the pattern — prefer longer (more specific) matches
+        if (normalized.includes(normalizedPattern)) {
+          const isBetter = !bestMatch
+            || bestMatch.confidence < 0.8
+            || (bestMatch.confidence === 0.8 && normalizedPattern.length > bestMatch.patternLength);
+          if (isBetter) {
+            bestMatch = { field: fieldName, confidence: 0.8, patternLength: normalizedPattern.length };
+          }
         }
       }
       if (bestMatch?.confidence === 1.0) break;
