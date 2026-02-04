@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
+import { transformToHubSpotFormat } from '@/lib/validator';
 
 export function HubSpotSync() {
   const {
     sessionId,
     processedData,
+    headerMatches,
     hubspotResults,
     isSyncing,
     syncProgress,
@@ -55,11 +57,14 @@ export function HubSpotSync() {
     });
 
     try {
+      // Transform rows from original CSV headers to HubSpot field names
+      const hubspotRows = transformToHubSpotFormat(processedData, headerMatches);
+
       const response = await fetch('/api/hubspot/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rows: processedData,
+          rows: hubspotRows,
           taskAssigneeId: defaultTaskAssignee,
           sessionId,
         }),
