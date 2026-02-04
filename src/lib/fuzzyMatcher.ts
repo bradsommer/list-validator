@@ -109,12 +109,21 @@ function getObjectTypePriority(objectType: string): number {
   return OBJECT_TYPE_PRIORITY[objectType] ?? 3;
 }
 
-// Match headers to field mappings using fuzzy matching.
-// Two-pass approach: exact matches first (all headers), then fuzzy for the rest.
-// This prevents a fuzzy match from stealing a field that another header matches exactly.
+// Admin-configured explicit mapping rule (from /admin/mappings page)
+export interface AdminMappingRule {
+  original_header: string;   // The spreadsheet header the user configured
+  hubspot_field_name: string; // The target HubSpot field
+  object_type: string;        // contacts | companies | deals
+}
+
+// Match headers to field mappings using a three-pass approach:
+//   Pass 0: Admin-configured explicit mappings (hard overrides — highest priority)
+//   Pass 1: Exact variant matches for all remaining headers
+//   Pass 2: Fuzzy matches for everything still unmatched
 export function matchHeaders(
   headers: string[],
-  fieldMappings: FieldMapping[]
+  fieldMappings: FieldMapping[],
+  adminMappings: AdminMappingRule[] = []
 ): HeaderMatch[] {
   // Create a searchable list of all variants
   const searchItems = fieldMappings.flatMap((mapping) =>
@@ -130,10 +139,44 @@ export function matchHeaders(
   // Results indexed by header position
   const results: (HeaderMatch | null)[] = headers.map(() => null);
 
-  // ── Pass 1: Exact matches for ALL headers first ──
-  // This ensures "Last Name" claims the lastname field before "Middle Name"
-  // can grab it via fuzzy matching.
+  // ── Pass 0: Admin-configured explicit mappings (hard overrides) ──
+  // These are rules the user explicitly defined on /admin/mappings.
+  // They take absolute priority over any fuzzy or exact variant matching.
+  if (adminMappings.length > 0) {
+    // Build a lookup: normalized header → { hubspot_field_name, object_type }
+    const adminLookup = new Map<string, AdminMappingRule>();
+    for (const rule of adminMappings) {
+      adminLookup.set(normalizeString(rule.original_header), rule);
+    }
+
+    for (let i = 0; i < headers.length; i++) {
+      const normalizedHeader = normalizeString(headers[i]);
+      const rule = adminLookup.get(normalizedHeader);
+      if (!rule) continue;
+
+      // Find the matching fieldMapping by hubspot field name and object type
+      const targetMapping = fieldMappings.find(
+        (fm) => fm.hubspotField === rule.hubspot_field_name
+          && fm.objectType === rule.object_type
+          && !usedFieldIds.has(fm.id)
+      );
+
+      if (targetMapping) {
+        usedFieldIds.add(targetMapping.id);
+        results[i] = {
+          originalHeader: headers[i],
+          matchedField: targetMapping,
+          confidence: 1,
+          isMatched: true,
+        };
+      }
+    }
+  }
+
+  // ── Pass 1: Exact matches for ALL remaining headers ──
   for (let i = 0; i < headers.length; i++) {
+    if (results[i] !== null) continue; // already matched by admin rule
+
     const header = headers[i];
     const normalizedHeader = normalizeString(header);
 
@@ -165,7 +208,7 @@ export function matchHeaders(
   });
 
   for (let i = 0; i < headers.length; i++) {
-    if (results[i] !== null) continue; // already matched exactly
+    if (results[i] !== null) continue; // already matched
 
     const header = headers[i];
     const normalizedHeader = normalizeString(header);

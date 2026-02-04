@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import { generateSessionId } from '@/lib/logger';
 import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
+import type { AdminMappingRule } from '@/lib/fuzzyMatcher';
 
 interface AppState {
   // Session
@@ -29,6 +30,7 @@ interface AppState {
 
   // Field mappings
   fieldMappings: FieldMapping[];
+  adminMappings: AdminMappingRule[];
   headerMatches: HeaderMatch[];
   requiredFields: string[];
 
@@ -123,6 +125,7 @@ const initialState = {
   parsedFile: null,
   processedData: [],
   fieldMappings: [] as FieldMapping[],
+  adminMappings: [] as AdminMappingRule[],
   headerMatches: [],
   requiredFields: ['email'],
   validationResult: null,
@@ -167,13 +170,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     // Source 2: Admin-configured mappings from localStorage (/admin/mappings page)
+    // These are stored both as variants AND as explicit override rules
+    let rawAdminMappings: AdminMappingRule[] = [];
     try {
       const adminJson = localStorage.getItem('admin_header_mappings');
       if (adminJson) {
         const adminMappings = JSON.parse(adminJson) as Array<{
           original_header: string;
           hubspot_field_name: string;
+          object_type: string;
         }>;
+        rawAdminMappings = adminMappings.map((m) => ({
+          original_header: m.original_header,
+          hubspot_field_name: m.hubspot_field_name,
+          object_type: m.object_type || 'contacts',
+        }));
         for (const m of adminMappings) {
           if (!extraVariants[m.hubspot_field_name]) extraVariants[m.hubspot_field_name] = [];
           extraVariants[m.hubspot_field_name].push(m.original_header.toLowerCase().trim());
@@ -182,6 +193,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       // localStorage unavailable — non-blocking
     }
+
+    // Store raw admin mappings for use as hard overrides in matchHeaders
+    set({ adminMappings: rawAdminMappings });
 
     // Source 3: Default field mappings (common header variants)
     const defaultVariantsLookup: Record<string, string[]> = {};

@@ -90,7 +90,8 @@ export function FileUpload() {
           await loadFieldMappingsFromHubSpot();
           mappingsToUse = useAppStore.getState().fieldMappings;
         }
-        const matches = matchHeaders(parsed.headers, mappingsToUse);
+        const adminMappings = useAppStore.getState().adminMappings;
+        const matches = matchHeaders(parsed.headers, mappingsToUse, adminMappings);
         setHeaderMatches(matches);
 
         const matchedCount = matches.filter((m) => m.isMatched).length;
