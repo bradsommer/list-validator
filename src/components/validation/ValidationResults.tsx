@@ -76,10 +76,8 @@ export function ValidationResults() {
       setValidationResult(result.validationResult);
       setScriptRunnerResult(result.scriptRunnerResult);
 
-      // Update processed data with transformations
-      if (result.scriptRunnerResult.totalChanges > 0) {
-        setProcessedData(result.transformedData);
-      }
+      // Always update processed data with transformed output from scripts
+      setProcessedData(result.transformedData);
 
       if (result.validationResult.isValid) {
         logSuccess('validate', 'Validation passed', sessionId, {
