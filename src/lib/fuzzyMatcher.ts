@@ -114,6 +114,7 @@ export interface AdminMappingRule {
   original_header: string;   // The spreadsheet header the user configured
   hubspot_field_name: string; // The target HubSpot field
   object_type: string;        // contacts | companies | deals
+  priority: number;           // Lower number = higher priority (1 is highest)
 }
 
 // Match headers to field mappings using a three-pass approach:
@@ -142,34 +143,53 @@ export function matchHeaders(
   // ── Pass 0: Admin-configured explicit mappings (hard overrides) ──
   // These are rules the user explicitly defined on /admin/mappings.
   // They take absolute priority over any fuzzy or exact variant matching.
+  // When multiple headers match the same HubSpot field, priority (lower = higher)
+  // determines which header claims the field.
   if (adminMappings.length > 0) {
-    // Build a lookup: normalized header → { hubspot_field_name, object_type }
-    const adminLookup = new Map<string, AdminMappingRule>();
+    // Build lookup: normalized header → list of matching rules (sorted by priority)
+    const adminLookup = new Map<string, AdminMappingRule[]>();
     for (const rule of adminMappings) {
-      adminLookup.set(normalizeString(rule.original_header), rule);
+      const key = normalizeString(rule.original_header);
+      const existing = adminLookup.get(key) || [];
+      existing.push(rule);
+      adminLookup.set(key, existing);
     }
 
+    // Collect all candidate matches: { headerIndex, rule, fieldMapping }
+    const candidates: { headerIndex: number; rule: AdminMappingRule; fieldMapping: FieldMapping }[] = [];
     for (let i = 0; i < headers.length; i++) {
       const normalizedHeader = normalizeString(headers[i]);
-      const rule = adminLookup.get(normalizedHeader);
-      if (!rule) continue;
+      const rules = adminLookup.get(normalizedHeader);
+      if (!rules) continue;
 
-      // Find the matching fieldMapping by hubspot field name and object type
-      const targetMapping = fieldMappings.find(
-        (fm) => fm.hubspotField === rule.hubspot_field_name
-          && fm.objectType === rule.object_type
-          && !usedFieldIds.has(fm.id)
-      );
-
-      if (targetMapping) {
-        usedFieldIds.add(targetMapping.id);
-        results[i] = {
-          originalHeader: headers[i],
-          matchedField: targetMapping,
-          confidence: 1,
-          isMatched: true,
-        };
+      for (const rule of rules) {
+        const targetMapping = fieldMappings.find(
+          (fm) => fm.hubspotField === rule.hubspot_field_name
+            && fm.objectType === rule.object_type
+        );
+        if (targetMapping) {
+          candidates.push({ headerIndex: i, rule, fieldMapping: targetMapping });
+        }
       }
+    }
+
+    // Sort by priority (lower number = higher priority) so highest-priority claims first
+    candidates.sort((a, b) => (a.rule.priority || 1) - (b.rule.priority || 1));
+
+    // Assign: each HubSpot field can only be claimed once, each header only once
+    const assignedHeaders = new Set<number>();
+    for (const candidate of candidates) {
+      if (assignedHeaders.has(candidate.headerIndex)) continue;
+      if (usedFieldIds.has(candidate.fieldMapping.id)) continue;
+
+      usedFieldIds.add(candidate.fieldMapping.id);
+      assignedHeaders.add(candidate.headerIndex);
+      results[candidate.headerIndex] = {
+        originalHeader: headers[candidate.headerIndex],
+        matchedField: candidate.fieldMapping,
+        confidence: 1,
+        isMatched: true,
+      };
     }
   }
 
