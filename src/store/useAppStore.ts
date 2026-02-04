@@ -14,8 +14,6 @@ import type {
   ScriptRunnerResult,
   ValidationScript,
 } from '@/types';
-import { defaultFieldMappings } from '@/lib/fuzzyMatcher';
-
 import { generateSessionId } from '@/lib/logger';
 
 interface AppState {
@@ -123,12 +121,7 @@ const initialState = {
   steps: ['Upload', 'Map Fields', 'Validate', 'Enrich', 'HubSpot Sync', 'Audit & Export'],
   parsedFile: null,
   processedData: [],
-  fieldMappings: defaultFieldMappings.map((m, i) => ({
-    ...m,
-    id: `field_${i}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  })),
+  fieldMappings: [] as FieldMapping[],
   headerMatches: [],
   requiredFields: ['email'],
   validationResult: null,
