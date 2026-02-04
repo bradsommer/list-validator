@@ -8,7 +8,7 @@ const DEV_USER = {
   username: 'admin@example.com',
   displayName: 'Administrator',
   role: 'admin' as const,
-  accountId: 'dev-account-id',
+  accountId: '00000000-0000-0000-0000-000000000001',
   accountName: 'Default Account',
   isActive: true,
   lastLogin: null,

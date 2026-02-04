@@ -4,7 +4,7 @@ import { getAuthorizeUrl, getHubSpotClientId, isConnected, getTokens, getPortalI
 // GET - returns connection status or redirect URL
 export async function GET(request: NextRequest) {
   const clientId = getHubSpotClientId();
-  const accountId = request.headers.get('x-account-id') || 'dev-account-id';
+  const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
 
   if (!clientId) {
     return NextResponse.json({
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
 // DELETE - disconnect HubSpot
 export async function DELETE(request: NextRequest) {
-  const accountId = request.headers.get('x-account-id') || 'dev-account-id';
+  const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
   await clearTokens(accountId);
   return NextResponse.json({ success: true, connected: false });
 }

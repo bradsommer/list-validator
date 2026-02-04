@@ -126,7 +126,7 @@ import * as path from 'path';
 import { supabase } from '@/lib/supabase';
 
 const TOKEN_FILE = path.join(process.cwd(), '.hubspot-tokens.json');
-const DEFAULT_ACCOUNT_ID = 'dev-account-id';
+const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 // --- File-based fallback ---
 
@@ -179,8 +179,10 @@ async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId
       console.error('Failed to save tokens to DB:', error.message);
       return false;
     }
+    console.log('Tokens saved to DB successfully (portal_id:', portalId || 'none', ')');
     return true;
-  } catch {
+  } catch (err) {
+    console.error('Exception saving tokens to DB:', err);
     return false;
   }
 }
