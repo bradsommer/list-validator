@@ -123,7 +123,9 @@ export function transformToHubSpotFormat(
   headerMatches: HeaderMatch[]
 ): ParsedRow[] {
   const headerToHubspot = new Map<string, string>();
+  const originalHeaders = new Set<string>();
   headerMatches.forEach((match) => {
+    originalHeaders.add(match.originalHeader);
     if (match.matchedField) {
       headerToHubspot.set(match.originalHeader, match.matchedField.hubspotField);
     }
@@ -135,9 +137,14 @@ export function transformToHubSpotFormat(
     Object.entries(row).forEach(([header, value]) => {
       const hubspotField = headerToHubspot.get(header);
       if (hubspotField) {
+        // Mapped CSV header → HubSpot field name
         transformedRow[hubspotField] = value;
+      } else if (!originalHeaders.has(header)) {
+        // Not an original CSV header — added by enrichment, already a HubSpot
+        // property name. Preserve it so enriched values appear in exports.
+        transformedRow[header] = value;
       }
-      // Unmapped fields are dropped — HubSpot rejects unknown field names
+      // Unmapped original CSV headers are dropped — HubSpot rejects unknown field names
     });
 
     return transformedRow;
