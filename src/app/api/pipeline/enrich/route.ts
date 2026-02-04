@@ -45,24 +45,44 @@ export async function POST(request: NextRequest) {
     if (configIds.length > 0) {
       const { data: configData } = await supabase
         .from('enrichment_configs')
-        .select('*')
+        .select('*, ai_model:ai_models(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
         .in('id', configIds)
         .eq('is_enabled', true)
         .order('execution_order');
 
       if (configData) {
-        configs = configData.map((c: Record<string, unknown>) => ({
-          id: c.id,
-          name: c.name,
-          description: c.description || '',
-          prompt: c.prompt_template,
-          inputFields: c.input_fields || [],
-          outputField: c.output_field,
-          service: 'serp' as const,
-          isEnabled: c.is_enabled,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at,
-        }));
+        configs = configData.map((c: Record<string, unknown>) => {
+          const aiModel = c.ai_model as {
+            provider: string;
+            model_id: string;
+            api_key_encrypted: string | null;
+            use_env_key: boolean;
+            env_key_name: string | null;
+            base_url: string | null;
+          } | null;
+          const hasAiModel = aiModel && aiModel.provider !== 'serp';
+
+          return {
+            id: c.id as string,
+            name: c.name as string,
+            description: (c.description as string) || '',
+            prompt: c.prompt_template as string,
+            inputFields: (c.input_fields as string[]) || [],
+            outputField: c.output_field as string,
+            service: hasAiModel ? 'ai' as const : 'serp' as const,
+            isEnabled: c.is_enabled as boolean,
+            createdAt: c.created_at as string,
+            updatedAt: c.updated_at as string,
+            aiModel: hasAiModel && aiModel ? {
+              provider: aiModel.provider,
+              modelId: aiModel.model_id,
+              apiKey: aiModel.use_env_key
+                ? undefined
+                : (aiModel.api_key_encrypted || undefined),
+              baseUrl: aiModel.base_url || undefined,
+            } : undefined,
+          };
+        });
       }
     }
 

@@ -1,6 +1,147 @@
 import type { EnrichmentConfig, EnrichmentResult, ParsedRow } from '@/types';
 
-// SERP API search function
+// ============================================================================
+// AI Model API Calls
+// ============================================================================
+
+// Call OpenAI-compatible API (works for OpenAI, Azure OpenAI, etc.)
+async function callOpenAI(
+  prompt: string,
+  modelId: string,
+  apiKey: string,
+  baseUrl?: string
+): Promise<string | null> {
+  const url = baseUrl
+    ? `${baseUrl.replace(/\/$/, '')}/chat/completions`
+    : 'https://api.openai.com/v1/chat/completions';
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a data cleaning assistant. Return ONLY the cleaned/enriched value with no extra text, explanation, or formatting. If you cannot determine the value, return the original value unchanged.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0,
+      max_tokens: 256,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content?.trim();
+  return content || null;
+}
+
+// Call Anthropic API
+async function callAnthropic(
+  prompt: string,
+  modelId: string,
+  apiKey: string,
+  baseUrl?: string
+): Promise<string | null> {
+  const url = baseUrl
+    ? `${baseUrl.replace(/\/$/, '')}/messages`
+    : 'https://api.anthropic.com/v1/messages';
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      max_tokens: 256,
+      messages: [
+        {
+          role: 'user',
+          content: `You are a data cleaning assistant. Return ONLY the cleaned/enriched value with no extra text, explanation, or formatting. If you cannot determine the value, return the original value unchanged.\n\n${prompt}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.content?.[0]?.text?.trim();
+  return content || null;
+}
+
+// Route to the correct AI provider
+async function callAIModel(
+  prompt: string,
+  provider: string,
+  modelId: string,
+  apiKey: string,
+  baseUrl?: string
+): Promise<string | null> {
+  switch (provider.toLowerCase()) {
+    case 'openai':
+      return callOpenAI(prompt, modelId, apiKey, baseUrl);
+    case 'anthropic':
+      return callAnthropic(prompt, modelId, apiKey, baseUrl);
+    default:
+      throw new Error(`Unsupported AI provider: ${provider}`);
+  }
+}
+
+// Replace [shortcodes] in prompt template with actual row values
+function buildPromptFromTemplate(template: string, rowData: ParsedRow, inputFields: string[]): string {
+  let prompt = template;
+
+  // Replace [fieldName] shortcodes with actual values
+  for (const field of inputFields) {
+    // Input fields may be in format "objectType:propertyName" — extract just the property name
+    const propertyName = field.includes(':') ? field.split(':', 2)[1] : field;
+    const value = rowData[propertyName];
+    const valueStr = value !== null && value !== undefined ? String(value).trim() : '';
+    prompt = prompt.replace(new RegExp(`\\[${propertyName}\\]`, 'g'), valueStr);
+  }
+
+  return prompt;
+}
+
+// Resolve API key from config (env var or direct key)
+function resolveApiKey(aiModel: NonNullable<EnrichmentConfig['aiModel']>): string {
+  if (aiModel.apiKey) return aiModel.apiKey;
+
+  // Check common env var patterns
+  const provider = aiModel.provider.toLowerCase();
+  const envVarNames = [
+    `${provider.toUpperCase()}_API_KEY`,
+    `NEXT_PUBLIC_${provider.toUpperCase()}_API_KEY`,
+  ];
+
+  for (const envVar of envVarNames) {
+    const key = process.env[envVar];
+    if (key) return key;
+  }
+
+  throw new Error(`No API key found for ${aiModel.provider}. Set ${provider.toUpperCase()}_API_KEY in .env.local`);
+}
+
+// ============================================================================
+// SERP API (existing functionality)
+// ============================================================================
+
 async function serpSearch(query: string): Promise<Record<string, unknown> | null> {
   const apiKey = process.env.SERP_API_KEY;
   if (!apiKey) {
@@ -23,18 +164,14 @@ async function serpSearch(query: string): Promise<Record<string, unknown> | null
   }
 }
 
-// Extract company name from search results
 function extractCompanyName(searchResults: Record<string, unknown>, inputData: Record<string, string>): string | null {
-  // Try to find in knowledge graph
   const knowledgeGraph = searchResults.knowledge_graph as Record<string, unknown> | undefined;
   if (knowledgeGraph?.title) {
     return String(knowledgeGraph.title);
   }
 
-  // Try to find in organic results
   const organicResults = searchResults.organic_results as Array<Record<string, unknown>> | undefined;
   if (organicResults && organicResults.length > 0) {
-    // Look for official website or Wikipedia
     const officialResult = organicResults.find((result) => {
       const snippet = String(result.snippet || '').toLowerCase();
       const title = String(result.title || '').toLowerCase();
@@ -48,9 +185,7 @@ function extractCompanyName(searchResults: Record<string, unknown>, inputData: R
     });
 
     if (officialResult?.title) {
-      // Clean up the title
       let title = String(officialResult.title);
-      // Remove common suffixes
       title = title.replace(/\s*[-|–]\s*.+$/, '').trim();
       title = title.replace(/\s*\|.+$/, '').trim();
       return title;
@@ -60,11 +195,9 @@ function extractCompanyName(searchResults: Record<string, unknown>, inputData: R
   return null;
 }
 
-// Extract domain from search results
 function extractDomain(searchResults: Record<string, unknown>, inputData: Record<string, string>): string | null {
   const organicResults = searchResults.organic_results as Array<Record<string, unknown>> | undefined;
   if (organicResults && organicResults.length > 0) {
-    // Look for official website
     const officialResult = organicResults.find((result) => {
       const link = String(result.link || '');
       const institution = inputData.institution?.toLowerCase() || '';
@@ -83,7 +216,6 @@ function extractDomain(searchResults: Record<string, unknown>, inputData: Record
       }
     }
 
-    // Fall back to first result
     if (organicResults[0]?.link) {
       try {
         const url = new URL(String(organicResults[0].link));
@@ -97,18 +229,17 @@ function extractDomain(searchResults: Record<string, unknown>, inputData: Record
   return null;
 }
 
-// Build search query from input fields
 function buildSearchQuery(config: EnrichmentConfig, rowData: ParsedRow): string {
   const parts: string[] = [];
 
   config.inputFields.forEach((field) => {
-    const value = rowData[field];
+    const propertyName = field.includes(':') ? field.split(':', 2)[1] : field;
+    const value = rowData[propertyName];
     if (value && String(value).trim()) {
       parts.push(String(value).trim());
     }
   });
 
-  // Add context based on output field
   if (config.outputField === 'official_company_name') {
     parts.push('official name');
   } else if (config.outputField === 'domain') {
@@ -117,6 +248,10 @@ function buildSearchQuery(config: EnrichmentConfig, rowData: ParsedRow): string 
 
   return parts.join(' ');
 }
+
+// ============================================================================
+// Main Enrichment Functions
+// ============================================================================
 
 // Run a single enrichment config on a row
 export async function runEnrichment(
@@ -128,6 +263,27 @@ export async function runEnrichment(
   }
 
   try {
+    // AI model enrichment — use the configured AI provider
+    if (config.service === 'ai' && config.aiModel) {
+      const apiKey = resolveApiKey(config.aiModel);
+      const prompt = buildPromptFromTemplate(config.prompt, rowData, config.inputFields);
+
+      const value = await callAIModel(
+        prompt,
+        config.aiModel.provider,
+        config.aiModel.modelId,
+        apiKey,
+        config.aiModel.baseUrl
+      );
+
+      return {
+        value,
+        success: value !== null,
+        error: value ? undefined : 'AI model returned empty response',
+      };
+    }
+
+    // SERP API enrichment — existing search-based logic
     if (config.service === 'serp') {
       const query = buildSearchQuery(config, rowData);
       const searchResults = await serpSearch(query);
@@ -138,14 +294,26 @@ export async function runEnrichment(
 
       const inputData: Record<string, string> = {};
       config.inputFields.forEach((field) => {
-        inputData[field] = String(rowData[field] || '');
+        const propertyName = field.includes(':') ? field.split(':', 2)[1] : field;
+        inputData[propertyName] = String(rowData[propertyName] || '');
       });
 
       let value: string | null = null;
 
-      if (config.outputField === 'official_company_name') {
+      // Try to parse output field for the field ID
+      let outputFieldId = config.outputField;
+      try {
+        const parsed = JSON.parse(config.outputField);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          outputFieldId = parsed[0].id;
+        }
+      } catch {
+        // Legacy single string
+      }
+
+      if (outputFieldId === 'official_company_name') {
         value = extractCompanyName(searchResults, inputData);
-      } else if (config.outputField === 'domain') {
+      } else if (outputFieldId === 'domain') {
         value = extractDomain(searchResults, inputData);
       }
 
@@ -183,21 +351,40 @@ export async function enrichData(
     let error: string | undefined;
 
     for (const config of enabledConfigs) {
-      // Skip if output field already has value
-      if (row[config.outputField] && String(row[config.outputField]).trim()) {
+      // Parse output field IDs
+      let outputFieldIds: string[] = [];
+      try {
+        const parsed = JSON.parse(config.outputField);
+        if (Array.isArray(parsed)) {
+          outputFieldIds = parsed.map((f: { id: string }) => f.id);
+        }
+      } catch {
+        outputFieldIds = [config.outputField];
+      }
+
+      // Skip if all output fields already have values
+      const allHaveValues = outputFieldIds.every(
+        (id) => row[id] && String(row[id]).trim()
+      );
+      if (allHaveValues) {
         continue;
       }
 
       const result = await runEnrichment(config, row);
 
       if (result.success && result.value) {
-        enrichedData[config.outputField] = result.value;
+        // Store the result in the first output field
+        if (outputFieldIds.length > 0) {
+          enrichedData[outputFieldIds[0]] = result.value;
+        } else {
+          enrichedData[config.outputField] = result.value;
+        }
       } else {
         allSuccess = false;
         error = result.error;
       }
 
-      // Rate limiting - wait between API calls
+      // Rate limiting — wait between API calls
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
