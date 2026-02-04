@@ -290,7 +290,7 @@ export default function RequiredPropertiesPage() {
             Available Properties ({optionalProps.length})
           </h3>
           <div className="border rounded-lg overflow-hidden">
-            <div className="max-h-[500px] overflow-y-auto">
+            <div className="max-h-[500px] overflow-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
