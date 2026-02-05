@@ -249,9 +249,9 @@ export function ImportQuestionsStep() {
       );
       const data = await response.json();
       if (data.success) {
-        // Only show enabled questions without a default value (default values are auto-applied)
+        // Show all enabled questions
         const activeQuestions = data.questions.filter(
-          (q: ImportQuestion) => q.enabled && !q.defaultValue
+          (q: ImportQuestion) => q.enabled
         );
         setQuestions(activeQuestions);
       }
@@ -269,7 +269,7 @@ export function ImportQuestionsStep() {
     setQuestionAnswer(questionId, answer);
   };
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     // Validate required questions
     for (const question of questions) {
       if (question.isRequired) {
@@ -281,43 +281,23 @@ export function ImportQuestionsStep() {
       }
     }
 
-    // Apply answers to processed data
-    // Also fetch and apply default values for questions with defaults
-    try {
-      const response = await fetch(
-        `/api/import-questions?accountId=${encodeURIComponent(accountId)}`
-      );
-      const data = await response.json();
-      const allQuestions: ImportQuestion[] = data.success ? data.questions : [];
+    // Build a map of column header → value to apply from user answers
+    const columnsToAdd: Record<string, string> = {};
 
-      // Build a map of column header → value to apply
-      const columnsToAdd: Record<string, string> = {};
-
-      for (const question of allQuestions) {
-        if (!question.enabled) continue;
-
-        if (question.defaultValue) {
-          // Use the default value
-          columnsToAdd[question.columnHeader] = question.defaultValue;
-        } else {
-          // Use the user's answer
-          const answer = questionAnswers[question.id];
-          if (answer && answer.value.trim()) {
-            columnsToAdd[question.columnHeader] = answer.value;
-          }
-        }
+    for (const question of questions) {
+      const answer = questionAnswers[question.id];
+      if (answer && answer.value.trim()) {
+        columnsToAdd[question.columnHeader] = answer.value;
       }
+    }
 
-      // Apply to all rows
-      if (Object.keys(columnsToAdd).length > 0) {
-        const updatedData = processedData.map((row) => ({
-          ...row,
-          ...columnsToAdd,
-        }));
-        setProcessedData(updatedData);
-      }
-    } catch (error) {
-      console.error('Failed to apply question answers:', error);
+    // Apply to all rows
+    if (Object.keys(columnsToAdd).length > 0) {
+      const updatedData = processedData.map((row) => ({
+        ...row,
+        ...columnsToAdd,
+      }));
+      setProcessedData(updatedData);
     }
 
     nextStep();
