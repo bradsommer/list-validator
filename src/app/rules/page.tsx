@@ -14,23 +14,7 @@ import {
   type CreateRuleInput,
   type UpdateRuleInput,
 } from '@/lib/accountRules';
-
-// Common HubSpot fields for targeting (can add custom fields too)
-const COMMON_FIELDS = [
-  'email',
-  'firstname',
-  'lastname',
-  'phone',
-  'company',
-  'jobtitle',
-  'city',
-  'state',
-  'region',
-  'country',
-  'zip',
-  'website',
-  'address',
-];
+import { fetchColumnHeadings, type ColumnHeading } from '@/lib/columnHeadings';
 
 interface RuleFormData {
   ruleId: string;
@@ -77,6 +61,7 @@ function validate(value, fieldName, row) {
 export default function RulesPage() {
   const { user, canEditRules } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
+  const [columnHeadings, setColumnHeadings] = useState<ColumnHeading[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
   const [sourceCode, setSourceCode] = useState<Record<string, string>>({});
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
@@ -93,16 +78,26 @@ export default function RulesPage() {
 
   const accountId = user?.accountId || 'default';
 
-  // Get all unique fields from rules + common fields
+  // Get all unique fields from column headings + rules
   const getAllFields = useCallback(() => {
+    const headingNames = columnHeadings.map((h) => h.name);
     const fieldsFromRules = rules.flatMap((r) => r.targetFields);
-    const allFields = new Set([...COMMON_FIELDS, ...fieldsFromRules, ...formData.targetFields]);
+    const allFields = new Set([...headingNames, ...fieldsFromRules, ...formData.targetFields]);
     return Array.from(allFields).sort();
-  }, [rules, formData.targetFields]);
+  }, [columnHeadings, rules, formData.targetFields]);
 
-  // Load rules from database, auto-initialize if empty
+  // Load rules and column headings from database
   const loadRules = useCallback(async () => {
     setIsLoading(true);
+
+    // Fetch column headings first (for target field options)
+    let headings = await fetchColumnHeadings(accountId);
+    // Fallback to default account if no headings found
+    if (headings.length === 0 && accountId !== 'default') {
+      headings = await fetchColumnHeadings('default');
+    }
+    setColumnHeadings(headings);
+
     let accountRules = await fetchAccountRules(accountId);
 
     // If no rules for this account, try to initialize from 'default'
@@ -450,7 +445,7 @@ export default function RulesPage() {
                           >
                             {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
                           </span>
-                          {rule.config?.code && (
+                          {!!rule.config?.code && (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
                               Custom Code
                             </span>
