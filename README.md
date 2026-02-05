@@ -1,4 +1,4 @@
-# Ascend HubSpot List Validator
+# List Validator
 
 A web application to validate lists, alert users of issues, and sync data to HubSpot.
 
@@ -73,8 +73,8 @@ A web application to validate lists, alert users of issues, and sync data to Hub
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/bradsommer/Ascend-HubSpot-List-Validator.git
-cd Ascend-HubSpot-List-Validator
+git clone https://github.com/bradsommer/list-validator.git
+cd list-validator
 ```
 
 2. Install dependencies:

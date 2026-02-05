@@ -6,7 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Ascend HubSpot List Validator',
+  title: 'List Validator',
   description: 'Validate, enrich, and sync your lists to HubSpot',
 };
 
