@@ -16,6 +16,8 @@ export function FileUpload() {
     setParsedFile,
     setProcessedData,
     setHeaderMatches,
+    setValidationResult,
+    setScriptRunnerResult,
     nextStep,
   } = useAppStore();
 
@@ -40,6 +42,10 @@ export function FileUpload() {
           headers: parsed.headers,
           totalRows: parsed.totalRows,
         });
+
+        // Clear previous validation results so validation runs fresh
+        setValidationResult(null);
+        setScriptRunnerResult(null);
 
         setParsedFile(parsed);
         setProcessedData(parsed.rows);
@@ -67,7 +73,7 @@ export function FileUpload() {
         setIsProcessing(false);
       }
     },
-    [sessionId, setParsedFile, setProcessedData, setHeaderMatches, nextStep]
+    [sessionId, setParsedFile, setProcessedData, setHeaderMatches, setValidationResult, setScriptRunnerResult, nextStep]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
