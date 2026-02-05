@@ -17,12 +17,42 @@ export default function ImportQuestionsPage() {
   const [formData, setFormData] = useState({
     questionText: '',
     columnHeader: '',
-    questionType: 'select' as QuestionType,
+    questionType: 'dropdown' as QuestionType,
     options: [''],
+    defaultValue: '',
     isRequired: false,
     displayOrder: 100,
     enabled: true,
   });
+
+  // Helper to get display label for question type
+  const getQuestionTypeLabel = (type: QuestionType): string => {
+    switch (type) {
+      case 'text': return 'Free Text';
+      case 'dropdown': return 'Dropdown';
+      case 'checkbox': return 'Checkbox';
+      case 'radio': return 'Radio Select';
+      case 'multiselect': return 'Multiple Select';
+      default: return type;
+    }
+  };
+
+  // Helper to get badge color for question type
+  const getQuestionTypeBadgeClass = (type: QuestionType): string => {
+    switch (type) {
+      case 'text': return 'bg-gray-100 text-gray-700';
+      case 'dropdown': return 'bg-blue-100 text-blue-700';
+      case 'checkbox': return 'bg-purple-100 text-purple-700';
+      case 'radio': return 'bg-green-100 text-green-700';
+      case 'multiselect': return 'bg-orange-100 text-orange-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  // Check if question type needs options
+  const needsOptions = (type: QuestionType): boolean => {
+    return type === 'dropdown' || type === 'radio' || type === 'multiselect';
+  };
 
   const accountId = user?.accountId || 'default';
 
@@ -48,8 +78,9 @@ export default function ImportQuestionsPage() {
     setFormData({
       questionText: '',
       columnHeader: '',
-      questionType: 'select',
+      questionType: 'dropdown',
       options: [''],
+      defaultValue: '',
       isRequired: false,
       displayOrder: 100,
       enabled: true,
@@ -66,6 +97,7 @@ export default function ImportQuestionsPage() {
       columnHeader: question.columnHeader,
       questionType: question.questionType,
       options: question.options.length > 0 ? question.options : [''],
+      defaultValue: question.defaultValue || '',
       isRequired: question.isRequired,
       displayOrder: question.displayOrder,
       enabled: question.enabled,
@@ -85,7 +117,7 @@ export default function ImportQuestionsPage() {
 
     // Filter out empty options
     const cleanOptions = formData.options.filter((opt) => opt.trim() !== '');
-    if (formData.questionType !== 'text' && cleanOptions.length === 0) {
+    if (needsOptions(formData.questionType) && cleanOptions.length === 0) {
       alert('Please add at least one option');
       return;
     }
@@ -104,6 +136,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -125,6 +158,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -285,24 +319,19 @@ export default function ImportQuestionsPage() {
                             Column: <strong>{question.columnHeader}</strong>
                           </span>
                           <span
-                            className={`px-2 py-0.5 text-xs rounded-full ${
-                              question.questionType === 'select'
-                                ? 'bg-blue-100 text-blue-700'
-                                : question.questionType === 'yes_no'
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
+                            className={`px-2 py-0.5 text-xs rounded-full ${getQuestionTypeBadgeClass(question.questionType)}`}
                           >
-                            {question.questionType === 'select'
-                              ? 'Select'
-                              : question.questionType === 'yes_no'
-                              ? 'Yes/No'
-                              : 'Text'}
+                            {getQuestionTypeLabel(question.questionType)}
                           </span>
                         </div>
-                        {question.options.length > 0 && (
+                        {question.options.length > 0 && !question.defaultValue && (
                           <div className="mt-1 text-xs text-gray-400">
                             Options: {question.options.join(', ')}
+                          </div>
+                        )}
+                        {question.defaultValue && (
+                          <div className="mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
+                            Default: &quot;{question.defaultValue}&quot; (applied to all rows)
                           </div>
                         )}
                       </div>
@@ -395,19 +424,28 @@ export default function ImportQuestionsPage() {
                       setFormData((prev) => ({
                         ...prev,
                         questionType: newType,
-                        options: newType === 'yes_no' ? ['Yes', 'No'] : newType === 'text' ? [] : prev.options,
+                        options: newType === 'checkbox' ? ['Yes', 'No'] : newType === 'text' ? [] : prev.options.length > 0 ? prev.options : [''],
                       }));
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
-                    <option value="select">Select (Custom Options)</option>
-                    <option value="yes_no">Yes/No</option>
                     <option value="text">Free Text</option>
+                    <option value="dropdown">Dropdown (Single Select)</option>
+                    <option value="checkbox">Checkbox (Yes/No)</option>
+                    <option value="radio">Radio Select (Single Choice)</option>
+                    <option value="multiselect">Multiple Select (Checkboxes)</option>
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.questionType === 'text' && 'User enters any text value.'}
+                    {formData.questionType === 'dropdown' && 'User picks one option from a dropdown menu.'}
+                    {formData.questionType === 'checkbox' && 'User checks a box for Yes or leaves unchecked for No.'}
+                    {formData.questionType === 'radio' && 'User selects one option from radio buttons.'}
+                    {formData.questionType === 'multiselect' && 'User can select multiple options via checkboxes.'}
+                  </p>
                 </div>
 
-                {/* Options (for select type) */}
-                {formData.questionType === 'select' && (
+                {/* Options (for dropdown, radio, multiselect) */}
+                {needsOptions(formData.questionType) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Options
@@ -447,15 +485,15 @@ export default function ImportQuestionsPage() {
                   </div>
                 )}
 
-                {/* Yes/No Options (read-only display) */}
-                {formData.questionType === 'yes_no' && (
+                {/* Checkbox type options (read-only display) */}
+                {formData.questionType === 'checkbox' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Options
+                      Values
                     </label>
                     <div className="flex gap-2">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg">Yes</span>
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg">No</span>
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg">Yes (checked)</span>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg">No (unchecked)</span>
                     </div>
                   </div>
                 )}
@@ -477,6 +515,28 @@ export default function ImportQuestionsPage() {
                   <label className="text-sm text-gray-700">
                     Required question (users must answer before proceeding)
                   </label>
+                </div>
+
+                {/* Default Value / Bulk Edit */}
+                <div className="border-t pt-4 mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Set Default Value for All Contacts
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Set value for all contacts to:</span>
+                    <input
+                      type="text"
+                      value={formData.defaultValue}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, defaultValue: e.target.value }))}
+                      placeholder="Enter value..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.defaultValue.trim()
+                      ? `All rows will have "${formData.defaultValue.trim()}" in the "${formData.columnHeader || 'column'}" column. Users won't be asked this question.`
+                      : 'Leave empty to ask users during import. Set a value to apply it to all rows automatically.'}
+                  </p>
                 </div>
 
                 {/* Display Order */}

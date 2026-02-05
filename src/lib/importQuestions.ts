@@ -5,7 +5,15 @@
 
 import { supabase } from './supabase';
 
-export type QuestionType = 'select' | 'yes_no' | 'text';
+/**
+ * Question input types:
+ * - text: Free form text input
+ * - dropdown: Single selection dropdown
+ * - checkbox: Single checkbox (yes/no style)
+ * - radio: Radio button group (single selection)
+ * - multiselect: Multiple selection checkboxes
+ */
+export type QuestionType = 'text' | 'dropdown' | 'checkbox' | 'radio' | 'multiselect';
 
 export interface ImportQuestion {
   id: string;
@@ -14,6 +22,7 @@ export interface ImportQuestion {
   columnHeader: string;
   questionType: QuestionType;
   options: string[];
+  defaultValue: string | null;
   isRequired: boolean;
   displayOrder: number;
   enabled: boolean;
@@ -28,6 +37,7 @@ interface DbImportQuestion {
   column_header: string;
   question_type: QuestionType;
   options: string[];
+  default_value: string | null;
   is_required: boolean;
   display_order: number;
   enabled: boolean;
@@ -43,6 +53,7 @@ function mapDbToImportQuestion(row: DbImportQuestion): ImportQuestion {
     columnHeader: row.column_header,
     questionType: row.question_type,
     options: row.options || [],
+    defaultValue: row.default_value,
     isRequired: row.is_required,
     displayOrder: row.display_order,
     enabled: row.enabled,
@@ -108,6 +119,7 @@ export async function createImportQuestion(
     columnHeader: string;
     questionType: QuestionType;
     options?: string[];
+    defaultValue?: string | null;
     isRequired?: boolean;
     displayOrder?: number;
     enabled?: boolean;
@@ -122,6 +134,7 @@ export async function createImportQuestion(
         column_header: question.columnHeader,
         question_type: question.questionType,
         options: question.options || [],
+        default_value: question.defaultValue ?? null,
         is_required: question.isRequired ?? false,
         display_order: question.displayOrder ?? 100,
         enabled: question.enabled ?? true,
@@ -151,6 +164,7 @@ export async function updateImportQuestion(
     columnHeader: string;
     questionType: QuestionType;
     options: string[];
+    defaultValue: string | null;
     isRequired: boolean;
     displayOrder: number;
     enabled: boolean;
@@ -162,6 +176,7 @@ export async function updateImportQuestion(
     if (updates.columnHeader !== undefined) dbUpdates.column_header = updates.columnHeader;
     if (updates.questionType !== undefined) dbUpdates.question_type = updates.questionType;
     if (updates.options !== undefined) dbUpdates.options = updates.options;
+    if (updates.defaultValue !== undefined) dbUpdates.default_value = updates.defaultValue;
     if (updates.isRequired !== undefined) dbUpdates.is_required = updates.isRequired;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
@@ -241,6 +256,7 @@ export async function initializeAccountQuestions(
       column_header: q.column_header,
       question_type: q.question_type,
       options: q.options,
+      default_value: q.default_value,
       is_required: q.is_required,
       display_order: q.display_order,
       enabled: q.enabled,
