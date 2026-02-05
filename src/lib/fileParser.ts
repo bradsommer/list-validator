@@ -56,14 +56,27 @@ async function parseExcel(file: File): Promise<ParsedFile> {
           defval: '', // Default value for empty cells
         });
 
-        // Extract headers from the first row keys
-        const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+        // Extract headers and trim them (Excel doesn't auto-trim like CSV)
+        const rawHeaders = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+        const headers = rawHeaders.map((h) => h.trim());
+
+        // If any headers were trimmed, we need to update the row objects to use trimmed keys
+        const needsKeyUpdate = rawHeaders.some((h, i) => h !== headers[i]);
+        const rows = needsKeyUpdate
+          ? jsonData.map((row) => {
+              const newRow: ParsedRow = {};
+              for (const [key, value] of Object.entries(row)) {
+                newRow[key.trim()] = value;
+              }
+              return newRow;
+            })
+          : jsonData;
 
         resolve({
           headers,
-          rows: jsonData,
+          rows,
           fileName: file.name,
-          totalRows: jsonData.length,
+          totalRows: rows.length,
         });
       } catch (error) {
         reject(new Error(`Excel parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`));

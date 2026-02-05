@@ -10,7 +10,8 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   firstname: ['first_name', 'firstname', 'first name', 'first', 'given_name', 'given name', 'givenname'],
   lastname: ['last_name', 'lastname', 'last name', 'last', 'surname', 'family_name', 'family name', 'familyname'],
   company: ['company', 'company_name', 'company name', 'companyname', 'organization', 'organisation', 'org', 'employer'],
-  state: ['state', 'state_province', 'state/province', 'state/region', 'province', 'region', 'state_region'],
+  // State patterns - longer patterns first so they get higher priority in partial matching
+  state: ['state/province', 'state_province', 'state province', 'state/region', 'state_region', 'state region', 'province', 'region', 'state'],
   date: ['date', 'created_date', 'create_date', 'close_date', 'closedate', 'start_date', 'end_date', 'birthday', 'birthdate', 'date_of_birth', 'datetime', 'date_time', 'timestamp', 'created_at', 'updated_at'],
   city: ['city', 'town'],
   zip: ['zip', 'zipcode', 'zip_code', 'postal_code', 'postalcode', 'postal'],
@@ -22,7 +23,7 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   program_type: ['program type', 'program_type', 'programtype', 'program'],
   title: ['title', 'job_title', 'jobtitle', 'job title', 'position'],
   website: ['website', 'url', 'web', 'homepage', 'domain'],
-  solution: ['solution', 'solution_type', 'solution type'],
+  solution: ['solution_type', 'solution type', 'solutiontype', 'solution'],
   deal_name: ['deal_name', 'deal name', 'dealname', 'deal', 'opportunity'],
   amount: ['amount', 'deal_amount', 'value', 'revenue', 'price'],
 };

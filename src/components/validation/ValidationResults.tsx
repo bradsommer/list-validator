@@ -9,6 +9,7 @@ import type { ScriptResult } from '@/types';
 export function ValidationResults() {
   const {
     sessionId,
+    parsedFile,
     processedData,
     headerMatches,
     requiredFields,
@@ -59,16 +60,20 @@ export function ValidationResults() {
   }, [availableScripts.length, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
+    // Always use original data from parsedFile to ensure scripts see fresh data
+    // This prevents issues when re-running validation on already-transformed data
+    const sourceData = parsedFile?.rows || processedData;
+
     setIsValidating(true);
     logInfo('validate', 'Starting data validation with scripts', sessionId, {
-      totalRows: processedData.length,
+      totalRows: sourceData.length,
       requiredFields,
       enabledScripts,
     });
 
     try {
       const result = validateAndTransform(
-        processedData,
+        sourceData,
         headerMatches,
         requiredFields,
         enabledScripts.length > 0 ? enabledScripts : undefined
@@ -97,11 +102,13 @@ export function ValidationResults() {
   };
 
   // Run validation on mount or when scripts change
+  // Use parsedFile to determine if we have data, since processedData gets transformed
   useEffect(() => {
-    if (processedData.length > 0 && enabledScripts.length > 0 && !validationResult) {
+    const hasData = parsedFile?.rows?.length || processedData.length > 0;
+    if (hasData && enabledScripts.length > 0 && !validationResult) {
       runValidation();
     }
-  }, [processedData.length, enabledScripts.length]);
+  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);
