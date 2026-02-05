@@ -69,17 +69,18 @@ export function findColumnHeader(
 
   for (const key of rowKeys) {
     const normalizedKey = key.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
+    console.log(`[findColumnHeader] Checking '${key}' → normalized: '${normalizedKey}'`);
 
     // Exact match against patterns
     if (patterns.includes(normalizedKey)) {
-      console.log(`[findColumnHeader] Found '${fieldName}' via exact match: '${key}' (normalized: '${normalizedKey}')`);
+      console.log(`[findColumnHeader] ✓ Found '${fieldName}' via exact match: '${key}' (normalized: '${normalizedKey}')`);
       return key;
     }
 
     // Partial match: key contains a pattern (for compound headers like "Address 1: State/Province")
     for (const pattern of patterns) {
       if (normalizedKey.includes(pattern)) {
-        console.log(`[findColumnHeader] Found '${fieldName}' via partial match: '${key}' contains '${pattern}'`);
+        console.log(`[findColumnHeader] ✓ Found '${fieldName}' via partial match: '${key}' contains '${pattern}'`);
         return key;
       }
     }
