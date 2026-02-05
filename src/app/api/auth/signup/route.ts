@@ -32,37 +32,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Development bypass for testing without Supabase
+    // Development bypass - skip signup in dev mode, user should use dev credentials
     if (DEV_AUTH_BYPASS) {
+      // In dev mode, we don't actually create users - just return success
+      // so the Stripe flow can be tested. User will need to use dev credentials
+      // (admin@example.com / admin123) to log in after Stripe checkout.
       const devUser = {
         id: `dev-user-${Date.now()}`,
         username: email.toLowerCase().trim(),
         displayName: email.split('@')[0],
         role: 'user' as const,
-        accountId: '00000000-0000-0000-0000-000000000001',
-        accountName: 'Default Account',
         isActive: true,
         lastLogin: null,
         createdAt: new Date().toISOString(),
         stripeCustomerId: null,
-        subscriptionStatus: 'trialing',
+        subscriptionStatus: null,
       };
 
-      // Auto-login the user by setting the auth cookie
-      const response = NextResponse.json({
+      return NextResponse.json({
         success: true,
         user: devUser,
       });
-
-      response.cookies.set('auth_token', 'dev-token-12345', {
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60,
-        path: '/',
-      });
-
-      return response;
     }
 
     // Create user in database
