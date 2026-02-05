@@ -64,7 +64,18 @@ export function ValidationResults() {
 
       // Fetch all rules from database (per-account) - includes custom code
       try {
-        const rules = await fetchAccountRules(accountId);
+        let rules = await fetchAccountRules(accountId);
+
+        // If no rules found for this account, also try 'default'
+        if (rules.length === 0 && accountId !== 'default') {
+          rules = await fetchAccountRules('default');
+        }
+
+        console.log('[ValidationResults] Fetched rules:', rules.length, 'rules, custom code count:', rules.filter(r => r.config?.code).length);
+        rules.forEach(r => {
+          console.log(`  - ${r.ruleId}: enabled=${r.enabled}, hasCode=${!!r.config?.code}, targetFields=${r.targetFields.join(',')}`);
+        });
+
         setAccountRules(rules);
 
         // Get IDs of enabled rules
@@ -76,7 +87,8 @@ export function ValidationResults() {
           const scripts = getAvailableScripts();
           setEnabledScripts(scripts.map((s) => s.id));
         }
-      } catch {
+      } catch (err) {
+        console.error('[ValidationResults] Error fetching rules:', err);
         // On error, enable all built-in scripts as fallback
         const scripts = getAvailableScripts();
         setEnabledScripts(scripts.map((s) => s.id));
