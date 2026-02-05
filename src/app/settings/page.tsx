@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 import type { FieldMapping, EnrichmentConfig } from '@/types';
 
 export default function SettingsPage() {
@@ -100,49 +100,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-hubspot-orange rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-                <p className="text-sm text-gray-500">Configure field mappings, enrichment, and HubSpot</p>
-              </div>
-            </div>
-            <Link
-              href="/"
-              className="px-4 py-2 text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Back to Validator
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
           <button
@@ -626,9 +585,20 @@ export default function SettingsPage() {
                     {isBillingLoading ? 'Loading...' : 'Manage Subscription'}
                   </button>
                 ) : (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-700">
-                      Billing management is not available yet. Your subscription may still be processing.
+                  <div className="space-y-3">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-700 mb-2">
+                        <strong>Development Mode:</strong> Billing portal requires Stripe to be connected with your account.
+                      </p>
+                      <p className="text-sm text-blue-600">
+                        In production, users will see a &quot;Manage Subscription&quot; button here to update payment, view invoices, or cancel.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Need to cancel or have billing questions? Contact support at{' '}
+                      <a href="mailto:support@example.com" className="text-primary-600 hover:underline">
+                        support@example.com
+                      </a>
                     </p>
                   </div>
                 )}
@@ -637,6 +607,6 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
-    </main>
+    </AdminLayout>
   );
 }
