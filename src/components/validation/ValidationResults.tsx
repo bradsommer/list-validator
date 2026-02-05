@@ -39,6 +39,14 @@ export function ValidationResults() {
 
   const accountId = user?.accountId || 'default';
 
+  // Helper to get original column header name from field name
+  const getColumnName = (fieldName: string): string => {
+    const match = headerMatches.find(
+      (m) => m.matchedField?.hubspotField === fieldName
+    );
+    return match?.originalHeader || fieldName;
+  };
+
   // Load available scripts and enabled rules from database
   useEffect(() => {
     const loadScriptsAndRules = async () => {
@@ -330,6 +338,7 @@ export function ValidationResults() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Row</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Column Name</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Field</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Original</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Corrected</th>
@@ -343,6 +352,7 @@ export function ValidationResults() {
                   .map((change, index) => (
                     <tr key={index} className="hover:bg-blue-50">
                       <td className="px-4 py-2 text-sm">{change.rowIndex + 1}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{getColumnName(change.field)}</td>
                       <td className="px-4 py-2 text-sm font-medium">{change.field}</td>
                       <td className="px-4 py-2 text-sm text-gray-500 line-through">
                         {String(change.originalValue || '')}
@@ -375,6 +385,7 @@ export function ValidationResults() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Row</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Column Name</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Field</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Message</th>
                 </tr>
@@ -383,6 +394,7 @@ export function ValidationResults() {
                 {validationResult.errors.slice(0, 100).map((error, index) => (
                   <tr key={index} className="hover:bg-red-50">
                     <td className="px-4 py-2 text-sm">{error.row}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{getColumnName(error.field)}</td>
                     <td className="px-4 py-2 text-sm font-medium">{error.field}</td>
                     <td className="px-4 py-2 text-sm text-gray-600">{error.message}</td>
                   </tr>
@@ -409,6 +421,7 @@ export function ValidationResults() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Row</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Column Name</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Field</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Message</th>
                 </tr>
@@ -417,6 +430,7 @@ export function ValidationResults() {
                 {validationResult.warnings.slice(0, 100).map((warning, index) => (
                   <tr key={index} className="hover:bg-yellow-50">
                     <td className="px-4 py-2 text-sm">{warning.row}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{getColumnName(warning.field)}</td>
                     <td className="px-4 py-2 text-sm font-medium">{warning.field}</td>
                     <td className="px-4 py-2 text-sm text-gray-600">{warning.message}</td>
                   </tr>
