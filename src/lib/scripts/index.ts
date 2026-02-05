@@ -328,7 +328,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
   };
 }
 
-// Run all enabled scripts in order, including custom rules from database
+// Run all enabled scripts in order, using database rules (with custom code)
 export function runAllScriptsWithCustomRules(
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
@@ -336,24 +336,29 @@ export function runAllScriptsWithCustomRules(
   customRules: AccountRule[],
   enabledScriptIds?: string[]
 ): ScriptRunnerResult {
-  // Get built-in scripts
-  const builtInScripts = enabledScriptIds
-    ? ALL_SCRIPTS.filter((s) => enabledScriptIds.includes(s.id))
-    : [];
+  // Build scripts from database rules
+  const scriptsToRun: IValidationScript[] = [];
 
-  // Create dynamic scripts from custom rules that have code and are enabled
-  const dynamicScripts: IValidationScript[] = [];
   for (const rule of customRules) {
-    if (rule.enabled && rule.config?.code) {
+    if (!rule.enabled) continue;
+
+    if (rule.config?.code) {
+      // Rule has custom code - use dynamic script
       const script = createDynamicScript(rule);
       if (script) {
-        dynamicScripts.push(script);
+        scriptsToRun.push(script);
+      }
+    } else {
+      // Rule has no custom code - try built-in fallback for backwards compatibility
+      const builtIn = ALL_SCRIPTS.find((s) => s.id === rule.ruleId);
+      if (builtIn) {
+        scriptsToRun.push(builtIn);
       }
     }
   }
 
-  // Combine and sort by order
-  const allScriptsToRun = [...builtInScripts, ...dynamicScripts].sort((a, b) => a.order - b.order);
+  // Sort by display order
+  const allScriptsToRun = scriptsToRun.sort((a, b) => a.order - b.order);
 
   const scriptResults: ScriptResult[] = [];
   let currentRows = [...rows];
