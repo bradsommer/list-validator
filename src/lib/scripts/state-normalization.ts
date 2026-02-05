@@ -113,7 +113,7 @@ export class StateNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // DEBUG: Log all available headers
+    // DEBUG: Log all available headers and first row
     console.log('[StateNormalization] headerMatches:', headerMatches.map(m => ({
       original: m.originalHeader,
       matched: m.matchedField?.hubspotField,
@@ -121,6 +121,7 @@ export class StateNormalizationScript implements IValidationScript {
     })));
     if (rows.length > 0) {
       console.log('[StateNormalization] Row keys:', Object.keys(rows[0]));
+      console.log('[StateNormalization] First row data:', JSON.stringify(rows[0], null, 2));
     }
 
     // Find the state column — tries headerMatches first, then scans row keys

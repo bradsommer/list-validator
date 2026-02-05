@@ -86,13 +86,15 @@ export function findColumnHeader(
     }
   }
 
-  // Second pass: simple case-insensitive substring match on the FIRST pattern (the base word)
+  // Second pass: simple case-insensitive substring match on ANY pattern
   // This catches cases where normalization might have issues
-  const basePattern = patterns[0]; // 'state', 'solution', etc.
   for (const key of rowKeys) {
-    if (key.toLowerCase().includes(basePattern)) {
-      console.log(`[findColumnHeader] ✓ Found '${fieldName}' via simple substring: '${key}' contains '${basePattern}'`);
-      return key;
+    const keyLower = key.toLowerCase();
+    for (const pattern of patterns) {
+      if (keyLower.includes(pattern)) {
+        console.log(`[findColumnHeader] ✓ Found '${fieldName}' via simple substring: '${key}' contains '${pattern}'`);
+        return key;
+      }
     }
   }
 
