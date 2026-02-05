@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
+import { validateAndTransformWithCustomRules, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEnabledRuleIds } from '@/lib/accountRules';
+import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
@@ -37,6 +37,8 @@ export function ValidationResults() {
   const [showWarnings, setShowWarnings] = useState(true);
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
+  const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
+  const rulesLoadedRef = useRef(false);
 
   const accountId = user?.accountId || 'default';
 
@@ -48,26 +50,34 @@ export function ValidationResults() {
     return match?.originalHeader || fieldName;
   };
 
-  // Load available scripts and enabled rules from database
+  // Load available scripts and rules from database
   useEffect(() => {
     const loadScriptsAndRules = async () => {
+      if (rulesLoadedRef.current) return;
+      rulesLoadedRef.current = true;
+
+      // Get built-in scripts for display
       if (availableScripts.length === 0) {
         const scripts = getAvailableScripts();
         setAvailableScripts(scripts);
       }
 
-      // Fetch enabled rules from database (per-account)
+      // Fetch all rules from database (per-account) - includes custom code
       try {
-        const enabledIds = await getEnabledRuleIds(accountId);
+        const rules = await fetchAccountRules(accountId);
+        setAccountRules(rules);
+
+        // Get IDs of enabled rules
+        const enabledIds = rules.filter((r) => r.enabled).map((r) => r.ruleId);
         if (enabledIds.length > 0) {
           setEnabledScripts(enabledIds);
         } else {
-          // Fallback: if no rules in database, enable all available scripts
+          // Fallback: if no rules in database, enable all built-in scripts
           const scripts = getAvailableScripts();
           setEnabledScripts(scripts.map((s) => s.id));
         }
       } catch {
-        // On error, enable all scripts as fallback
+        // On error, enable all built-in scripts as fallback
         const scripts = getAvailableScripts();
         setEnabledScripts(scripts.map((s) => s.id));
       }
@@ -86,13 +96,16 @@ export function ValidationResults() {
       totalRows: sourceData.length,
       requiredFields,
       enabledScripts,
+      customRulesCount: accountRules.filter((r) => r.config?.code).length,
     });
 
     try {
-      const result = validateAndTransform(
+      // Use the new validation function that supports custom rules from database
+      const result = validateAndTransformWithCustomRules(
         sourceData,
         headerMatches,
         requiredFields,
+        accountRules,
         enabledScripts.length > 0 ? enabledScripts : undefined
       );
 
@@ -128,14 +141,16 @@ export function ValidationResults() {
     }
   };
 
-  // Run validation on mount or when scripts change
+  // Run validation on mount or when scripts/rules change
   // Use parsedFile to determine if we have data, since processedData gets transformed
   useEffect(() => {
     const hasData = parsedFile?.rows?.length || processedData.length > 0;
-    if (hasData && enabledScripts.length > 0 && !validationResult) {
+    // Wait until rules are loaded (either from database or fallback)
+    const rulesReady = accountRules.length > 0 || enabledScripts.length > 0;
+    if (hasData && rulesReady && !validationResult) {
       runValidation();
     }
-  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length]);
+  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length, accountRules.length]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);

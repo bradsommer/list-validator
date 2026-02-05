@@ -5,7 +5,8 @@ import type {
   ValidationResult,
   ScriptRunnerResult,
 } from '@/types';
-import { runAllScripts, getAvailableScripts } from './scripts';
+import { runAllScripts, getAvailableScripts, runAllScriptsWithCustomRules } from './scripts';
+import type { AccountRule } from './accountRules';
 
 // Re-export script utilities
 export { runAllScripts, getAvailableScripts, runScript } from './scripts';
@@ -71,6 +72,71 @@ export function validateAndTransform(
   transformedData: ParsedRow[];
 } {
   const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds);
+
+  // Convert to legacy format
+  const errors: ValidationError[] = [];
+  const warnings: ValidationError[] = [];
+
+  scriptRunnerResult.scriptResults.forEach((result) => {
+    result.errors.forEach((err) => {
+      errors.push({
+        row: err.rowIndex + 1,
+        field: err.field,
+        value: err.value as string | null,
+        errorType: err.errorType as ValidationError['errorType'],
+        message: err.message,
+      });
+    });
+
+    result.warnings.forEach((warn) => {
+      warnings.push({
+        row: warn.rowIndex + 1,
+        field: warn.field,
+        value: warn.value as string | null,
+        errorType: warn.warningType as ValidationError['errorType'],
+        message: warn.message,
+      });
+    });
+  });
+
+  const rowsWithErrors = new Set(errors.map((e) => e.row));
+  const invalidRows = rowsWithErrors.size;
+  const validRows = rows.length - invalidRows;
+
+  const validationResult: ValidationResult = {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    validRows,
+    invalidRows,
+  };
+
+  return {
+    validationResult,
+    scriptRunnerResult,
+    transformedData: scriptRunnerResult.processedData,
+  };
+}
+
+// Run validation with custom rules from database
+export function validateAndTransformWithCustomRules(
+  rows: ParsedRow[],
+  headerMatches: HeaderMatch[],
+  requiredFields: string[],
+  customRules: AccountRule[],
+  enabledScriptIds?: string[]
+): {
+  validationResult: ValidationResult;
+  scriptRunnerResult: ScriptRunnerResult;
+  transformedData: ParsedRow[];
+} {
+  const scriptRunnerResult = runAllScriptsWithCustomRules(
+    rows,
+    headerMatches,
+    requiredFields,
+    customRules,
+    enabledScriptIds
+  );
 
   // Convert to legacy format
   const errors: ValidationError[] = [];
