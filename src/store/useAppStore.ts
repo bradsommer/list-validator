@@ -21,6 +21,9 @@ export interface QuestionAnswer {
 }
 export type QuestionAnswers = Record<string, QuestionAnswer>;
 
+// Question column values: column header → answer value (set when continuing from questions step)
+export type QuestionColumnValues = Record<string, string>;
+
 interface AppState {
   // Session
   sessionId: string;
@@ -40,6 +43,9 @@ interface AppState {
 
   // Import question answers
   questionAnswers: QuestionAnswers;
+
+  // Question column values (column header → value) for applying after validation
+  questionColumnValues: QuestionColumnValues;
 
   // Validation
   validationResult: ValidationResult | null;
@@ -70,6 +76,7 @@ interface AppState {
 
   setQuestionAnswers: (answers: QuestionAnswers) => void;
   setQuestionAnswer: (questionId: string, answer: QuestionAnswer) => void;
+  setQuestionColumnValues: (values: QuestionColumnValues) => void;
 
   setValidationResult: (result: ValidationResult | null) => void;
   setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
@@ -91,6 +98,7 @@ const initialState = {
   steps: ['Upload', 'Map Columns', 'Questions', 'Validate', 'Export'],
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,
+  questionColumnValues: {} as QuestionColumnValues,
   parsedFile: null,
   processedData: [],
   headerMatches: [],
@@ -128,6 +136,7 @@ export const useAppStore = create<AppState>((set) => ({
   setQuestionAnswer: (questionId, answer) => set((state) => ({
     questionAnswers: { ...state.questionAnswers, [questionId]: answer }
   })),
+  setQuestionColumnValues: (values) => set({ questionColumnValues: values }),
 
   setValidationResult: (result) => set({ validationResult: result }),
   setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),

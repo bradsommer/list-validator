@@ -230,6 +230,7 @@ export function ImportQuestionsStep() {
   const {
     questionAnswers,
     setQuestionAnswer,
+    setQuestionColumnValues,
     processedData,
     setProcessedData,
     nextStep,
@@ -290,6 +291,10 @@ export function ImportQuestionsStep() {
         columnsToAdd[question.columnHeader] = answer.value;
       }
     }
+
+    // Store the question column values for use after validation
+    // This ensures the values persist even when validation re-runs from original data
+    setQuestionColumnValues(columnsToAdd);
 
     // Apply to all rows
     if (Object.keys(columnsToAdd).length > 0) {
