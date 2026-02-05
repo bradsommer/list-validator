@@ -95,7 +95,7 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Map Columns', 'Questions', 'Validate', 'Export'],
+  steps: ['Upload', 'Questions', 'Map Columns', 'Validate', 'Export'],
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,
   questionColumnValues: {} as QuestionColumnValues,

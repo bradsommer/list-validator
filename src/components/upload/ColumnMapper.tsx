@@ -232,6 +232,7 @@ export function ColumnMapper() {
     parsedFile,
     headerMatches,
     columnMapping,
+    questionColumnValues,
     setColumnMapping,
     nextStep,
     prevStep,
@@ -239,6 +240,12 @@ export function ColumnMapper() {
 
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
+
+  // Get all headers: spreadsheet headers + question column headers (that don't already exist)
+  const questionHeaders = Object.keys(questionColumnValues).filter(
+    (h) => !parsedFile?.headers.includes(h)
+  );
+  const allHeaders = parsedFile ? [...parsedFile.headers, ...questionHeaders] : [];
 
   useEffect(() => {
     const currentHeadings = getColumnHeadings();
@@ -249,6 +256,7 @@ export function ColumnMapper() {
       const history = getMappingHistory();
       const initial: ColumnMapping = {};
 
+      // Map spreadsheet headers
       for (const header of parsedFile.headers) {
         // If already set from store (e.g. user went back and forward), keep it
         if (columnMapping[header]) {
@@ -258,9 +266,20 @@ export function ColumnMapper() {
           initial[header] = autoMatchHeader(header, headingNames, history);
         }
       }
+
+      // Map question headers (new columns from import questions)
+      for (const header of questionHeaders) {
+        if (columnMapping[header]) {
+          initial[header] = columnMapping[header];
+        } else {
+          // Auto-match question headers too
+          initial[header] = autoMatchHeader(header, headingNames, history);
+        }
+      }
+
       setMapping(initial);
     }
-  }, [parsedFile, columnMapping]);
+  }, [parsedFile, columnMapping, questionColumnValues]);
 
   const handleSelect = (originalHeader: string, value: string) => {
     setMapping((prev) => ({
@@ -293,9 +312,8 @@ export function ColumnMapper() {
     return <div className="text-center text-gray-500">No file uploaded</div>;
   }
 
-  const headers = parsedFile.headers;
-  const mappedCount = headers.filter((h) => mapping[h] && mapping[h] !== DO_NOT_USE).length;
-  const excludedCount = headers.filter((h) => mapping[h] === DO_NOT_USE).length;
+  const mappedCount = allHeaders.filter((h) => mapping[h] && mapping[h] !== DO_NOT_USE).length;
+  const excludedCount = allHeaders.filter((h) => mapping[h] === DO_NOT_USE).length;
 
   return (
     <div className="space-y-6">
@@ -310,7 +328,10 @@ export function ColumnMapper() {
       <div className="text-sm text-gray-500">
         {mappedCount} mapped
         {excludedCount > 0 && <span className="text-red-500 ml-2">{excludedCount} excluded</span>}
-        <span className="ml-1">of {headers.length} columns</span>
+        <span className="ml-1">of {allHeaders.length} columns</span>
+        {questionHeaders.length > 0 && (
+          <span className="text-purple-600 ml-2">({questionHeaders.length} from questions)</span>
+        )}
       </div>
 
       {/* Mapping table */}
@@ -330,19 +351,25 @@ export function ColumnMapper() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {headers.map((header) => {
+            {allHeaders.map((header) => {
               const match = headerMatches.find((m) => m.originalHeader === header);
               const detectedType = match?.matchedField?.hubspotField;
               const isExcluded = mapping[header] === DO_NOT_USE;
+              const isFromQuestion = questionHeaders.includes(header);
 
               return (
-                <tr key={header} className={`${isExcluded ? 'bg-red-50/30' : 'hover:bg-gray-50'}`}>
+                <tr key={header} className={`${isExcluded ? 'bg-red-50/30' : isFromQuestion ? 'bg-purple-50/30' : 'hover:bg-gray-50'}`}>
                   <td className="px-4 py-3">
                     <div>
                       <span className={`font-medium ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                         {header}
                       </span>
-                      {detectedType && !isExcluded && (
+                      {isFromQuestion && !isExcluded && (
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
+                          from question
+                        </span>
+                      )}
+                      {detectedType && !isExcluded && !isFromQuestion && (
                         <span className="ml-2 text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
                           {detectedType}
                         </span>

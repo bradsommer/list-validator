@@ -32,9 +32,9 @@ export default function ImportPage() {
       case 0:
         return <FileUpload />;
       case 1:
-        return <ColumnMapper />;
-      case 2:
         return <ImportQuestionsStep />;
+      case 2:
+        return <ColumnMapper />;
       case 3:
         return <ValidationResults />;
       case 4:
