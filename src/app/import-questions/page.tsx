@@ -19,6 +19,7 @@ export default function ImportQuestionsPage() {
     columnHeader: '',
     questionType: 'dropdown' as QuestionType,
     options: [''],
+    defaultValue: '',
     isRequired: false,
     displayOrder: 100,
     enabled: true,
@@ -79,6 +80,7 @@ export default function ImportQuestionsPage() {
       columnHeader: '',
       questionType: 'dropdown',
       options: [''],
+      defaultValue: '',
       isRequired: false,
       displayOrder: 100,
       enabled: true,
@@ -95,6 +97,7 @@ export default function ImportQuestionsPage() {
       columnHeader: question.columnHeader,
       questionType: question.questionType,
       options: question.options.length > 0 ? question.options : [''],
+      defaultValue: question.defaultValue || '',
       isRequired: question.isRequired,
       displayOrder: question.displayOrder,
       enabled: question.enabled,
@@ -133,6 +136,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -154,6 +158,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -319,9 +324,14 @@ export default function ImportQuestionsPage() {
                             {getQuestionTypeLabel(question.questionType)}
                           </span>
                         </div>
-                        {question.options.length > 0 && (
+                        {question.options.length > 0 && !question.defaultValue && (
                           <div className="mt-1 text-xs text-gray-400">
                             Options: {question.options.join(', ')}
+                          </div>
+                        )}
+                        {question.defaultValue && (
+                          <div className="mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
+                            Default: &quot;{question.defaultValue}&quot; (applied to all rows)
                           </div>
                         )}
                       </div>
@@ -505,6 +515,28 @@ export default function ImportQuestionsPage() {
                   <label className="text-sm text-gray-700">
                     Required question (users must answer before proceeding)
                   </label>
+                </div>
+
+                {/* Default Value / Bulk Edit */}
+                <div className="border-t pt-4 mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Set Default Value for All Contacts
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Set value for all contacts to:</span>
+                    <input
+                      type="text"
+                      value={formData.defaultValue}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, defaultValue: e.target.value }))}
+                      placeholder="Enter value..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.defaultValue.trim()
+                      ? `All rows will have "${formData.defaultValue.trim()}" in the "${formData.columnHeader || 'column'}" column. Users won't be asked this question.`
+                      : 'Leave empty to ask users during import. Set a value to apply it to all rows automatically.'}
+                  </p>
                 </div>
 
                 {/* Display Order */}

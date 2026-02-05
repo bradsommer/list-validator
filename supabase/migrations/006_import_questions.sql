@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS import_questions (
   column_header TEXT NOT NULL,
   question_type TEXT NOT NULL CHECK (question_type IN ('text', 'dropdown', 'checkbox', 'radio', 'multiselect')),
   options JSONB DEFAULT '[]',
+  default_value TEXT DEFAULT NULL,
   is_required BOOLEAN DEFAULT false,
   display_order INTEGER DEFAULT 100,
   enabled BOOLEAN DEFAULT true,
