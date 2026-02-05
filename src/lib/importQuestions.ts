@@ -5,7 +5,15 @@
 
 import { supabase } from './supabase';
 
-export type QuestionType = 'select' | 'yes_no' | 'text';
+/**
+ * Question input types:
+ * - text: Free form text input
+ * - dropdown: Single selection dropdown
+ * - checkbox: Single checkbox (yes/no style)
+ * - radio: Radio button group (single selection)
+ * - multiselect: Multiple selection checkboxes
+ */
+export type QuestionType = 'text' | 'dropdown' | 'checkbox' | 'radio' | 'multiselect';
 
 export interface ImportQuestion {
   id: string;

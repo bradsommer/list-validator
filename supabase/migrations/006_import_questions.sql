@@ -1,12 +1,19 @@
 -- Import Questions table: stores configurable questions shown during list import
 -- Questions allow users to set column values for all rows based on their answer
+--
+-- Question types:
+--   text: Free form text input
+--   dropdown: Single selection dropdown
+--   checkbox: Single checkbox (yes/no style)
+--   radio: Radio button group (single selection)
+--   multiselect: Multiple selection checkboxes
 
 CREATE TABLE IF NOT EXISTS import_questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id TEXT NOT NULL,
   question_text TEXT NOT NULL,
   column_header TEXT NOT NULL,
-  question_type TEXT NOT NULL CHECK (question_type IN ('select', 'yes_no', 'text')),
+  question_type TEXT NOT NULL CHECK (question_type IN ('text', 'dropdown', 'checkbox', 'radio', 'multiselect')),
   options JSONB DEFAULT '[]',
   is_required BOOLEAN DEFAULT false,
   display_order INTEGER DEFAULT 100,
@@ -48,7 +55,7 @@ VALUES
     'default',
     'Is this a B2B or B2C list?',
     'B2B or B2C',
-    'select',
+    'radio',
     '["B2B", "B2C"]',
     true,
     10,
@@ -58,7 +65,7 @@ VALUES
     'default',
     'Will you want to sync these contacts to Dynamics?',
     'Sync to Dynamics?',
-    'yes_no',
+    'checkbox',
     '["Yes", "No"]',
     false,
     20,
