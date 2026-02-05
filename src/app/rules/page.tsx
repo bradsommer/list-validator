@@ -7,8 +7,47 @@ import {
   fetchAccountRules,
   toggleRuleEnabled,
   initializeAccountRules,
+  createRule,
+  updateRule,
+  deleteRule,
   type AccountRule,
+  type CreateRuleInput,
+  type UpdateRuleInput,
 } from '@/lib/accountRules';
+
+// Available HubSpot fields for targeting
+const AVAILABLE_FIELDS = [
+  'email',
+  'firstname',
+  'lastname',
+  'phone',
+  'company',
+  'jobtitle',
+  'city',
+  'state',
+  'country',
+  'zip',
+  'website',
+  'address',
+];
+
+interface RuleFormData {
+  ruleId: string;
+  name: string;
+  description: string;
+  ruleType: 'transform' | 'validate';
+  targetFields: string[];
+  displayOrder: number;
+}
+
+const emptyFormData: RuleFormData = {
+  ruleId: '',
+  name: '',
+  description: '',
+  ruleType: 'transform',
+  targetFields: [],
+  displayOrder: 0,
+};
 
 export default function RulesPage() {
   const { user, canEditRules } = useAuth();
@@ -18,6 +57,13 @@ export default function RulesPage() {
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingRule, setEditingRule] = useState<AccountRule | null>(null);
+  const [formData, setFormData] = useState<RuleFormData>(emptyFormData);
+  const [formError, setFormError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const accountId = user?.accountId || 'default';
 
@@ -110,6 +156,129 @@ export default function RulesPage() {
     }
   };
 
+  // Modal handlers
+  const openAddModal = () => {
+    setEditingRule(null);
+    setFormData({
+      ...emptyFormData,
+      displayOrder: rules.length > 0 ? Math.max(...rules.map((r) => r.displayOrder)) + 10 : 10,
+    });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const openEditModal = (rule: AccountRule) => {
+    setEditingRule(rule);
+    setFormData({
+      ruleId: rule.ruleId,
+      name: rule.name,
+      description: rule.description || '',
+      ruleType: rule.ruleType,
+      targetFields: rule.targetFields,
+      displayOrder: rule.displayOrder,
+    });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingRule(null);
+    setFormData(emptyFormData);
+    setFormError('');
+  };
+
+  const handleSave = async () => {
+    // Validation
+    if (!formData.name.trim()) {
+      setFormError('Name is required');
+      return;
+    }
+    if (!editingRule && !formData.ruleId.trim()) {
+      setFormError('Rule ID is required');
+      return;
+    }
+    if (formData.targetFields.length === 0) {
+      setFormError('At least one target field is required');
+      return;
+    }
+
+    // Check for duplicate rule ID when creating
+    if (!editingRule && rules.some((r) => r.ruleId === formData.ruleId.trim())) {
+      setFormError('A rule with this ID already exists');
+      return;
+    }
+
+    setIsSaving(true);
+    setFormError('');
+
+    try {
+      if (editingRule) {
+        // Update existing rule
+        const updates: UpdateRuleInput = {
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined,
+          ruleType: formData.ruleType,
+          targetFields: formData.targetFields,
+          displayOrder: formData.displayOrder,
+        };
+
+        const success = await updateRule(accountId, editingRule.ruleId, updates);
+        if (!success) {
+          setFormError('Failed to update rule');
+          return;
+        }
+      } else {
+        // Create new rule
+        const input: CreateRuleInput = {
+          accountId,
+          ruleId: formData.ruleId.trim().toLowerCase().replace(/\s+/g, '-'),
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined,
+          ruleType: formData.ruleType,
+          targetFields: formData.targetFields,
+          displayOrder: formData.displayOrder,
+          enabled: true,
+        };
+
+        const newRule = await createRule(input);
+        if (!newRule) {
+          setFormError('Failed to create rule');
+          return;
+        }
+      }
+
+      closeModal();
+      loadRules();
+    } catch {
+      setFormError('An error occurred');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (rule: AccountRule) => {
+    if (!confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+      return;
+    }
+
+    const success = await deleteRule(accountId, rule.ruleId);
+    if (success) {
+      loadRules();
+    } else {
+      alert('Failed to delete rule');
+    }
+  };
+
+  const toggleTargetField = (field: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      targetFields: prev.targetFields.includes(field)
+        ? prev.targetFields.filter((f) => f !== field)
+        : [...prev.targetFields, field],
+    }));
+  };
+
   const enabledCount = rules.filter((r) => r.enabled).length;
 
   return (
@@ -126,6 +295,12 @@ export default function RulesPage() {
           </div>
           {canEditRules && (
             <div className="flex gap-2">
+              <button
+                onClick={openAddModal}
+                className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Add Rule
+              </button>
               <button
                 onClick={enableAll}
                 className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
@@ -210,12 +385,30 @@ export default function RulesPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleExpandRule(rule.ruleId)}
-                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                    >
-                      {isExpanded ? 'Hide Code' : 'View Code'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {canEditRules && (
+                        <>
+                          <button
+                            onClick={() => openEditModal(rule)}
+                            className="px-3 py-1.5 text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rule)}
+                            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handleExpandRule(rule.ruleId)}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                      >
+                        {isExpanded ? 'Hide Code' : 'View Code'}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Code view */}
@@ -243,18 +436,156 @@ export default function RulesPage() {
             </svg>
             <p className="text-gray-600 font-medium">No validation rules found</p>
             <p className="text-sm text-gray-500 mt-1 mb-4">
-              The database migration may not have been run yet.
+              {canEditRules ? 'Click "Add Rule" to create your first validation rule.' : 'Contact an admin to add rules.'}
             </p>
-            <div className="space-y-2">
-              <p className="text-xs text-gray-400">
-                Run the migration to seed default rules:
-              </p>
-              <code className="block text-xs bg-gray-100 px-3 py-2 rounded text-gray-700 font-mono">
-                npx supabase db push
-              </code>
-              <p className="text-xs text-gray-400 mt-4">
-                Or manually insert rules for account: <strong>{accountId}</strong>
-              </p>
+            {canEditRules && (
+              <button
+                onClick={openAddModal}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Add Rule
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {editingRule ? 'Edit Rule' : 'Add Rule'}
+                </h3>
+
+                <div className="space-y-4">
+                  {formError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                      {formError}
+                    </div>
+                  )}
+
+                  {!editingRule && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rule ID
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.ruleId}
+                        onChange={(e) => setFormData({ ...formData, ruleId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="e.g., custom-phone-format"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        A unique identifier for this rule (lowercase, no spaces)
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      placeholder="e.g., Custom Phone Format"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      rows={2}
+                      placeholder="What does this rule do?"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Rule Type
+                    </label>
+                    <select
+                      value={formData.ruleType}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ruleType: e.target.value as 'transform' | 'validate' })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    >
+                      <option value="transform">Transform - Modifies data</option>
+                      <option value="validate">Validate - Checks data and reports issues</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Target Fields
+                    </label>
+                    <div className="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg">
+                      {AVAILABLE_FIELDS.map((field) => (
+                        <button
+                          key={field}
+                          type="button"
+                          onClick={() => toggleTargetField(field)}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            formData.targetFields.includes(field)
+                              ? 'bg-primary-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {field}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.targetFields.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Selected: {formData.targetFields.join(', ')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Execution Order
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.displayOrder}
+                      onChange={(e) =>
+                        setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Lower numbers run first
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400"
+                  >
+                    {isSaving ? 'Saving...' : editingRule ? 'Save Changes' : 'Add Rule'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

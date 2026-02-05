@@ -213,3 +213,117 @@ export async function getEnabledRuleIds(accountId: string): Promise<string[]> {
   const rules = await fetchEnabledRules(accountId);
   return rules.map((r) => r.ruleId);
 }
+
+/**
+ * Create a new rule for an account
+ */
+export interface CreateRuleInput {
+  accountId: string;
+  ruleId: string;
+  name: string;
+  description?: string;
+  ruleType: 'transform' | 'validate';
+  targetFields: string[];
+  enabled?: boolean;
+  displayOrder?: number;
+  config?: Record<string, unknown>;
+}
+
+export async function createRule(input: CreateRuleInput): Promise<AccountRule | null> {
+  try {
+    const { data, error } = await supabase
+      .from('account_rules')
+      .insert({
+        account_id: input.accountId,
+        rule_id: input.ruleId,
+        name: input.name,
+        description: input.description || null,
+        rule_type: input.ruleType,
+        target_fields: input.targetFields,
+        enabled: input.enabled ?? true,
+        display_order: input.displayOrder ?? 0,
+        config: input.config || {},
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[accountRules] Create error:', error);
+      return null;
+    }
+
+    return mapDbToAccountRule(data);
+  } catch (err) {
+    console.error('[accountRules] Create error:', err);
+    return null;
+  }
+}
+
+/**
+ * Update a rule
+ */
+export interface UpdateRuleInput {
+  name?: string;
+  description?: string;
+  ruleType?: 'transform' | 'validate';
+  targetFields?: string[];
+  enabled?: boolean;
+  displayOrder?: number;
+  config?: Record<string, unknown>;
+}
+
+export async function updateRule(
+  accountId: string,
+  ruleId: string,
+  updates: UpdateRuleInput
+): Promise<boolean> {
+  try {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.ruleType !== undefined) dbUpdates.rule_type = updates.ruleType;
+    if (updates.targetFields !== undefined) dbUpdates.target_fields = updates.targetFields;
+    if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
+    if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
+    if (updates.config !== undefined) dbUpdates.config = updates.config;
+
+    const { error } = await supabase
+      .from('account_rules')
+      .update(dbUpdates)
+      .eq('account_id', accountId)
+      .eq('rule_id', ruleId);
+
+    if (error) {
+      console.error('[accountRules] Update error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[accountRules] Update error:', err);
+    return false;
+  }
+}
+
+/**
+ * Delete a rule
+ */
+export async function deleteRule(accountId: string, ruleId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('account_rules')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('rule_id', ruleId);
+
+    if (error) {
+      console.error('[accountRules] Delete error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[accountRules] Delete error:', err);
+    return false;
+  }
+}
