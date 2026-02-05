@@ -1,5 +1,5 @@
 {
-  "name": "ascend-hubspot-list-validator",
+  "name": "list-validator",
   "version": "1.0.0",
   "description": "A web app to validate lists, alert users of issues, and sync data to HubSpot",
   "private": true,

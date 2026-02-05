@@ -1,4 +1,4 @@
--- Ascend HubSpot List Validator - Supabase Schema
+-- List Validator - Supabase Schema
 -- SECURITY-FOCUSED: No PII storage. All contact data processed in-memory only.
 -- This schema stores: users, configuration data, field mappings, AI models, enrichment rules.
 
