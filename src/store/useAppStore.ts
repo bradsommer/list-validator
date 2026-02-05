@@ -14,6 +14,13 @@ import { generateSessionId } from '@/lib/logger';
 // Column mapping: original spreadsheet header → HubSpot column heading name
 export type ColumnMapping = Record<string, string>;
 
+// Import question answer: questionId → { value, isOverride }
+export interface QuestionAnswer {
+  value: string;
+  isOverride: boolean;
+}
+export type QuestionAnswers = Record<string, QuestionAnswer>;
+
 interface AppState {
   // Session
   sessionId: string;
@@ -30,6 +37,9 @@ interface AppState {
 
   // Column mapping (spreadsheet header → export heading name)
   columnMapping: ColumnMapping;
+
+  // Import question answers
+  questionAnswers: QuestionAnswers;
 
   // Validation
   validationResult: ValidationResult | null;
@@ -58,6 +68,9 @@ interface AppState {
 
   setColumnMapping: (mapping: ColumnMapping) => void;
 
+  setQuestionAnswers: (answers: QuestionAnswers) => void;
+  setQuestionAnswer: (questionId: string, answer: QuestionAnswer) => void;
+
   setValidationResult: (result: ValidationResult | null) => void;
   setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
   setEnabledScripts: (scriptIds: string[]) => void;
@@ -75,8 +88,9 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Map Columns', 'Validate', 'Export'],
+  steps: ['Upload', 'Map Columns', 'Questions', 'Validate', 'Export'],
   columnMapping: {} as ColumnMapping,
+  questionAnswers: {} as QuestionAnswers,
   parsedFile: null,
   processedData: [],
   headerMatches: [],
@@ -109,6 +123,11 @@ export const useAppStore = create<AppState>((set) => ({
   setRequiredFields: (fields) => set({ requiredFields: fields }),
 
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
+
+  setQuestionAnswers: (answers) => set({ questionAnswers: answers }),
+  setQuestionAnswer: (questionId, answer) => set((state) => ({
+    questionAnswers: { ...state.questionAnswers, [questionId]: answer }
+  })),
 
   setValidationResult: (result) => set({ validationResult: result }),
   setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),
