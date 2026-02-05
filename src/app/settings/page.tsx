@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
+import { useAuth } from '@/contexts/AuthContext';
 import type { FieldMapping, EnrichmentConfig } from '@/types';
 
 export default function SettingsPage() {
@@ -23,7 +25,18 @@ export default function SettingsPage() {
     setNotifyOnNewCompany,
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'mappings' | 'enrichment' | 'hubspot'>('mappings');
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
+  const [activeTab, setActiveTab] = useState<'mappings' | 'enrichment' | 'hubspot' | 'billing'>('mappings');
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+
+  useEffect(() => {
+    if (tabParam === 'billing') {
+      setActiveTab('billing');
+    }
+  }, [tabParam]);
   const [showAddMapping, setShowAddMapping] = useState(false);
   const [showAddEnrichment, setShowAddEnrichment] = useState(false);
 
@@ -161,6 +174,16 @@ export default function SettingsPage() {
             }`}
           >
             HubSpot Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === 'billing'
+                ? 'bg-primary-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Billing
           </button>
         </div>
 
@@ -495,6 +518,120 @@ export default function SettingsPage() {
                   <li>HUBSPOT_ACCESS_TOKEN - Your HubSpot private app access token</li>
                   <li>HUBSPOT_PORTAL_ID - Your HubSpot portal ID</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Billing Tab */}
+        {activeTab === 'billing' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold mb-6">Subscription & Billing</h2>
+
+            <div className="space-y-6">
+              {/* Current Plan */}
+              <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Current Plan</h3>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">Pro Plan</p>
+                    <p className="text-gray-600">$19.99/month</p>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing'
+                          ? 'bg-green-100 text-green-800'
+                          : user?.subscriptionStatus === 'past_due'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {user?.subscriptionStatus === 'trialing'
+                        ? 'Trial'
+                        : user?.subscriptionStatus === 'active'
+                        ? 'Active'
+                        : user?.subscriptionStatus === 'past_due'
+                        ? 'Past Due'
+                        : user?.subscriptionStatus || 'Active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Plan Features */}
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Plan Features</h3>
+                <ul className="space-y-2">
+                  <li className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Unlimited imports
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    All validation rules
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Custom import questions
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Column mapping with memory
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    CSV & Excel export
+                  </li>
+                </ul>
+              </div>
+
+              {/* Manage Subscription Button */}
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-4">
+                  Update your payment method, view billing history, or cancel your subscription.
+                </p>
+                {user?.stripeCustomerId ? (
+                  <button
+                    onClick={async () => {
+                      setIsBillingLoading(true);
+                      try {
+                        const response = await fetch('/api/stripe/portal', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ customerId: user.stripeCustomerId }),
+                        });
+                        const data = await response.json();
+                        if (data.url) {
+                          window.location.href = data.url;
+                        }
+                      } catch (error) {
+                        console.error('Error opening billing portal:', error);
+                      }
+                      setIsBillingLoading(false);
+                    }}
+                    disabled={isBillingLoading}
+                    className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
+                  >
+                    {isBillingLoading ? 'Loading...' : 'Manage Subscription'}
+                  </button>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-700">
+                      Billing management is not available yet. Your subscription may still be processing.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

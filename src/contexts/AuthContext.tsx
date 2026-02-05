@@ -12,6 +12,8 @@ export interface User {
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
+  stripeCustomerId: string | null;
+  subscriptionStatus: string | null;
 }
 
 interface AuthContextType {

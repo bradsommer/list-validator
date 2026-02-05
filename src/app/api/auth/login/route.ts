@@ -13,6 +13,8 @@ const DEV_USER = {
   isActive: true,
   lastLogin: null,
   createdAt: new Date().toISOString(),
+  stripeCustomerId: null,
+  subscriptionStatus: 'active',
 };
 
 export async function POST(request: NextRequest) {
