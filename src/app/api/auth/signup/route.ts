@@ -39,15 +39,30 @@ export async function POST(request: NextRequest) {
         username: email.toLowerCase().trim(),
         displayName: email.split('@')[0],
         role: 'user' as const,
+        accountId: '00000000-0000-0000-0000-000000000001',
+        accountName: 'Default Account',
         isActive: true,
         lastLogin: null,
         createdAt: new Date().toISOString(),
+        stripeCustomerId: null,
+        subscriptionStatus: 'trialing',
       };
 
-      return NextResponse.json({
+      // Auto-login the user by setting the auth cookie
+      const response = NextResponse.json({
         success: true,
         user: devUser,
       });
+
+      response.cookies.set('auth_token', 'dev-token-12345', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60,
+        path: '/',
+      });
+
+      return response;
     }
 
     // Create user in database

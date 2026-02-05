@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         userId: userId,
       },
-      success_url: `${baseUrl}/login?checkout=success`,
+      success_url: `${baseUrl}/?checkout=success`,
       cancel_url: `${baseUrl}/signup?checkout=cancelled`,
       allow_promotion_codes: true,
     });
