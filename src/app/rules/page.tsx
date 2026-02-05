@@ -1,8 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import { getAvailableScripts } from '@/lib/scripts';
+import {
+  fetchDisabledRules,
+  saveDisabledRulesAsync,
+  getDisabledRulesFromLocalStorage,
+  saveDisabledRulesToLocalStorage,
+  cleanupLegacyKeys,
+} from '@/lib/validationRulesStorage';
 import type { ValidationScript } from '@/types';
 
 // Script source code for display (descriptions of what each rule does)
@@ -183,46 +191,57 @@ const DISPOSABLE_DOMAINS = [
 };
 
 export default function RulesPage() {
+  const { user } = useAuth();
   const [scripts, setScripts] = useState<ValidationScript[]>([]);
   const [enabledScripts, setEnabledScripts] = useState<Set<string>>(new Set());
   const [expandedScript, setExpandedScript] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const accountId = user?.accountId || '';
+
+  // Load disabled rules from Supabase (or localStorage fallback)
+  const loadDisabledRules = useCallback(async (allIds: Set<string>) => {
+    setIsLoading(true);
+
+    let disabledIds: string[] = [];
+    if (accountId) {
+      disabledIds = await fetchDisabledRules(accountId);
+    } else {
+      disabledIds = getDisabledRulesFromLocalStorage();
+    }
+
+    const disabledSet = new Set(disabledIds);
+    const enabledSet = new Set<string>();
+    for (const id of allIds) {
+      if (!disabledSet.has(id)) {
+        enabledSet.add(id);
+      }
+    }
+    setEnabledScripts(enabledSet);
+    setIsLoading(false);
+  }, [accountId]);
 
   useEffect(() => {
     const available = getAvailableScripts();
     setScripts(available);
 
     const allIds = new Set(available.map((s) => s.id));
-
-    // Load DISABLED scripts from localStorage — everything else is enabled by default.
-    // This means new scripts are always enabled automatically.
-    try {
-      const disabledRaw = localStorage.getItem('disabled_validation_rules');
-      if (disabledRaw) {
-        const disabledIds = new Set(JSON.parse(disabledRaw) as string[]);
-        const enabledSet = new Set<string>();
-        for (const id of allIds) {
-          if (!disabledIds.has(id)) {
-            enabledSet.add(id);
-          }
-        }
-        setEnabledScripts(enabledSet);
-      } else {
-        setEnabledScripts(allIds);
-      }
-    } catch {
-      setEnabledScripts(allIds);
-    }
+    loadDisabledRules(allIds);
 
     // Clean up legacy keys from the old enabled-list approach
-    localStorage.removeItem('enabled_validation_rules');
-    localStorage.removeItem('known_validation_rules');
-  }, []);
+    cleanupLegacyKeys();
+  }, [loadDisabledRules]);
 
-  const saveDisabledToStorage = (enabledIds: Set<string>) => {
+  const saveDisabledToStorage = async (enabledIds: Set<string>) => {
     // Save only the DISABLED script IDs — new scripts default to enabled
     const allIds = scripts.map((s) => s.id);
     const disabledIds = allIds.filter((id) => !enabledIds.has(id));
-    localStorage.setItem('disabled_validation_rules', JSON.stringify(disabledIds));
+
+    if (accountId) {
+      await saveDisabledRulesAsync(disabledIds, accountId);
+    } else {
+      saveDisabledRulesToLocalStorage(disabledIds);
+    }
   };
 
   const toggleRule = (scriptId: string) => {
@@ -279,7 +298,12 @@ export default function RulesPage() {
         </div>
 
         <div className="space-y-3">
-          {scripts.map((script) => {
+          {isLoading ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
+              Loading...
+            </div>
+          ) : (scripts.map((script) => {
             const isEnabled = enabledScripts.has(script.id);
             const isExpanded = expandedScript === script.id;
             const source = SCRIPT_SOURCE[script.id];
@@ -348,10 +372,10 @@ export default function RulesPage() {
                 )}
               </div>
             );
-          })}
+          }))}
         </div>
 
-        {scripts.length === 0 && (
+        {!isLoading && scripts.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No validation rules found.
           </div>

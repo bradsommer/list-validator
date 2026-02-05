@@ -1,38 +1,78 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import {
+  fetchColumnHeadings,
+  addColumnHeadingAsync,
+  removeColumnHeadingAsync,
+  updateColumnHeadingAsync,
   getColumnHeadings,
-  addColumnHeading,
-  removeColumnHeading,
-  updateColumnHeading,
   type ColumnHeading,
 } from '@/lib/columnHeadings';
 
 export default function ColumnHeadingsPage() {
+  const { user } = useAuth();
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const accountId = user?.accountId || '';
+
+  // Load headings from Supabase (or localStorage fallback)
+  const loadHeadings = useCallback(async () => {
+    if (!accountId) {
+      // No account - use localStorage only
+      setHeadings(getColumnHeadings());
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await fetchColumnHeadings(accountId);
+      setHeadings(data);
+    } catch (err) {
+      console.error('Failed to load headings:', err);
+      setHeadings(getColumnHeadings());
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId]);
 
   useEffect(() => {
-    setHeadings(getColumnHeadings());
-  }, []);
+    loadHeadings();
+  }, [loadHeadings]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newName.trim();
     if (!trimmed) return;
     // Prevent duplicates
     if (headings.some((h) => h.name.toLowerCase() === trimmed.toLowerCase())) return;
-    addColumnHeading(trimmed);
-    setHeadings(getColumnHeadings());
+
+    if (accountId) {
+      await addColumnHeadingAsync(trimmed, accountId);
+      await loadHeadings();
+    } else {
+      const { addColumnHeading } = await import('@/lib/columnHeadings');
+      addColumnHeading(trimmed);
+      setHeadings(getColumnHeadings());
+    }
     setNewName('');
   };
 
-  const handleRemove = (id: string) => {
-    removeColumnHeading(id);
-    setHeadings(getColumnHeadings());
+  const handleRemove = async (id: string) => {
+    if (accountId) {
+      await removeColumnHeadingAsync(id, accountId);
+      await loadHeadings();
+    } else {
+      const { removeColumnHeading } = await import('@/lib/columnHeadings');
+      removeColumnHeading(id);
+      setHeadings(getColumnHeadings());
+    }
   };
 
   const handleStartEdit = (heading: ColumnHeading) => {
@@ -40,12 +80,19 @@ export default function ColumnHeadingsPage() {
     setEditingName(heading.name);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingId) return;
     const trimmed = editingName.trim();
     if (!trimmed) return;
-    updateColumnHeading(editingId, trimmed);
-    setHeadings(getColumnHeadings());
+
+    if (accountId) {
+      await updateColumnHeadingAsync(editingId, trimmed, accountId);
+      await loadHeadings();
+    } else {
+      const { updateColumnHeading } = await import('@/lib/columnHeadings');
+      updateColumnHeading(editingId, trimmed);
+      setHeadings(getColumnHeadings());
+    }
     setEditingId(null);
     setEditingName('');
   };
@@ -92,7 +139,12 @@ export default function ColumnHeadingsPage() {
 
         {/* Headings list */}
         <div className="border border-gray-200 rounded-lg overflow-hidden">
-          {headings.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
+              Loading...
+            </div>
+          ) : headings.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               No column headings added yet. Add your first one above.
             </div>
