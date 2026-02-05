@@ -7,6 +7,10 @@
 --   checkbox: Single checkbox (yes/no style)
 --   radio: Radio button group (single selection)
 --   multiselect: Multiple selection checkboxes
+--
+-- option_values: Maps option labels to output values (e.g., {"B2B": "Business-to-Business"})
+--   If empty or key not present, uses the option label as the output value
+-- default_value: If set, skip asking the user and use this value for all rows
 
 CREATE TABLE IF NOT EXISTS import_questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -15,6 +19,7 @@ CREATE TABLE IF NOT EXISTS import_questions (
   column_header TEXT NOT NULL,
   question_type TEXT NOT NULL CHECK (question_type IN ('text', 'dropdown', 'checkbox', 'radio', 'multiselect')),
   options JSONB DEFAULT '[]',
+  option_values JSONB DEFAULT '{}',
   default_value TEXT DEFAULT NULL,
   is_required BOOLEAN DEFAULT false,
   display_order INTEGER DEFAULT 100,
