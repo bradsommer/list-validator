@@ -67,22 +67,30 @@ export class SolutionNormalizationScript implements IValidationScript {
       const newRow = { ...row };
       const originalValue = row[solHeader];
 
+      // Log first few rows for debugging
+      if (index < 5) {
+        console.log(`[SolutionNormalization] Row ${index}: value='${originalValue}', type=${typeof originalValue}`);
+      }
+
       if (originalValue !== null && originalValue !== undefined) {
         const valueStr = String(originalValue).trim();
 
         if (valueStr === '') {
+          if (index < 5) console.log(`[SolutionNormalization] Row ${index}: Empty value, skipping`);
           modifiedRows.push(newRow);
           return;
         }
 
         // Exact match
         if (VALID_SOLUTIONS.has(valueStr)) {
+          if (index < 5) console.log(`[SolutionNormalization] Row ${index}: Already valid solution`);
           modifiedRows.push(newRow);
           return;
         }
 
         // Case-insensitive match
         const matched = SOLUTION_LOOKUP.get(valueStr.toUpperCase());
+        if (index < 5) console.log(`[SolutionNormalization] Row ${index}: Lookup '${valueStr.toUpperCase()}' → '${matched || 'NOT FOUND'}'`);
         if (matched) {
           newRow[solHeader] = matched;
           changes.push({

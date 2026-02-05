@@ -149,18 +149,25 @@ export class StateNormalizationScript implements IValidationScript {
       const newRow = { ...row };
       const originalValue = row[stateHeader];
 
+      // Log first few rows for debugging
+      if (index < 5) {
+        console.log(`[StateNormalization] Row ${index}: value='${originalValue}', type=${typeof originalValue}`);
+      }
+
       if (originalValue !== null && originalValue !== undefined) {
         const valueStr = String(originalValue).trim();
         const upperValue = valueStr.toUpperCase();
 
         // Skip if already a valid full state name
         if (VALID_STATE_NAMES.has(valueStr)) {
+          if (index < 5) console.log(`[StateNormalization] Row ${index}: Already valid state name`);
           modifiedRows.push(newRow);
           return;
         }
 
         // Check if it's a state abbreviation
         if (STATE_MAP[upperValue]) {
+          if (index < 5) console.log(`[StateNormalization] Row ${index}: Converting '${upperValue}' to '${STATE_MAP[upperValue]}'`);
           const newValue = STATE_MAP[upperValue];
           newRow[stateHeader] = newValue;
           changes.push({
