@@ -9,11 +9,11 @@ import type { FieldMapping, EnrichmentConfig } from '@/types';
 
 export default function SettingsPage() {
   const {
-    fieldMappings,
-    enrichmentConfigs,
-    requiredFields,
-    defaultTaskAssignee,
-    notifyOnNewCompany,
+    fieldMappings = [],
+    enrichmentConfigs = [],
+    requiredFields = [],
+    defaultTaskAssignee = '',
+    notifyOnNewCompany = [],
     addFieldMapping,
     updateFieldMapping,
     removeFieldMapping,
