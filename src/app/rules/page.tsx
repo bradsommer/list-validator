@@ -15,8 +15,8 @@ import {
   type UpdateRuleInput,
 } from '@/lib/accountRules';
 
-// Available HubSpot fields for targeting
-const AVAILABLE_FIELDS = [
+// Common HubSpot fields for targeting (can add custom fields too)
+const COMMON_FIELDS = [
   'email',
   'firstname',
   'lastname',
@@ -25,6 +25,7 @@ const AVAILABLE_FIELDS = [
   'jobtitle',
   'city',
   'state',
+  'region',
   'country',
   'zip',
   'website',
@@ -38,6 +39,7 @@ interface RuleFormData {
   ruleType: 'transform' | 'validate';
   targetFields: string[];
   displayOrder: number;
+  code: string;
 }
 
 const emptyFormData: RuleFormData = {
@@ -47,7 +49,30 @@ const emptyFormData: RuleFormData = {
   ruleType: 'transform',
   targetFields: [],
   displayOrder: 0,
+  code: '',
 };
+
+const defaultCodeTemplate = `// Transform function receives: value, fieldName, row
+// Return the transformed value, or original value if no change needed
+// Example:
+function transform(value, fieldName, row) {
+  if (!value) return value;
+
+  // Your transformation logic here
+  return value.trim();
+}`;
+
+const defaultValidateTemplate = `// Validate function receives: value, fieldName, row
+// Return { valid: true } or { valid: false, message: "Error message" }
+// Example:
+function validate(value, fieldName, row) {
+  if (!value) {
+    return { valid: false, message: \`\${fieldName} is required\` };
+  }
+
+  // Your validation logic here
+  return { valid: true };
+}`;
 
 export default function RulesPage() {
   const { user, canEditRules } = useAuth();
@@ -64,8 +89,16 @@ export default function RulesPage() {
   const [formData, setFormData] = useState<RuleFormData>(emptyFormData);
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [customField, setCustomField] = useState('');
 
   const accountId = user?.accountId || 'default';
+
+  // Get all unique fields from rules + common fields
+  const getAllFields = useCallback(() => {
+    const fieldsFromRules = rules.flatMap((r) => r.targetFields);
+    const allFields = new Set([...COMMON_FIELDS, ...fieldsFromRules, ...formData.targetFields]);
+    return Array.from(allFields).sort();
+  }, [rules, formData.targetFields]);
 
   // Load rules from database, auto-initialize if empty
   const loadRules = useCallback(async () => {
@@ -96,7 +129,14 @@ export default function RulesPage() {
   }, [loadRules]);
 
   // Fetch source code for a rule
-  const fetchSourceCode = async (ruleId: string) => {
+  const fetchSourceCode = async (ruleId: string, rule: AccountRule) => {
+    // First check if code is stored in config
+    const storedCode = rule.config?.code as string | undefined;
+    if (storedCode) {
+      setSourceCode((prev) => ({ ...prev, [ruleId]: storedCode }));
+      return;
+    }
+
     if (sourceCode[ruleId]) return; // Already loaded
 
     setLoadingSource(ruleId);
@@ -106,7 +146,7 @@ export default function RulesPage() {
         const data = await response.json();
         setSourceCode((prev) => ({ ...prev, [ruleId]: data.source }));
       } else {
-        setSourceCode((prev) => ({ ...prev, [ruleId]: '// Source code not available' }));
+        setSourceCode((prev) => ({ ...prev, [ruleId]: '// No code defined for this rule yet' }));
       }
     } catch {
       setSourceCode((prev) => ({ ...prev, [ruleId]: '// Failed to load source code' }));
@@ -134,7 +174,10 @@ export default function RulesPage() {
       setExpandedRule(null);
     } else {
       setExpandedRule(ruleId);
-      fetchSourceCode(ruleId);
+      const rule = rules.find((r) => r.ruleId === ruleId);
+      if (rule) {
+        fetchSourceCode(ruleId, rule);
+      }
     }
   };
 
@@ -162,13 +205,16 @@ export default function RulesPage() {
     setFormData({
       ...emptyFormData,
       displayOrder: rules.length > 0 ? Math.max(...rules.map((r) => r.displayOrder)) + 10 : 10,
+      code: defaultCodeTemplate,
     });
     setFormError('');
+    setCustomField('');
     setShowModal(true);
   };
 
   const openEditModal = (rule: AccountRule) => {
     setEditingRule(rule);
+    const storedCode = (rule.config?.code as string) || '';
     setFormData({
       ruleId: rule.ruleId,
       name: rule.name,
@@ -176,8 +222,10 @@ export default function RulesPage() {
       ruleType: rule.ruleType,
       targetFields: rule.targetFields,
       displayOrder: rule.displayOrder,
+      code: storedCode || (rule.ruleType === 'transform' ? defaultCodeTemplate : defaultValidateTemplate),
     });
     setFormError('');
+    setCustomField('');
     setShowModal(true);
   };
 
@@ -186,6 +234,7 @@ export default function RulesPage() {
     setEditingRule(null);
     setFormData(emptyFormData);
     setFormError('');
+    setCustomField('');
   };
 
   const handleSave = async () => {
@@ -221,6 +270,7 @@ export default function RulesPage() {
           ruleType: formData.ruleType,
           targetFields: formData.targetFields,
           displayOrder: formData.displayOrder,
+          config: { ...editingRule.config, code: formData.code },
         };
 
         const success = await updateRule(accountId, editingRule.ruleId, updates);
@@ -228,6 +278,9 @@ export default function RulesPage() {
           setFormError('Failed to update rule');
           return;
         }
+
+        // Update source code cache
+        setSourceCode((prev) => ({ ...prev, [editingRule.ruleId]: formData.code }));
       } else {
         // Create new rule
         const input: CreateRuleInput = {
@@ -239,6 +292,7 @@ export default function RulesPage() {
           targetFields: formData.targetFields,
           displayOrder: formData.displayOrder,
           enabled: true,
+          config: { code: formData.code },
         };
 
         const newRule = await createRule(input);
@@ -276,6 +330,32 @@ export default function RulesPage() {
       targetFields: prev.targetFields.includes(field)
         ? prev.targetFields.filter((f) => f !== field)
         : [...prev.targetFields, field],
+    }));
+  };
+
+  const addCustomField = () => {
+    const field = customField.trim().toLowerCase().replace(/\s+/g, '_');
+    if (field && !formData.targetFields.includes(field)) {
+      setFormData((prev) => ({
+        ...prev,
+        targetFields: [...prev.targetFields, field],
+      }));
+    }
+    setCustomField('');
+  };
+
+  const handleRuleTypeChange = (newType: 'transform' | 'validate') => {
+    const currentCode = formData.code;
+    const isDefaultTransform = currentCode === defaultCodeTemplate || currentCode === '';
+    const isDefaultValidate = currentCode === defaultValidateTemplate;
+
+    setFormData((prev) => ({
+      ...prev,
+      ruleType: newType,
+      // Only update code template if it's still the default template
+      code: isDefaultTransform || isDefaultValidate
+        ? (newType === 'transform' ? defaultCodeTemplate : defaultValidateTemplate)
+        : currentCode,
     }));
   };
 
@@ -330,7 +410,7 @@ export default function RulesPage() {
           ) : (
             rules.map((rule) => {
               const isExpanded = expandedRule === rule.ruleId;
-              const source = sourceCode[rule.ruleId];
+              const source = sourceCode[rule.ruleId] || (rule.config?.code as string);
               const isLoadingThisSource = loadingSource === rule.ruleId;
 
               return (
@@ -370,6 +450,11 @@ export default function RulesPage() {
                           >
                             {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
                           </span>
+                          {rule.config?.code && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                              Custom Code
+                            </span>
+                          )}
                         </div>
                         {rule.description && (
                           <p className="text-sm text-gray-500 mt-0.5">{rule.description}</p>
@@ -418,7 +503,7 @@ export default function RulesPage() {
                         <div className="text-gray-400 text-sm">Loading source code...</div>
                       ) : (
                         <pre className="text-sm text-green-400 font-mono whitespace-pre">
-                          {source || '// Loading...'}
+                          {source || '// No code defined for this rule yet'}
                         </pre>
                       )}
                     </div>
@@ -452,7 +537,7 @@ export default function RulesPage() {
         {/* Add/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {editingRule ? 'Edit Rule' : 'Add Rule'}
@@ -465,35 +550,37 @@ export default function RulesPage() {
                     </div>
                   )}
 
-                  {!editingRule && (
-                    <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {!editingRule && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Rule ID
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.ruleId}
+                          onChange={(e) => setFormData({ ...formData, ruleId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                          placeholder="e.g., region-normalization"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Unique identifier (lowercase, no spaces)
+                        </p>
+                      </div>
+                    )}
+
+                    <div className={editingRule ? 'col-span-2' : ''}>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Rule ID
+                        Name
                       </label>
                       <input
                         type="text"
-                        value={formData.ruleId}
-                        onChange={(e) => setFormData({ ...formData, ruleId: e.target.value })}
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                        placeholder="e.g., custom-phone-format"
+                        placeholder="e.g., Region Normalization"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        A unique identifier for this rule (lowercase, no spaces)
-                      </p>
                     </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      placeholder="e.g., Custom Phone Format"
-                    />
                   </div>
 
                   <div>
@@ -509,28 +596,43 @@ export default function RulesPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Rule Type
-                    </label>
-                    <select
-                      value={formData.ruleType}
-                      onChange={(e) =>
-                        setFormData({ ...formData, ruleType: e.target.value as 'transform' | 'validate' })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    >
-                      <option value="transform">Transform - Modifies data</option>
-                      <option value="validate">Validate - Checks data and reports issues</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rule Type
+                      </label>
+                      <select
+                        value={formData.ruleType}
+                        onChange={(e) => handleRuleTypeChange(e.target.value as 'transform' | 'validate')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      >
+                        <option value="transform">Transform - Modifies data</option>
+                        <option value="validate">Validate - Checks data</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Execution Order
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.displayOrder}
+                        onChange={(e) =>
+                          setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Lower numbers run first</p>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Target Fields
                     </label>
-                    <div className="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg">
-                      {AVAILABLE_FIELDS.map((field) => (
+                    <div className="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50">
+                      {getAllFields().map((field) => (
                         <button
                           key={field}
                           type="button"
@@ -538,15 +640,32 @@ export default function RulesPage() {
                           className={`px-2 py-1 text-xs rounded-full transition-colors ${
                             formData.targetFields.includes(field)
                               ? 'bg-primary-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-white text-gray-700 hover:bg-gray-200 border border-gray-300'
                           }`}
                         >
                           {field}
                         </button>
                       ))}
                     </div>
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={customField}
+                        onChange={(e) => setCustomField(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomField())}
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="Add custom field..."
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomField}
+                        className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                      >
+                        Add
+                      </button>
+                    </div>
                     {formData.targetFields.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-2">
                         Selected: {formData.targetFields.join(', ')}
                       </p>
                     )}
@@ -554,18 +673,20 @@ export default function RulesPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Execution Order
+                      Rule Code (JavaScript)
                     </label>
-                    <input
-                      type="number"
-                      value={formData.displayOrder}
-                      onChange={(e) =>
-                        setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    <textarea
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none font-mono text-sm bg-gray-900 text-green-400"
+                      rows={12}
+                      spellCheck={false}
+                      placeholder="// Enter your rule code here..."
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Lower numbers run first
+                      {formData.ruleType === 'transform'
+                        ? 'Transform functions receive (value, fieldName, row) and return the modified value.'
+                        : 'Validate functions receive (value, fieldName, row) and return { valid: boolean, message?: string }.'}
                     </p>
                   </div>
                 </div>
