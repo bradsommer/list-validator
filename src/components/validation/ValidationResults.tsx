@@ -20,6 +20,7 @@ export function ValidationResults() {
     scriptRunnerResult,
     enabledScripts,
     availableScripts,
+    questionColumnValues,
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
@@ -98,8 +99,18 @@ export function ValidationResults() {
       setValidationResult(result.validationResult);
       setScriptRunnerResult(result.scriptRunnerResult);
 
+      // Apply question column values to transformed data
+      // This ensures question answers persist even when validation re-runs from original data
+      let finalData = result.transformedData;
+      if (Object.keys(questionColumnValues).length > 0) {
+        finalData = result.transformedData.map((row) => ({
+          ...row,
+          ...questionColumnValues,
+        }));
+      }
+
       // Always update processed data with transformed output from scripts
-      setProcessedData(result.transformedData);
+      setProcessedData(finalData);
 
       if (result.validationResult.isValid) {
         logSuccess('validate', 'Validation passed', sessionId, {
@@ -145,8 +156,12 @@ export function ValidationResults() {
   const handleExportCSV = () => {
     if (processedData.length === 0) return;
 
-    // Use all headers from the data (original column names)
-    const allHeaders = headerMatches.map((m) => m.originalHeader);
+    // Use all headers from the data (original column names + question columns)
+    const originalHeaders = headerMatches.map((m) => m.originalHeader);
+    const questionHeaders = Object.keys(questionColumnValues).filter(
+      (h) => !originalHeaders.includes(h)
+    );
+    const allHeaders = [...originalHeaders, ...questionHeaders];
 
     // Build CSV with original headers
     const csvHeaders = allHeaders.map((h) => {
@@ -478,15 +493,19 @@ export function ValidationResults() {
 
 // Data preview table showing transformed data with highlighted changes
 function DataPreviewTable() {
-  const { processedData, headerMatches, scriptRunnerResult } = useAppStore();
+  const { processedData, headerMatches, scriptRunnerResult, questionColumnValues } = useAppStore();
   const [showPreview, setShowPreview] = useState(false);
   const [previewPage, setPreviewPage] = useState(0);
   const pageSize = 25;
 
   if (processedData.length === 0) return null;
 
-  // Show all columns from the data
-  const allHeaders = headerMatches.map((m) => m.originalHeader);
+  // Show all columns from the data (original + question columns)
+  const originalHeaders = headerMatches.map((m) => m.originalHeader);
+  const questionHeaders = Object.keys(questionColumnValues).filter(
+    (h) => !originalHeaders.includes(h)
+  );
+  const allHeaders = [...originalHeaders, ...questionHeaders];
 
   // Build a set of changed cells for highlighting
   const changedCells = new Set<string>();
