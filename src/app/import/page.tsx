@@ -7,6 +7,7 @@ import { StepIndicator } from '@/components/layout/StepIndicator';
 import { LogViewer } from '@/components/layout/LogViewer';
 import { FileUpload } from '@/components/upload/FileUpload';
 import { ColumnMapper } from '@/components/upload/ColumnMapper';
+import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
 import { ValidationResults } from '@/components/validation/ValidationResults';
 import { AuditReview } from '@/components/audit/AuditReview';
 
@@ -33,8 +34,10 @@ export default function ImportPage() {
       case 1:
         return <ColumnMapper />;
       case 2:
-        return <ValidationResults />;
+        return <ImportQuestionsStep />;
       case 3:
+        return <ValidationResults />;
+      case 4:
         return <AuditReview />;
       default:
         return <FileUpload />;
