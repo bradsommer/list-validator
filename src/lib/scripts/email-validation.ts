@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptError, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // Personal email domains that might need review
 const PERSONAL_DOMAINS = new Set([
@@ -54,11 +55,9 @@ export class EmailValidationScript implements IValidationScript {
     const modifiedRows: ParsedRow[] = [];
 
     // Find the email field
-    const emailMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'email'
-    );
+    const emailHeader = findColumnHeader('email', headerMatches, rows);
 
-    if (!emailMatch) {
+    if (!emailHeader) {
       // No email field mapped
       if (requiredFields.includes('email')) {
         errors.push({
@@ -77,8 +76,6 @@ export class EmailValidationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const emailHeader = emailMatch.originalHeader;
     const isRequired = requiredFields.includes('email');
 
     rows.forEach((row, index) => {

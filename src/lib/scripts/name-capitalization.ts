@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 // Common name prefixes that should stay lowercase
 const LOWERCASE_PREFIXES = new Set(['van', 'von', 'de', 'del', 'della', 'di', 'da', 'du', 'la', 'le', 'el']);
@@ -29,15 +30,14 @@ export class NameCapitalizationScript implements IValidationScript {
     const modifiedRows: ParsedRow[] = [];
 
     // Find name fields
-    const firstNameMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'firstname');
-    const lastNameMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'lastname');
+    const firstHeader = findColumnHeader('firstname', headerMatches, rows);
+    const lastHeader = findColumnHeader('lastname', headerMatches, rows);
 
     rows.forEach((row, index) => {
       const newRow = { ...row };
 
       // Process first name
-      if (firstNameMatch) {
-        const firstHeader = firstNameMatch.originalHeader;
+      if (firstHeader) {
         const originalFirst = row[firstHeader];
 
         if (originalFirst !== null && originalFirst !== undefined && String(originalFirst).trim() !== '') {
@@ -68,8 +68,7 @@ export class NameCapitalizationScript implements IValidationScript {
       }
 
       // Process last name
-      if (lastNameMatch) {
-        const lastHeader = lastNameMatch.originalHeader;
+      if (lastHeader) {
         const originalLast = row[lastHeader];
 
         if (originalLast !== null && originalLast !== undefined && String(originalLast).trim() !== '') {

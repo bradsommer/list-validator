@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 export class DuplicateDetectionScript implements IValidationScript {
   id = 'duplicate-detection';
@@ -15,14 +16,13 @@ export class DuplicateDetectionScript implements IValidationScript {
     const modifiedRows = [...rows];
 
     // Find relevant fields
-    const emailMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'email');
-    const firstNameMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'firstname');
-    const lastNameMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'lastname');
-    const phoneMatch = headerMatches.find((m) => m.matchedField?.hubspotField === 'phone');
+    const emailHeader = findColumnHeader('email', headerMatches, rows);
+    const firstHeader = findColumnHeader('firstname', headerMatches, rows);
+    const lastHeader = findColumnHeader('lastname', headerMatches, rows);
+    const phoneHeader = findColumnHeader('phone', headerMatches, rows);
 
     // Check for email duplicates
-    if (emailMatch) {
-      const emailHeader = emailMatch.originalHeader;
+    if (emailHeader) {
       const emailOccurrences = new Map<string, number[]>();
 
       rows.forEach((row, index) => {
@@ -50,9 +50,7 @@ export class DuplicateDetectionScript implements IValidationScript {
     }
 
     // Check for name duplicates (first + last)
-    if (firstNameMatch && lastNameMatch) {
-      const firstHeader = firstNameMatch.originalHeader;
-      const lastHeader = lastNameMatch.originalHeader;
+    if (firstHeader && lastHeader) {
       const nameOccurrences = new Map<string, number[]>();
 
       rows.forEach((row, index) => {
@@ -73,11 +71,11 @@ export class DuplicateDetectionScript implements IValidationScript {
           indices.forEach((idx) => {
             // Only warn if different emails (same email duplicates already flagged)
             const rowEmails = indices.map((i) =>
-              emailMatch ? String(rows[i][emailMatch.originalHeader] || '').toLowerCase().trim() : ''
+              emailHeader ? String(rows[i][emailHeader] || '').toLowerCase().trim() : ''
             );
             const uniqueEmails = new Set(rowEmails.filter((e) => e));
 
-            if (uniqueEmails.size > 1 || !emailMatch) {
+            if (uniqueEmails.size > 1 || !emailHeader) {
               warnings.push({
                 rowIndex: idx,
                 field: 'name',
@@ -92,8 +90,7 @@ export class DuplicateDetectionScript implements IValidationScript {
     }
 
     // Check for phone duplicates
-    if (phoneMatch) {
-      const phoneHeader = phoneMatch.originalHeader;
+    if (phoneHeader) {
       const phoneOccurrences = new Map<string, number[]>();
 
       rows.forEach((row, index) => {

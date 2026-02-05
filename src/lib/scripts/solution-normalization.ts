@@ -1,5 +1,6 @@
 import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
 
 const VALID_SOLUTIONS = new Set([
   'OPTIMAL',
@@ -31,11 +32,10 @@ export class SolutionNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const solMatch = headerMatches.find(
-      (m) => m.matchedField?.hubspotField === 'solution'
-    );
+    // Find the solution column — tries headerMatches first, then scans row keys
+    const solHeader = findColumnHeader('solution', headerMatches, rows);
 
-    if (!solMatch) {
+    if (!solHeader) {
       return {
         success: true,
         changes: [],
@@ -44,8 +44,6 @@ export class SolutionNormalizationScript implements IValidationScript {
         modifiedRows: [...rows],
       };
     }
-
-    const solHeader = solMatch.originalHeader;
 
     rows.forEach((row, index) => {
       const newRow = { ...row };
