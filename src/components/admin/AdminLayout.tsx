@@ -9,21 +9,39 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const mainNavItems = [
+// Permission types for nav items
+type NavPermission = 'all' | 'admin_only' | 'can_edit';
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  permission?: NavPermission;  // defaults to 'all'
+}
+
+const mainNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
+  { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', permission: 'can_edit' },
   { href: '/rules', label: 'Rules', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
   { href: '/import-questions', label: 'Import Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { href: '/column-headings', label: 'Column Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
-  { href: '/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
-  { href: '/settings?tab=billing', label: 'Billing', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
+  { href: '/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', permission: 'admin_only' },
+  { href: '/settings?tab=billing', label: 'Billing', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', permission: 'admin_only' },
 ];
 
-const adminNavItems = [
-  { href: '/admin/users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+const adminNavItems: NavItem[] = [
+  { href: '/admin/users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', permission: 'admin_only' },
 ];
 
 const allNavItems = [...mainNavItems, ...adminNavItems];
+
+// Role display names
+const roleDisplayNames: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  user: 'Standard User',
+  view_only: 'View Only',
+};
 
 function NavItem({ href, label, icon, isActive }: { href: string; label: string; icon: string; isActive: boolean }) {
   return (
@@ -58,7 +76,7 @@ function NavItem({ href, label, icon, isActive }: { href: string; label: string;
 export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isLoading, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, canEdit, isLoading, isAuthenticated } = useAuth();
 
   // Show loading state
   if (isLoading) {
@@ -79,6 +97,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     await logout();
     router.push('/login');
   };
+
+  // Filter nav items based on permissions
+  const canShowItem = (item: NavItem): boolean => {
+    if (!item.permission || item.permission === 'all') return true;
+    if (item.permission === 'admin_only') return isAdmin;
+    if (item.permission === 'can_edit') return canEdit;
+    return true;
+  };
+
+  const visibleMainItems = mainNavItems.filter(canShowItem);
+  const visibleAdminItems = adminNavItems.filter(canShowItem);
 
   // Find active page title
   const activeItem = allNavItems.find((item) =>
@@ -104,7 +133,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <nav className="flex-1 p-4 overflow-y-auto">
           {/* Main navigation */}
           <ul className="space-y-1">
-            {mainNavItems.map((item) => (
+            {visibleMainItems.map((item) => (
               <NavItem
                 key={item.href}
                 {...item}
@@ -113,14 +142,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             ))}
           </ul>
 
-          {/* Admin section */}
-          {isAdmin && (
+          {/* Admin section - only show if there are visible admin items */}
+          {visibleAdminItems.length > 0 && (
             <>
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
-                Settings
+                Admin
               </div>
               <ul className="space-y-1">
-                {adminNavItems.map((item) => (
+                {visibleAdminItems.map((item) => (
                   <NavItem
                     key={item.href}
                     {...item}
@@ -144,9 +173,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-sm font-medium text-gray-900 truncate">
                 {user?.displayName || user?.username}
               </p>
+              <p className="text-xs text-gray-500">
+                {user?.role ? roleDisplayNames[user.role] || user.role : ''}
+              </p>
               <button
                 onClick={handleLogout}
-                className="text-xs text-gray-500 hover:text-gray-700"
+                className="text-xs text-primary-600 hover:text-primary-700 mt-1"
               >
                 Sign out
               </button>

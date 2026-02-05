@@ -11,7 +11,7 @@ import {
 } from '@/lib/accountRules';
 
 export default function RulesPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, canEditRules } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
   const [sourceCode, setSourceCode] = useState<Record<string, string>>({});
@@ -118,23 +118,28 @@ export default function RulesPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-600">
-              Validation rules that clean and format your uploaded data. Toggle rules on or off to control which validations run during import.
+              Validation rules that clean and format your uploaded data.
+              {canEditRules
+                ? ' Toggle rules on or off to control which validations run during import.'
+                : ' Contact an admin to enable or disable rules.'}
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={enableAll}
-              className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
-            >
-              Enable All
-            </button>
-            <button
-              onClick={disableAll}
-              className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100"
-            >
-              Disable All
-            </button>
-          </div>
+          {canEditRules && (
+            <div className="flex gap-2">
+              <button
+                onClick={enableAll}
+                className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
+              >
+                Enable All
+              </button>
+              <button
+                onClick={disableAll}
+                className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                Disable All
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="text-sm text-gray-500">
@@ -164,10 +169,12 @@ export default function RulesPage() {
                     <div className="flex items-center gap-3 flex-1">
                       {/* Toggle */}
                       <button
-                        onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
+                        onClick={() => canEditRules && handleToggleRule(rule.ruleId, rule.enabled)}
+                        disabled={!canEditRules}
                         className={`relative w-10 h-5 rounded-full transition-colors ${
                           rule.enabled ? 'bg-green-500' : 'bg-gray-300'
-                        }`}
+                        } ${!canEditRules ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        title={!canEditRules ? 'You do not have permission to modify rules' : ''}
                       >
                         <span
                           className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${

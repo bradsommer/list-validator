@@ -6,8 +6,8 @@ const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.DEV
 const DEV_USER = {
   id: 'dev-user-id',
   username: 'admin@example.com',
-  displayName: 'Administrator',
-  role: 'admin' as const,
+  displayName: 'Super Admin',
+  role: 'super_admin' as const,
   accountId: '00000000-0000-0000-0000-000000000001',
   accountName: 'Default Account',
   isActive: true,

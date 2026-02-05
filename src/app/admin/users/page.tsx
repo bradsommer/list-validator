@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 
 // Development mode check
 const DEV_MODE = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS !== 'false';
@@ -12,11 +12,25 @@ interface User {
   id: string;
   username: string;
   display_name: string | null;
-  role: 'admin' | 'user';
+  role: UserRole;
   is_active: boolean;
   last_login: string | null;
   created_at: string;
 }
+
+const roleDisplayNames: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  user: 'Standard User',
+  view_only: 'View Only',
+};
+
+const roleStyles: Record<UserRole, string> = {
+  super_admin: 'bg-red-100 text-red-700',
+  admin: 'bg-purple-100 text-purple-700',
+  user: 'bg-blue-100 text-blue-700',
+  view_only: 'bg-gray-100 text-gray-700',
+};
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -36,7 +50,7 @@ export default function UsersPage() {
     username: '',
     password: '',
     display_name: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as UserRole,
   });
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -305,13 +319,9 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-4">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        user.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-2 py-1 text-xs rounded-full ${roleStyles[user.role] || 'bg-gray-100 text-gray-700'}`}
                     >
-                      {user.role}
+                      {roleDisplayNames[user.role] || user.role}
                     </span>
                   </td>
                   <td className="px-4 py-4">
@@ -433,12 +443,14 @@ export default function UsersPage() {
                     <select
                       value={formData.role}
                       onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })
+                        setFormData({ ...formData, role: e.target.value as UserRole })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
-                      <option value="user">User</option>
+                      <option value="super_admin">Super Admin</option>
                       <option value="admin">Admin</option>
+                      <option value="user">Standard User</option>
+                      <option value="view_only">View Only</option>
                     </select>
                   </div>
                 </div>

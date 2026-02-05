@@ -1,11 +1,13 @@
 import { supabase } from './supabase';
 import { cookies } from 'next/headers';
 
+export type UserRole = 'super_admin' | 'admin' | 'user' | 'view_only';
+
 export interface User {
   id: string;
   username: string;
   displayName: string | null;
-  role: 'admin' | 'user';
+  role: UserRole;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
@@ -140,7 +142,7 @@ export async function createUser(
   username: string,
   password: string,
   displayName: string,
-  role: 'admin' | 'user',
+  role: UserRole = 'user',
   createdById?: string
 ): Promise<AuthResult> {
   try {
