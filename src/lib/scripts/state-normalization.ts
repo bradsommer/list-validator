@@ -113,7 +113,7 @@ export class StateNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // DEBUG: Log all available headers
+    // DEBUG: Log all available headers and first row
     console.log('[StateNormalization] headerMatches:', headerMatches.map(m => ({
       original: m.originalHeader,
       matched: m.matchedField?.hubspotField,
@@ -121,6 +121,7 @@ export class StateNormalizationScript implements IValidationScript {
     })));
     if (rows.length > 0) {
       console.log('[StateNormalization] Row keys:', Object.keys(rows[0]));
+      console.log('[StateNormalization] First row data:', JSON.stringify(rows[0], null, 2));
     }
 
     // Find the state column — tries headerMatches first, then scans row keys
@@ -149,18 +150,25 @@ export class StateNormalizationScript implements IValidationScript {
       const newRow = { ...row };
       const originalValue = row[stateHeader];
 
+      // Log first few rows for debugging
+      if (index < 5) {
+        console.log(`[StateNormalization] Row ${index}: value='${originalValue}', type=${typeof originalValue}`);
+      }
+
       if (originalValue !== null && originalValue !== undefined) {
         const valueStr = String(originalValue).trim();
         const upperValue = valueStr.toUpperCase();
 
         // Skip if already a valid full state name
         if (VALID_STATE_NAMES.has(valueStr)) {
+          if (index < 5) console.log(`[StateNormalization] Row ${index}: Already valid state name`);
           modifiedRows.push(newRow);
           return;
         }
 
         // Check if it's a state abbreviation
         if (STATE_MAP[upperValue]) {
+          if (index < 5) console.log(`[StateNormalization] Row ${index}: Converting '${upperValue}' to '${STATE_MAP[upperValue]}'`);
           const newValue = STATE_MAP[upperValue];
           newRow[stateHeader] = newValue;
           changes.push({

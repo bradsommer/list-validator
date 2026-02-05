@@ -6,8 +6,9 @@ import type { ParsedRow } from '@/types';
  * Used as a fallback when headerMatches detection misses a column.
  */
 const HEADER_PATTERNS: Record<string, string[]> = {
-  state: ['state', 'state/province', 'state province', 'state/region', 'state region', 'province', 'region'],
-  solution: ['solution', 'solution type', 'solution_type'],
+  // State patterns - ordered from most specific to least specific
+  state: ['state/province', 'state province', 'state/region', 'state region', 'state_province', 'state_region', 'province', 'region', 'state'],
+  solution: ['solution type', 'solution_type', 'solutiontype', 'solution'],
   email: ['email', 'e-mail', 'email address', 'email_address'],
   phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'mobile', 'cell', 'cell phone', 'mobile phone'],
   firstname: ['first name', 'first_name', 'firstname', 'first', 'given name', 'given_name'],
@@ -67,20 +68,32 @@ export function findColumnHeader(
   const rowKeys = Object.keys(rows[0]);
   console.log(`[findColumnHeader] Scanning ${rowKeys.length} columns for '${fieldName}':`, rowKeys);
 
+  // First pass: exact match after normalization
   for (const key of rowKeys) {
     const normalizedKey = key.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
     console.log(`[findColumnHeader] Checking '${key}' → normalized: '${normalizedKey}'`);
 
-    // Exact match against patterns
     if (patterns.includes(normalizedKey)) {
       console.log(`[findColumnHeader] ✓ Found '${fieldName}' via exact match: '${key}' (normalized: '${normalizedKey}')`);
       return key;
     }
 
-    // Partial match: key contains a pattern (for compound headers like "Address 1: State/Province")
+    // Partial match: normalized key contains a pattern
     for (const pattern of patterns) {
       if (normalizedKey.includes(pattern)) {
         console.log(`[findColumnHeader] ✓ Found '${fieldName}' via partial match: '${key}' contains '${pattern}'`);
+        return key;
+      }
+    }
+  }
+
+  // Second pass: simple case-insensitive substring match on ANY pattern
+  // This catches cases where normalization might have issues
+  for (const key of rowKeys) {
+    const keyLower = key.toLowerCase();
+    for (const pattern of patterns) {
+      if (keyLower.includes(pattern)) {
+        console.log(`[findColumnHeader] ✓ Found '${fieldName}' via simple substring: '${key}' contains '${pattern}'`);
         return key;
       }
     }

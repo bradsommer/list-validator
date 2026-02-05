@@ -4,11 +4,15 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
+import { getEnabledRuleIds } from '@/lib/accountRules';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
+  const { user } = useAuth();
   const {
     sessionId,
+    parsedFile,
     processedData,
     headerMatches,
     requiredFields,
@@ -33,42 +37,51 @@ export function ValidationResults() {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
 
-  // Load available scripts on mount, respecting localStorage-saved enabled state
-  useEffect(() => {
-    if (availableScripts.length === 0) {
-      const scripts = getAvailableScripts();
-      setAvailableScripts(scripts);
+  const accountId = user?.accountId || 'default';
 
-      // Load DISABLED scripts from localStorage — everything else is enabled.
-      // This means new scripts are always enabled automatically.
+  // Load available scripts and enabled rules from database
+  useEffect(() => {
+    const loadScriptsAndRules = async () => {
+      if (availableScripts.length === 0) {
+        const scripts = getAvailableScripts();
+        setAvailableScripts(scripts);
+      }
+
+      // Fetch enabled rules from database (per-account)
       try {
-        const disabledRaw = localStorage.getItem('disabled_validation_rules');
-        if (disabledRaw) {
-          const disabledIds = new Set(JSON.parse(disabledRaw) as string[]);
-          const allCurrentIds = scripts.map((s) => s.id);
-          const enabledIds = allCurrentIds.filter((id) => !disabledIds.has(id));
-          if (enabledIds.length > 0) {
-            setEnabledScripts(enabledIds);
-          }
-          // If all disabled, keep defaults (all enabled from setAvailableScripts)
+        const enabledIds = await getEnabledRuleIds(accountId);
+        if (enabledIds.length > 0) {
+          setEnabledScripts(enabledIds);
+        } else {
+          // Fallback: if no rules in database, enable all available scripts
+          const scripts = getAvailableScripts();
+          setEnabledScripts(scripts.map((s) => s.id));
         }
       } catch {
-        // localStorage unavailable — use defaults (all enabled)
+        // On error, enable all scripts as fallback
+        const scripts = getAvailableScripts();
+        setEnabledScripts(scripts.map((s) => s.id));
       }
-    }
-  }, [availableScripts.length, setAvailableScripts, setEnabledScripts]);
+    };
+
+    loadScriptsAndRules();
+  }, [accountId, availableScripts.length, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
+    // Always use original data from parsedFile to ensure scripts see fresh data
+    // This prevents issues when re-running validation on already-transformed data
+    const sourceData = parsedFile?.rows || processedData;
+
     setIsValidating(true);
     logInfo('validate', 'Starting data validation with scripts', sessionId, {
-      totalRows: processedData.length,
+      totalRows: sourceData.length,
       requiredFields,
       enabledScripts,
     });
 
     try {
       const result = validateAndTransform(
-        processedData,
+        sourceData,
         headerMatches,
         requiredFields,
         enabledScripts.length > 0 ? enabledScripts : undefined
@@ -97,11 +110,13 @@ export function ValidationResults() {
   };
 
   // Run validation on mount or when scripts change
+  // Use parsedFile to determine if we have data, since processedData gets transformed
   useEffect(() => {
-    if (processedData.length > 0 && enabledScripts.length > 0 && !validationResult) {
+    const hasData = parsedFile?.rows?.length || processedData.length > 0;
+    if (hasData && enabledScripts.length > 0 && !validationResult) {
       runValidation();
     }
-  }, [processedData.length, enabledScripts.length]);
+  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);
