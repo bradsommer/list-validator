@@ -19,6 +19,7 @@ export default function ImportQuestionsPage() {
     columnHeader: '',
     questionType: 'dropdown' as QuestionType,
     options: [''],
+    optionValues: {} as Record<string, string>,
     defaultValue: '',
     isRequired: false,
     displayOrder: 100,
@@ -80,6 +81,7 @@ export default function ImportQuestionsPage() {
       columnHeader: '',
       questionType: 'dropdown',
       options: [''],
+      optionValues: {},
       defaultValue: '',
       isRequired: false,
       displayOrder: 100,
@@ -97,6 +99,7 @@ export default function ImportQuestionsPage() {
       columnHeader: question.columnHeader,
       questionType: question.questionType,
       options: question.options.length > 0 ? question.options : [''],
+      optionValues: question.optionValues || {},
       defaultValue: question.defaultValue || '',
       isRequired: question.isRequired,
       displayOrder: question.displayOrder,
@@ -125,6 +128,14 @@ export default function ImportQuestionsPage() {
     setIsSaving(true);
 
     try {
+      // Clean option values - only keep mappings for valid options that have custom values
+      const cleanOptionValues: Record<string, string> = {};
+      for (const opt of cleanOptions) {
+        if (formData.optionValues[opt] && formData.optionValues[opt].trim()) {
+          cleanOptionValues[opt] = formData.optionValues[opt].trim();
+        }
+      }
+
       if (editingQuestion) {
         // Update existing
         const response = await fetch('/api/import-questions', {
@@ -136,6 +147,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            optionValues: cleanOptionValues,
             defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
@@ -158,6 +170,7 @@ export default function ImportQuestionsPage() {
             columnHeader: formData.columnHeader,
             questionType: formData.questionType,
             options: cleanOptions,
+            optionValues: cleanOptionValues,
             defaultValue: formData.defaultValue.trim() || null,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
@@ -231,9 +244,26 @@ export default function ImportQuestionsPage() {
   };
 
   const updateOption = (index: number, value: string) => {
+    const oldOption = formData.options[index];
+    setFormData((prev) => {
+      // If option label changed, migrate the output value mapping
+      const newOptionValues = { ...prev.optionValues };
+      if (oldOption && oldOption !== value && newOptionValues[oldOption]) {
+        newOptionValues[value] = newOptionValues[oldOption];
+        delete newOptionValues[oldOption];
+      }
+      return {
+        ...prev,
+        options: prev.options.map((opt, i) => (i === index ? value : opt)),
+        optionValues: newOptionValues,
+      };
+    });
+  };
+
+  const updateOptionValue = (optionLabel: string, outputValue: string) => {
     setFormData((prev) => ({
       ...prev,
-      options: prev.options.map((opt, i) => (i === index ? value : opt)),
+      optionValues: { ...prev.optionValues, [optionLabel]: outputValue },
     }));
   };
 
@@ -448,9 +478,19 @@ export default function ImportQuestionsPage() {
                 {needsOptions(formData.questionType) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Options
+                      Options &amp; Output Values
                     </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Configure what users see vs what gets written to the spreadsheet.
+                    </p>
                     <div className="space-y-2">
+                      {/* Header row */}
+                      <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+                        <div className="flex-1">Option (what user sees)</div>
+                        <div className="w-8"></div>
+                        <div className="flex-1">Output Value (leave empty = same as option)</div>
+                        <div className="w-9"></div>
+                      </div>
                       {formData.options.map((option, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <input
@@ -459,6 +499,14 @@ export default function ImportQuestionsPage() {
                             onChange={(e) => updateOption(index, e.target.value)}
                             placeholder={`Option ${index + 1}`}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                          />
+                          <span className="text-gray-400 w-8 text-center">&rarr;</span>
+                          <input
+                            type="text"
+                            value={formData.optionValues[option] || ''}
+                            onChange={(e) => updateOptionValue(option, e.target.value)}
+                            placeholder={option || 'Output value'}
+                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50"
                           />
                           {formData.options.length > 1 && (
                             <button
