@@ -32,10 +32,23 @@ export class SolutionNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
+    // DEBUG: Log all available headers
+    console.log('[SolutionNormalization] headerMatches:', headerMatches.map(m => ({
+      original: m.originalHeader,
+      matched: m.matchedField?.hubspotField,
+      isMatched: m.isMatched
+    })));
+    if (rows.length > 0) {
+      console.log('[SolutionNormalization] Row keys:', Object.keys(rows[0]));
+    }
+
     // Find the solution column — tries headerMatches first, then scans row keys
     const solHeader = findColumnHeader('solution', headerMatches, rows);
 
+    console.log('[SolutionNormalization] Found solHeader:', solHeader);
+
     if (!solHeader) {
+      console.log('[SolutionNormalization] No solution column found - returning unchanged');
       return {
         success: true,
         changes: [],
@@ -43,6 +56,11 @@ export class SolutionNormalizationScript implements IValidationScript {
         warnings: [],
         modifiedRows: [...rows],
       };
+    }
+
+    // DEBUG: Log sample values
+    if (rows.length > 0) {
+      console.log('[SolutionNormalization] Sample values:', rows.slice(0, 3).map(r => r[solHeader]));
     }
 
     rows.forEach((row, index) => {

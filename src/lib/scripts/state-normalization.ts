@@ -113,11 +113,24 @@ export class StateNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
+    // DEBUG: Log all available headers
+    console.log('[StateNormalization] headerMatches:', headerMatches.map(m => ({
+      original: m.originalHeader,
+      matched: m.matchedField?.hubspotField,
+      isMatched: m.isMatched
+    })));
+    if (rows.length > 0) {
+      console.log('[StateNormalization] Row keys:', Object.keys(rows[0]));
+    }
+
     // Find the state column — tries headerMatches first, then scans row keys
     const stateHeader = findColumnHeader('state', headerMatches, rows);
 
+    console.log('[StateNormalization] Found stateHeader:', stateHeader);
+
     if (!stateHeader) {
       // No state field found, nothing to do
+      console.log('[StateNormalization] No state column found - returning unchanged');
       return {
         success: true,
         changes: [],
@@ -125,6 +138,11 @@ export class StateNormalizationScript implements IValidationScript {
         warnings: [],
         modifiedRows: [...rows],
       };
+    }
+
+    // DEBUG: Log sample values
+    if (rows.length > 0) {
+      console.log('[StateNormalization] Sample values:', rows.slice(0, 3).map(r => r[stateHeader]));
     }
 
     rows.forEach((row, index) => {
