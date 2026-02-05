@@ -48,31 +48,43 @@ export function findColumnHeader(
     (m) => m.matchedField?.hubspotField === fieldName
   );
   if (match) {
+    console.log(`[findColumnHeader] Found '${fieldName}' via headerMatches: '${match.originalHeader}'`);
     return match.originalHeader;
   }
 
   // 2. Fallback: scan row keys for known patterns
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    console.log(`[findColumnHeader] No rows to scan for '${fieldName}'`);
+    return null;
+  }
 
   const patterns = HEADER_PATTERNS[fieldName];
-  if (!patterns) return null;
+  if (!patterns) {
+    console.log(`[findColumnHeader] No patterns defined for '${fieldName}'`);
+    return null;
+  }
 
   const rowKeys = Object.keys(rows[0]);
+  console.log(`[findColumnHeader] Scanning ${rowKeys.length} columns for '${fieldName}':`, rowKeys);
+
   for (const key of rowKeys) {
     const normalizedKey = key.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
 
     // Exact match against patterns
     if (patterns.includes(normalizedKey)) {
+      console.log(`[findColumnHeader] Found '${fieldName}' via exact match: '${key}' (normalized: '${normalizedKey}')`);
       return key;
     }
 
     // Partial match: key contains a pattern (for compound headers like "Address 1: State/Province")
     for (const pattern of patterns) {
       if (normalizedKey.includes(pattern)) {
+        console.log(`[findColumnHeader] Found '${fieldName}' via partial match: '${key}' contains '${pattern}'`);
         return key;
       }
     }
   }
 
+  console.log(`[findColumnHeader] Could not find column for '${fieldName}'. Patterns:`, patterns);
   return null;
 }
