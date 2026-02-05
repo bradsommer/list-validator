@@ -33,7 +33,7 @@ const HEADER_PATTERNS: Record<string, string[]> = {
  * Find the actual column header for a given field type.
  *
  * Strategy:
- * 1. Check headerMatches for a detected match (standard approach)
+ * 1. Check headerMatches for detected matches (prefer highest confidence)
  * 2. Fallback: scan row keys directly for common header name patterns
  *
  * This dual approach ensures scripts work even if column auto-detection
@@ -44,13 +44,19 @@ export function findColumnHeader(
   headerMatches: HeaderMatch[],
   rows: ParsedRow[]
 ): string | null {
-  // 1. Standard approach: check headerMatches
-  const match = headerMatches.find(
+  // 1. Standard approach: check headerMatches, preferring highest confidence
+  // When multiple columns match the same field (e.g., "State" and "Address 1: State/Province"),
+  // we want the one with highest confidence (exact match = 1.0 beats partial = 0.8)
+  const matches = headerMatches.filter(
     (m) => m.matchedField?.hubspotField === fieldName
   );
-  if (match) {
-    console.log(`[findColumnHeader] Found '${fieldName}' via headerMatches: '${match.originalHeader}'`);
-    return match.originalHeader;
+
+  if (matches.length > 0) {
+    // Sort by confidence (highest first)
+    matches.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+    const bestMatch = matches[0];
+    console.log(`[findColumnHeader] Found '${fieldName}' via headerMatches: '${bestMatch.originalHeader}' (confidence: ${bestMatch.confidence}, ${matches.length} candidates)`);
+    return bestMatch.originalHeader;
   }
 
   // 2. Fallback: scan row keys for known patterns

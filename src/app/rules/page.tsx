@@ -6,23 +6,41 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchAccountRules,
   toggleRuleEnabled,
+  initializeAccountRules,
   type AccountRule,
 } from '@/lib/accountRules';
 
 export default function RulesPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
   const [sourceCode, setSourceCode] = useState<Record<string, string>>({});
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const accountId = user?.accountId || 'default';
 
-  // Load rules from database
+  // Load rules from database, auto-initialize if empty
   const loadRules = useCallback(async () => {
     setIsLoading(true);
-    const accountRules = await fetchAccountRules(accountId);
+    let accountRules = await fetchAccountRules(accountId);
+
+    // If no rules for this account, try to initialize from 'default'
+    if (accountRules.length === 0 && accountId !== 'default') {
+      setIsInitializing(true);
+      const initialized = await initializeAccountRules(accountId, 'default');
+      if (initialized) {
+        accountRules = await fetchAccountRules(accountId);
+      }
+      setIsInitializing(false);
+    }
+
+    // If still no rules (e.g., 'default' has no rules either), try fetching from 'default' directly
+    if (accountRules.length === 0) {
+      accountRules = await fetchAccountRules('default');
+    }
+
     setRules(accountRules);
     setIsLoading(false);
   }, [accountId]);
@@ -127,7 +145,7 @@ export default function RulesPage() {
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
-              Loading...
+              {isInitializing ? 'Initializing rules for your account...' : 'Loading...'}
             </div>
           ) : (
             rules.map((rule) => {
@@ -212,11 +230,25 @@ export default function RulesPage() {
         </div>
 
         {!isLoading && rules.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p>No validation rules found for this account.</p>
-            <p className="text-sm mt-2">
-              Rules are configured per-account in the database.
+          <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p className="text-gray-600 font-medium">No validation rules found</p>
+            <p className="text-sm text-gray-500 mt-1 mb-4">
+              The database migration may not have been run yet.
             </p>
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400">
+                Run the migration to seed default rules:
+              </p>
+              <code className="block text-xs bg-gray-100 px-3 py-2 rounded text-gray-700 font-mono">
+                npx supabase db push
+              </code>
+              <p className="text-xs text-gray-400 mt-4">
+                Or manually insert rules for account: <strong>{accountId}</strong>
+              </p>
+            </div>
           </div>
         )}
       </div>
