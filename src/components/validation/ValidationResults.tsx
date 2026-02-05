@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
+import { getEnabledRuleIds } from '@/lib/accountRules';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
+  const { user } = useAuth();
   const {
     sessionId,
     parsedFile,
@@ -34,30 +37,35 @@ export function ValidationResults() {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
 
-  // Load available scripts on mount, respecting localStorage-saved enabled state
-  useEffect(() => {
-    if (availableScripts.length === 0) {
-      const scripts = getAvailableScripts();
-      setAvailableScripts(scripts);
+  const accountId = user?.accountId || 'default';
 
-      // Load DISABLED scripts from localStorage — everything else is enabled.
-      // This means new scripts are always enabled automatically.
+  // Load available scripts and enabled rules from database
+  useEffect(() => {
+    const loadScriptsAndRules = async () => {
+      if (availableScripts.length === 0) {
+        const scripts = getAvailableScripts();
+        setAvailableScripts(scripts);
+      }
+
+      // Fetch enabled rules from database (per-account)
       try {
-        const disabledRaw = localStorage.getItem('disabled_validation_rules');
-        if (disabledRaw) {
-          const disabledIds = new Set(JSON.parse(disabledRaw) as string[]);
-          const allCurrentIds = scripts.map((s) => s.id);
-          const enabledIds = allCurrentIds.filter((id) => !disabledIds.has(id));
-          if (enabledIds.length > 0) {
-            setEnabledScripts(enabledIds);
-          }
-          // If all disabled, keep defaults (all enabled from setAvailableScripts)
+        const enabledIds = await getEnabledRuleIds(accountId);
+        if (enabledIds.length > 0) {
+          setEnabledScripts(enabledIds);
+        } else {
+          // Fallback: if no rules in database, enable all available scripts
+          const scripts = getAvailableScripts();
+          setEnabledScripts(scripts.map((s) => s.id));
         }
       } catch {
-        // localStorage unavailable — use defaults (all enabled)
+        // On error, enable all scripts as fallback
+        const scripts = getAvailableScripts();
+        setEnabledScripts(scripts.map((s) => s.id));
       }
-    }
-  }, [availableScripts.length, setAvailableScripts, setEnabledScripts]);
+    };
+
+    loadScriptsAndRules();
+  }, [accountId, availableScripts.length, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
     // Always use original data from parsedFile to ensure scripts see fresh data

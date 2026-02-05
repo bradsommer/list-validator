@@ -3,270 +3,96 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAvailableScripts } from '@/lib/scripts';
 import {
-  fetchDisabledRules,
-  saveDisabledRulesAsync,
-  getDisabledRulesFromLocalStorage,
-  saveDisabledRulesToLocalStorage,
-  cleanupLegacyKeys,
-} from '@/lib/validationRulesStorage';
-import type { ValidationScript } from '@/types';
-
-// Script source code for display (descriptions of what each rule does)
-const SCRIPT_SOURCE: Record<string, string> = {
-  'whitespace-validation': `// Whitespace Validation Rule
-// Targets: "Whitespace" column
-// - Value must be "Yes", "No", or blank
-// - Normalizes common variants:
-//   "y" / "n"         → "Yes" / "No"
-//   "true" / "false"  → "Yes" / "No"
-//   "1" / "0"         → "Yes" / "No"
-// - Any other value is cleared to blank and flagged as a warning`,
-
-  'new-business-validation': `// New Business Validation Rule
-// Targets: "New Business" column
-// - Value must be "Yes", "No", or blank
-// - Normalizes common variants:
-//   "y" / "n"         → "Yes" / "No"
-//   "true" / "false"  → "Yes" / "No"
-//   "1" / "0"         → "Yes" / "No"
-// - Any other value is cleared to blank and flagged as a warning`,
-
-  'role-normalization': `// Role Normalization Rule
-// - Checks role values against an allowed list
-// - Case-insensitive matching (e.g., "admin" → "Admin")
-// - Non-matching values are set to "Other"
-
-const VALID_ROLES = [
-  'Admin',
-  'Administrator',
-  'Ascend Employee',
-  'ATI Champion',
-  'ATI Employee',
-  'Champion Nominee',
-  'Coordinator',
-  'Dean',
-  'Director',
-  'Educator',
-  'Instructor',
-  'Other',
-  'Proctor',
-  'Student',
-  'TEAS Student',
-  'LMS Admin',
-];
-
-// If the value does not exactly match (case-insensitive),
-// the role is set to "Other".`,
-
-  'program-type-normalization': `// Program Type Normalization Rule
-// - Checks Program Type values against an allowed list
-// - Case-insensitive matching fixes casing mismatches
-// - Non-matching values are set to "Other"
-// - Blank values are left blank
-
-const VALID_PROGRAM_TYPES = [
-  'ADN', 'BSN', 'OTHER-BSN', 'RN', 'PN',
-  'Allied Health', 'Diploma', 'Other', 'Testing Center',
-  'ATI Allied Health', 'RN to BSN', 'APRN', 'Healthcare',
-  'Bookstore', 'LPN', 'DNP', 'MSN', 'CNA',
-  'ADN - Online', 'BSN - Online', 'BSN Philippines',
-  'CT', 'CV Sonography', 'Dental Assisting', 'Dental Hygiene',
-  'HCO', 'Health Occupations', 'Healthcare-ADN', 'Hospital',
-  'ICV', 'LPN to RN', 'MRI', 'Medical Assisting',
-  'Medical Sonography', 'NHA Allied Health', 'Nuclear Medicine',
-  'Occupational Assisting', 'PN - Online', 'PhD',
-  'Physical Therapy', 'Radiation Therapy', 'Radiography',
-  'Resident', 'Respiratory Therapy', 'Sports Medicine',
-  'TEAS Only', 'Test Program Type', 'Therapeutic Massage',
-];`,
-
-  'solution-normalization': `// Solution Normalization Rule
-// - Checks Solution values against an allowed list
-// - Case-insensitive matching fixes casing mismatches
-// - Non-matching values are set to "Other"
-// - Blank values are left blank
-
-const VALID_SOLUTIONS = [
-  'CARP', 'BASIC', 'SUPREME', 'OPTIMAL',
-  'COMPLETE', 'STO', 'MID-MARKET',
-];`,
-
-  'email-validation': `// Email Validation Rule
-// - Trims whitespace and converts to lowercase
-// - Validates email format (RFC-compliant regex)
-// - Flags disposable email domains (mailinator, guerrillamail, etc.)
-// - Warns about personal email domains (gmail, yahoo, hotmail, etc.)
-// - Detects common domain typos (gmial.com → gmail.com)
-
-const PERSONAL_DOMAINS = [
-  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
-  'aol.com', 'icloud.com', 'protonmail.com', 'zoho.com'
-];
-
-const DISPOSABLE_DOMAINS = [
-  'mailinator.com', 'guerrillamail.com', 'tempmail.com',
-  'throwaway.email', '10minutemail.com', 'temp-mail.org'
-];
-
-// Detects: invalid format, disposable domains, personal domains, typos`,
-
-  'phone-normalization': `// Phone Number Normalization Rule
-// - Standardizes all phone numbers to +1XXXXXXXXXX format
-// - Assumes US country code (+1) when not present
-// - Strips all formatting (dashes, spaces, parentheses)
-// - Warns about numbers with too few digits (< 7)
-// - International numbers keep their country code
-
-// Example transformations:
-//   "5551234567"     → "+15551234567"
-//   "1-555-123-4567" → "+15551234567"
-//   "(555) 123-4567" → "+15551234567"
-//   "+44207946095"   → "+44207946095"`,
-
-  'state-normalization': `// US State Normalization Rule
-// - Converts 2-letter abbreviations to full state names
-// - Case-insensitive matching ("ca" → "California")
-// - Fixes common misspellings ("Califronia" → "California")
-// - Supports all 50 US states + DC + territories
-// - Detects "State", "State/Region", "State/Province" headers
-
-// Example transformations:
-//   "AZ"          → "Arizona"
-//   "ca"          → "California"
-//   "NY"          → "New York"
-//   "Califronia"  → "California"`,
-
-  'date-normalization': `// Date Normalization Rule
-// - Standardizes date fields to MM/DD/YYYY format
-// - Date/time fields (headers with "time") → DD/MM/YYYY HH:MM
-// - Handles multiple input formats:
-//   YYYY-MM-DD, DD-MM-YYYY, Month DD YYYY, timestamps
-// - Warns about ambiguous date formats
-
-// Example transformations:
-//   "2024-01-15"       → "01/15/2024"
-//   "January 15, 2024" → "01/15/2024"
-//   "2024-01-15T14:30" → "15/01/2024 14:30" (datetime field)`,
-
-  'name-capitalization': `// Name Capitalization Rule
-// - Properly capitalizes first and last names
-// - Handles special prefixes: McDonald, MacArthur, O'Brien
-// - Preserves lowercase prefixes: van, von, de, del, della, di
-// - Formats suffixes: Jr., Sr., III, PhD, MD
-// - Handles hyphenated names: Smith-Jones
-// - Warns about ALL CAPS names
-
-// Example transformations:
-//   "john"       → "John"
-//   "MCDONALD"   → "McDonald"
-//   "o'brien"    → "O'Brien"
-//   "VAN DER BERG" → "van der Berg"`,
-
-  'company-normalization': `// Company Name Normalization Rule
-// - Standardizes common company suffixes:
-//   Inc, LLC, Ltd, Corp, Co → consistent format
-// - Removes extra whitespace
-// - Normalizes "&" vs "and"
-// - Trims trailing punctuation
-// - Preserves original casing for company names
-
-// Example transformations:
-//   "Acme inc."     → "Acme Inc."
-//   "Widget co"     → "Widget Co."
-//   "Smith&Jones"   → "Smith & Jones"`,
-
-  'duplicate-detection': `// Duplicate Detection Rule
-// - Identifies duplicate entries by email address
-// - Detects duplicates by first + last name combination
-// - Detects duplicates by phone number
-// - Reports all duplicate row numbers for review
-// - Does not remove duplicates (flags only)
-
-// Detection methods:
-//   1. Exact email match (case-insensitive)
-//   2. First name + Last name match (case-insensitive)
-//   3. Phone number match (digits only comparison)`,
-};
+  fetchAccountRules,
+  toggleRuleEnabled,
+  type AccountRule,
+} from '@/lib/accountRules';
 
 export default function RulesPage() {
   const { user } = useAuth();
-  const [scripts, setScripts] = useState<ValidationScript[]>([]);
-  const [enabledScripts, setEnabledScripts] = useState<Set<string>>(new Set());
-  const [expandedScript, setExpandedScript] = useState<string | null>(null);
+  const [rules, setRules] = useState<AccountRule[]>([]);
+  const [expandedRule, setExpandedRule] = useState<string | null>(null);
+  const [sourceCode, setSourceCode] = useState<Record<string, string>>({});
+  const [loadingSource, setLoadingSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const accountId = user?.accountId || '';
+  const accountId = user?.accountId || 'default';
 
-  // Load disabled rules from Supabase (or localStorage fallback)
-  const loadDisabledRules = useCallback(async (allIds: Set<string>) => {
+  // Load rules from database
+  const loadRules = useCallback(async () => {
     setIsLoading(true);
-
-    let disabledIds: string[] = [];
-    if (accountId) {
-      disabledIds = await fetchDisabledRules(accountId);
-    } else {
-      disabledIds = getDisabledRulesFromLocalStorage();
-    }
-
-    const disabledSet = new Set(disabledIds);
-    const enabledSet = new Set<string>();
-    for (const id of allIds) {
-      if (!disabledSet.has(id)) {
-        enabledSet.add(id);
-      }
-    }
-    setEnabledScripts(enabledSet);
+    const accountRules = await fetchAccountRules(accountId);
+    setRules(accountRules);
     setIsLoading(false);
   }, [accountId]);
 
   useEffect(() => {
-    const available = getAvailableScripts();
-    setScripts(available);
+    loadRules();
+  }, [loadRules]);
 
-    const allIds = new Set(available.map((s) => s.id));
-    loadDisabledRules(allIds);
+  // Fetch source code for a rule
+  const fetchSourceCode = async (ruleId: string) => {
+    if (sourceCode[ruleId]) return; // Already loaded
 
-    // Clean up legacy keys from the old enabled-list approach
-    cleanupLegacyKeys();
-  }, [loadDisabledRules]);
+    setLoadingSource(ruleId);
+    try {
+      const response = await fetch(`/api/rules/source?id=${encodeURIComponent(ruleId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSourceCode((prev) => ({ ...prev, [ruleId]: data.source }));
+      } else {
+        setSourceCode((prev) => ({ ...prev, [ruleId]: '// Source code not available' }));
+      }
+    } catch {
+      setSourceCode((prev) => ({ ...prev, [ruleId]: '// Failed to load source code' }));
+    }
+    setLoadingSource(null);
+  };
 
-  const saveDisabledToStorage = async (enabledIds: Set<string>) => {
-    // Save only the DISABLED script IDs — new scripts default to enabled
-    const allIds = scripts.map((s) => s.id);
-    const disabledIds = allIds.filter((id) => !enabledIds.has(id));
+  const handleToggleRule = async (ruleId: string, currentEnabled: boolean) => {
+    // Optimistic update
+    setRules((prev) =>
+      prev.map((r) => (r.ruleId === ruleId ? { ...r, enabled: !currentEnabled } : r))
+    );
 
-    if (accountId) {
-      await saveDisabledRulesAsync(disabledIds, accountId);
-    } else {
-      saveDisabledRulesToLocalStorage(disabledIds);
+    const success = await toggleRuleEnabled(accountId, ruleId, !currentEnabled);
+    if (!success) {
+      // Revert on failure
+      setRules((prev) =>
+        prev.map((r) => (r.ruleId === ruleId ? { ...r, enabled: currentEnabled } : r))
+      );
     }
   };
 
-  const toggleRule = (scriptId: string) => {
-    setEnabledScripts((prev) => {
-      const next = new Set(prev);
-      if (next.has(scriptId)) {
-        next.delete(scriptId);
-      } else {
-        next.add(scriptId);
-      }
-      saveDisabledToStorage(next);
-      return next;
-    });
+  const handleExpandRule = (ruleId: string) => {
+    if (expandedRule === ruleId) {
+      setExpandedRule(null);
+    } else {
+      setExpandedRule(ruleId);
+      fetchSourceCode(ruleId);
+    }
   };
 
-  const enableAll = () => {
-    const all = new Set(scripts.map((s) => s.id));
-    setEnabledScripts(all);
-    saveDisabledToStorage(all);
+  const enableAll = async () => {
+    const updates = rules.filter((r) => !r.enabled).map((r) => r.ruleId);
+    setRules((prev) => prev.map((r) => ({ ...r, enabled: true })));
+
+    for (const ruleId of updates) {
+      await toggleRuleEnabled(accountId, ruleId, true);
+    }
   };
 
-  const disableAll = () => {
-    setEnabledScripts(new Set());
-    saveDisabledToStorage(new Set());
+  const disableAll = async () => {
+    const updates = rules.filter((r) => r.enabled).map((r) => r.ruleId);
+    setRules((prev) => prev.map((r) => ({ ...r, enabled: false })));
+
+    for (const ruleId of updates) {
+      await toggleRuleEnabled(accountId, ruleId, false);
+    }
   };
+
+  const enabledCount = rules.filter((r) => r.enabled).length;
 
   return (
     <AdminLayout>
@@ -294,7 +120,7 @@ export default function RulesPage() {
         </div>
 
         <div className="text-sm text-gray-500">
-          {enabledScripts.size} of {scripts.length} rules enabled
+          {enabledCount} of {rules.length} rules enabled
         </div>
 
         <div className="space-y-3">
@@ -303,81 +129,94 @@ export default function RulesPage() {
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
               Loading...
             </div>
-          ) : (scripts.map((script) => {
-            const isEnabled = enabledScripts.has(script.id);
-            const isExpanded = expandedScript === script.id;
-            const source = SCRIPT_SOURCE[script.id];
+          ) : (
+            rules.map((rule) => {
+              const isExpanded = expandedRule === rule.ruleId;
+              const source = sourceCode[rule.ruleId];
+              const isLoadingThisSource = loadingSource === rule.ruleId;
 
-            return (
-              <div
-                key={script.id}
-                className={`border rounded-lg overflow-hidden ${
-                  isEnabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* Toggle */}
-                    <button
-                      onClick={() => toggleRule(script.id)}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${
-                        isEnabled ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                          isEnabled ? 'left-5' : 'left-0.5'
+              return (
+                <div
+                  key={rule.id}
+                  className={`border rounded-lg overflow-hidden ${
+                    rule.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      {/* Toggle */}
+                      <button
+                        onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          rule.enabled ? 'bg-green-500' : 'bg-gray-300'
                         }`}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            rule.enabled ? 'left-5' : 'left-0.5'
+                          }`}
+                        />
+                      </button>
 
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{script.name}</span>
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${
-                          script.type === 'transform'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-purple-100 text-purple-700'
-                        }`}>
-                          {script.type === 'transform' ? 'Transform' : 'Validate'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-0.5">{script.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400">
-                          Target fields: {script.targetFields.join(', ')}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          Order: {script.order}
-                        </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{rule.name}</span>
+                          <span
+                            className={`px-2 py-0.5 text-xs rounded-full ${
+                              rule.ruleType === 'transform'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-purple-100 text-purple-700'
+                            }`}
+                          >
+                            {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
+                          </span>
+                        </div>
+                        {rule.description && (
+                          <p className="text-sm text-gray-500 mt-0.5">{rule.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-400">
+                            Target fields: {rule.targetFields.join(', ')}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            Order: {rule.displayOrder}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {source && (
                     <button
-                      onClick={() => setExpandedScript(isExpanded ? null : script.id)}
+                      onClick={() => handleExpandRule(rule.ruleId)}
                       className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
                     >
                       {isExpanded ? 'Hide Code' : 'View Code'}
                     </button>
+                  </div>
+
+                  {/* Code view */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-200 bg-gray-900 p-4 overflow-x-auto max-h-[500px] overflow-y-auto">
+                      {isLoadingThisSource ? (
+                        <div className="text-gray-400 text-sm">Loading source code...</div>
+                      ) : (
+                        <pre className="text-sm text-green-400 font-mono whitespace-pre">
+                          {source || '// Loading...'}
+                        </pre>
+                      )}
+                    </div>
                   )}
                 </div>
-
-                {/* Code view */}
-                {isExpanded && source && (
-                  <div className="border-t border-gray-200 bg-gray-900 p-4 overflow-x-auto">
-                    <pre className="text-sm text-green-400 font-mono whitespace-pre">{source}</pre>
-                  </div>
-                )}
-              </div>
-            );
-          }))}
+              );
+            })
+          )}
         </div>
 
-        {!isLoading && scripts.length === 0 && (
+        {!isLoading && rules.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No validation rules found.
+            <p>No validation rules found for this account.</p>
+            <p className="text-sm mt-2">
+              Rules are configured per-account in the database.
+            </p>
           </div>
         )}
       </div>
