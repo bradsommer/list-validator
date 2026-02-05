@@ -202,7 +202,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
 
       // Find which columns match the target fields
       const targetMatches = headerMatches.filter(
-        (match) => match.matchedField && rule.targetFields.includes(match.matchedField)
+        (match) => match.matchedField && rule.targetFields.includes(match.matchedField.hubspotField)
       );
 
       if (targetMatches.length === 0) {
@@ -241,7 +241,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
           const row = modifiedRows[rowIndex];
 
           for (const match of targetMatches) {
-            const fieldName = match.matchedField!;
+            const fieldName = match.matchedField!.hubspotField;
             const originalHeader = match.originalHeader;
             const originalValue = row[originalHeader];
 
@@ -250,7 +250,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
               const rowData: Record<string, unknown> = {};
               for (const hm of headerMatches) {
                 if (hm.matchedField) {
-                  rowData[hm.matchedField] = row[hm.originalHeader];
+                  rowData[hm.matchedField.hubspotField] = row[hm.originalHeader];
                 }
               }
 
