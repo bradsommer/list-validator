@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS users (
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_login TIMESTAMP WITH TIME ZONE,
   created_by UUID REFERENCES users(id),
+  -- Stripe subscription fields
+  stripe_customer_id VARCHAR(255),
+  stripe_subscription_id VARCHAR(255),
+  subscription_status VARCHAR(50), -- 'active', 'trialing', 'past_due', 'cancelled', etc.
+  subscription_trial_end TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

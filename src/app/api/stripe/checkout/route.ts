@@ -1,12 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-12-18.acacia',
 });
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { userId, email } = body;
+
+    if (!userId || !email) {
+      return NextResponse.json(
+        { error: 'User ID and email are required' },
+        { status: 400 }
+      );
+    }
+
     // Get the base URL for redirects
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -14,6 +24,7 @@ export async function POST() {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
+      customer_email: email,
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID, // Your $19.99/month price ID from Stripe
@@ -22,9 +33,15 @@ export async function POST() {
       ],
       subscription_data: {
         trial_period_days: 14, // 14-day free trial
+        metadata: {
+          userId: userId,
+        },
+      },
+      metadata: {
+        userId: userId,
       },
       success_url: `${baseUrl}/login?checkout=success`,
-      cancel_url: `${baseUrl}?checkout=cancelled`,
+      cancel_url: `${baseUrl}/signup?checkout=cancelled`,
       allow_promotion_codes: true,
     });
 

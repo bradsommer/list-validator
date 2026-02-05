@@ -1,30 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 
 function LandingPage() {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubscribe = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-    }
-    setIsLoading(false);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Navigation */}
@@ -60,13 +40,12 @@ function LandingPage() {
             Stop importing messy data. List Validator automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={handleSubscribe}
-              disabled={isLoading}
-              className="px-8 py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shadow-lg shadow-primary-500/25"
+            <Link
+              href="/signup"
+              className="px-8 py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-500/25"
             >
-              {isLoading ? 'Loading...' : 'Start Free Trial'}
-            </button>
+              Start Free Trial
+            </Link>
             <Link
               href="/login"
               className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -251,13 +230,12 @@ function LandingPage() {
               </li>
             </ul>
 
-            <button
-              onClick={handleSubscribe}
-              disabled={isLoading}
-              className="mt-8 w-full py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+            <Link
+              href="/signup"
+              className="mt-8 w-full py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors block text-center"
             >
-              {isLoading ? 'Loading...' : 'Start Your Free Trial'}
-            </button>
+              Start Your Free Trial
+            </Link>
             <p className="mt-4 text-center text-sm text-gray-500">No credit card required to start</p>
           </div>
         </div>
