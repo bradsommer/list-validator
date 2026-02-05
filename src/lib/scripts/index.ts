@@ -201,9 +201,16 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
       const modifiedRows = rows.map((row) => ({ ...row }));
 
       // Find which columns match the target fields
-      const targetMatches = headerMatches.filter(
-        (match) => match.matchedField && rule.targetFields.includes(match.matchedField.hubspotField)
-      );
+      // Match by: 1) matchedField.hubspotField, 2) original header name (case-insensitive)
+      const targetMatches = headerMatches.filter((match) => {
+        const hubspotField = match.matchedField?.hubspotField?.toLowerCase();
+        const originalHeader = match.originalHeader.toLowerCase();
+
+        return rule.targetFields.some((targetField) => {
+          const target = targetField.toLowerCase();
+          return hubspotField === target || originalHeader === target;
+        });
+      });
 
       if (targetMatches.length === 0) {
         return { success: true, changes, errors, warnings, modifiedRows };
@@ -241,7 +248,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
           const row = modifiedRows[rowIndex];
 
           for (const match of targetMatches) {
-            const fieldName = match.matchedField!.hubspotField;
+            const fieldName = match.matchedField?.hubspotField || match.originalHeader;
             const originalHeader = match.originalHeader;
             const originalValue = row[originalHeader];
 
@@ -249,9 +256,8 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
               // Create a simple row object for the user function
               const rowData: Record<string, unknown> = {};
               for (const hm of headerMatches) {
-                if (hm.matchedField) {
-                  rowData[hm.matchedField.hubspotField] = row[hm.originalHeader];
-                }
+                const key = hm.matchedField?.hubspotField || hm.originalHeader;
+                rowData[key] = row[hm.originalHeader];
               }
 
               const result = userFunction(originalValue, fieldName, rowData);
