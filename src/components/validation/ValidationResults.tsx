@@ -38,6 +38,7 @@ export function ValidationResults() {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
   const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
+  const [rulesLoaded, setRulesLoaded] = useState(false);
   const rulesLoadedRef = useRef(false);
 
   const accountId = user?.accountId || 'default';
@@ -87,11 +88,15 @@ export function ValidationResults() {
           const scripts = getAvailableScripts();
           setEnabledScripts(scripts.map((s) => s.id));
         }
+
+        // Mark rules as loaded so validation can proceed
+        setRulesLoaded(true);
       } catch (err) {
         console.error('[ValidationResults] Error fetching rules:', err);
         // On error, enable all built-in scripts as fallback
         const scripts = getAvailableScripts();
         setEnabledScripts(scripts.map((s) => s.id));
+        setRulesLoaded(true); // Still mark as loaded so validation can proceed
       }
     };
 
@@ -157,12 +162,11 @@ export function ValidationResults() {
   // Use parsedFile to determine if we have data, since processedData gets transformed
   useEffect(() => {
     const hasData = parsedFile?.rows?.length || processedData.length > 0;
-    // Wait until rules are loaded (either from database or fallback)
-    const rulesReady = accountRules.length > 0 || enabledScripts.length > 0;
-    if (hasData && rulesReady && !validationResult) {
+    // Wait until rules are fully loaded from database before running validation
+    if (hasData && rulesLoaded && !validationResult) {
       runValidation();
     }
-  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length, accountRules.length]);
+  }, [parsedFile?.rows?.length, processedData.length, rulesLoaded, accountRules.length]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);
