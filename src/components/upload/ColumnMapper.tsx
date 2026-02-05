@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { ColumnMapping } from '@/store/useAppStore';
+import { useAuth } from '@/contexts/AuthContext';
 import {
-  getColumnHeadings,
-  addColumnHeading,
-  getMappingHistory,
-  saveMappingHistory,
+  fetchColumnHeadings,
+  addColumnHeadingAsync,
+  fetchMappingHistory,
+  saveMappingHistoryAsync,
   autoMatchHeader,
   type ColumnHeading,
 } from '@/lib/columnHeadings';
@@ -228,6 +229,7 @@ function HeadingDropdown({
 }
 
 export function ColumnMapper() {
+  const { user } = useAuth();
   const {
     parsedFile,
     headerMatches,
@@ -240,6 +242,9 @@ export function ColumnMapper() {
 
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  const accountId = user?.accountId || 'default';
 
   // Get all headers: spreadsheet headers + question column headers (that don't already exist)
   const questionHeaders = Object.keys(questionColumnValues).filter(
@@ -247,39 +252,54 @@ export function ColumnMapper() {
   );
   const allHeaders = parsedFile ? [...parsedFile.headers, ...questionHeaders] : [];
 
+  // Load column headings from Supabase
   useEffect(() => {
-    const currentHeadings = getColumnHeadings();
-    setHeadings(currentHeadings);
+    const loadHeadingsAndMapping = async () => {
+      setIsLoading(true);
+      try {
+        const [fetchedHeadings, history] = await Promise.all([
+          fetchColumnHeadings(accountId),
+          fetchMappingHistory(accountId),
+        ]);
 
-    if (parsedFile) {
-      const headingNames = currentHeadings.map((h) => h.name);
-      const history = getMappingHistory();
-      const initial: ColumnMapping = {};
+        setHeadings(fetchedHeadings);
 
-      // Map spreadsheet headers
-      for (const header of parsedFile.headers) {
-        // If already set from store (e.g. user went back and forward), keep it
-        if (columnMapping[header]) {
-          initial[header] = columnMapping[header];
-        } else {
-          // Auto-match: history first, then exact, then fuzzy
-          initial[header] = autoMatchHeader(header, headingNames, history);
+        if (parsedFile) {
+          const headingNames = fetchedHeadings.map((h) => h.name);
+          const initial: ColumnMapping = {};
+
+          // Map spreadsheet headers
+          for (const header of parsedFile.headers) {
+            // If already set from store (e.g. user went back and forward), keep it
+            if (columnMapping[header]) {
+              initial[header] = columnMapping[header];
+            } else {
+              // Auto-match: history first, then exact, then fuzzy
+              initial[header] = autoMatchHeader(header, headingNames, history);
+            }
+          }
+
+          // Map question headers (new columns from import questions)
+          for (const header of questionHeaders) {
+            if (columnMapping[header]) {
+              initial[header] = columnMapping[header];
+            } else {
+              // Auto-match question headers too
+              initial[header] = autoMatchHeader(header, headingNames, history);
+            }
+          }
+
+          setMapping(initial);
         }
+      } catch (err) {
+        console.error('[ColumnMapper] Error loading headings:', err);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      // Map question headers (new columns from import questions)
-      for (const header of questionHeaders) {
-        if (columnMapping[header]) {
-          initial[header] = columnMapping[header];
-        } else {
-          // Auto-match question headers too
-          initial[header] = autoMatchHeader(header, headingNames, history);
-        }
-      }
-
-      setMapping(initial);
-    }
-  }, [parsedFile, columnMapping, questionColumnValues]);
+    loadHeadingsAndMapping();
+  }, [accountId, parsedFile, columnMapping, questionColumnValues]);
 
   const handleSelect = (originalHeader: string, value: string) => {
     setMapping((prev) => ({
@@ -288,28 +308,39 @@ export function ColumnMapper() {
     }));
   };
 
-  const handleAddNew = (originalHeader: string, name: string) => {
+  const handleAddNew = async (originalHeader: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (!headings.some((h) => h.name.toLowerCase() === trimmed.toLowerCase())) {
-      addColumnHeading(trimmed);
+      await addColumnHeadingAsync(trimmed, accountId);
+      // Refresh headings from Supabase
+      const refreshedHeadings = await fetchColumnHeadings(accountId);
+      setHeadings(refreshedHeadings);
     }
-    setHeadings(getColumnHeadings());
     setMapping((prev) => ({
       ...prev,
       [originalHeader]: trimmed,
     }));
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setColumnMapping(mapping);
     // Save to history so future imports remember these choices
-    saveMappingHistory(mapping);
+    await saveMappingHistoryAsync(mapping, accountId);
     nextStep();
   };
 
   if (!parsedFile) {
     return <div className="text-center text-gray-500">No file uploaded</div>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-gray-600">Loading column headings...</p>
+      </div>
+    );
   }
 
   const mappedCount = allHeaders.filter((h) => mapping[h] && mapping[h] !== DO_NOT_USE).length;
@@ -320,7 +351,7 @@ export function ColumnMapper() {
       <div>
         <h2 className="text-xl font-semibold">Map Columns</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Choose a HubSpot column heading for each column in your spreadsheet. Mapped columns will be renamed in the exported file.
+          Choose a column heading for each column in your spreadsheet. Mapped columns will be renamed in the exported file.
           Columns set to &ldquo;Do not use&rdquo; will be excluded from the export.
         </p>
       </div>
@@ -346,7 +377,7 @@ export function ColumnMapper() {
                 &rarr;
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-1/2">
-                HubSpot Column Heading
+                Column Heading
               </th>
             </tr>
           </thead>
