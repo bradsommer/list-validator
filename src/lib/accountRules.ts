@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabase';
-import { getDefaultRuleCode } from './defaultRuleCode';
+import { getDefaultRuleCode, getDefaultRuleMetadata } from './defaultRuleCode';
 
 export interface AccountRule {
   id: string;
@@ -381,42 +381,49 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
       defaultRuleMap.set(rule.rule_id, rule);
     }
 
-    // Update account rules that are missing code
+    // Update account rules that are missing code OR have incorrect metadata
     for (const accountRule of accountRules || []) {
       const accountHasCode = !!(accountRule.config as Record<string, unknown>)?.code;
+      const builtInCode = getDefaultRuleCode(accountRule.rule_id);
+      const builtInMetadata = getDefaultRuleMetadata(accountRule.rule_id);
 
-      if (!accountHasCode) {
-        // Get code from built-in defaults (not from database default rules)
-        const builtInCode = getDefaultRuleCode(accountRule.rule_id);
+      // Check if we need to update this rule
+      const needsCodeUpdate = !accountHasCode && builtInCode;
+      const needsMetadataUpdate = builtInMetadata && (
+        accountRule.rule_type !== builtInMetadata.ruleType ||
+        JSON.stringify(accountRule.target_fields) !== JSON.stringify(builtInMetadata.targetFields)
+      );
 
-        if (builtInCode) {
-          // Use built-in code
-          const newConfig = {
+      if (needsCodeUpdate || needsMetadataUpdate) {
+        // Build update object
+        const updateData: Record<string, unknown> = {};
+
+        if (needsCodeUpdate && builtInCode) {
+          updateData.config = {
             ...(accountRule.config as Record<string, unknown>),
             code: builtInCode,
           };
+        }
 
-          // Also get target_fields from default rule if available
-          const defaultRule = defaultRuleMap.get(accountRule.rule_id);
-          const targetFields = defaultRule?.target_fields || accountRule.target_fields;
+        if (builtInMetadata) {
+          updateData.rule_type = builtInMetadata.ruleType;
+          updateData.target_fields = builtInMetadata.targetFields;
+        }
 
-          const { error: updateError } = await supabase
-            .from('account_rules')
-            .update({
-              config: newConfig,
-              target_fields: targetFields,
-            })
-            .eq('account_id', accountId)
-            .eq('rule_id', accountRule.rule_id);
+        const { error: updateError } = await supabase
+          .from('account_rules')
+          .update(updateData)
+          .eq('account_id', accountId)
+          .eq('rule_id', accountRule.rule_id);
 
-          if (updateError) {
-            errors.push(`Failed to sync ${accountRule.rule_id}: ${updateError.message}`);
-          } else {
-            synced++;
-            console.log(`[syncRulesFromDefault] Synced built-in code for ${accountRule.rule_id}`);
-          }
+        if (updateError) {
+          errors.push(`Failed to sync ${accountRule.rule_id}: ${updateError.message}`);
         } else {
-          console.log(`[syncRulesFromDefault] No built-in code available for ${accountRule.rule_id}`);
+          synced++;
+          const updates = [];
+          if (needsCodeUpdate) updates.push('code');
+          if (needsMetadataUpdate) updates.push('metadata');
+          console.log(`[syncRulesFromDefault] Synced ${updates.join(', ')} for ${accountRule.rule_id}`);
         }
       }
     }
@@ -427,8 +434,9 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
 
     if (missingRules.length > 0) {
       const newRules = missingRules.map(rule => {
-        // Get built-in code for the rule
+        // Get built-in code and metadata for the rule
         const builtInCode = getDefaultRuleCode(rule.rule_id);
+        const builtInMetadata = getDefaultRuleMetadata(rule.rule_id);
         const config = builtInCode
           ? { ...(rule.config as Record<string, unknown>), code: builtInCode }
           : rule.config;
@@ -439,8 +447,8 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
           enabled: rule.enabled,
           name: rule.name,
           description: rule.description,
-          rule_type: rule.rule_type,
-          target_fields: rule.target_fields,
+          rule_type: builtInMetadata?.ruleType || rule.rule_type,
+          target_fields: builtInMetadata?.targetFields || rule.target_fields,
           config,
           display_order: rule.display_order,
         };

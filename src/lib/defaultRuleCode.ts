@@ -8,6 +8,25 @@
  * - validate(value, fieldName, row) => { valid: boolean, message?: string }
  */
 
+/**
+ * Correct metadata for each rule (type and target fields).
+ * This fixes cases where the database was seeded with incorrect values.
+ */
+export const DEFAULT_RULE_METADATA: Record<string, { ruleType: 'transform' | 'validate'; targetFields: string[] }> = {
+  'state-normalization': { ruleType: 'transform', targetFields: ['state'] },
+  'whitespace-validation': { ruleType: 'transform', targetFields: ['whitespace'] },
+  'new-business-validation': { ruleType: 'transform', targetFields: ['new_business'] },
+  'role-normalization': { ruleType: 'transform', targetFields: ['role'] },
+  'program-type-normalization': { ruleType: 'transform', targetFields: ['program_type'] },
+  'solution-normalization': { ruleType: 'transform', targetFields: ['solution'] },
+  'email-validation': { ruleType: 'validate', targetFields: ['email'] },
+  'phone-normalization': { ruleType: 'transform', targetFields: ['phone'] },
+  'date-normalization': { ruleType: 'transform', targetFields: ['date'] },
+  'name-capitalization': { ruleType: 'transform', targetFields: ['firstname', 'lastname'] },
+  'company-normalization': { ruleType: 'transform', targetFields: ['company'] },
+  'duplicate-detection': { ruleType: 'validate', targetFields: ['email', 'firstname', 'lastname', 'phone'] },
+};
+
 export const DEFAULT_RULE_CODE: Record<string, string> = {
   'state-normalization': `
 // US State abbreviation to full name mapping
@@ -359,6 +378,13 @@ function validate(value, fieldName, row) {
  */
 export function getDefaultRuleCode(ruleId: string): string | null {
   return DEFAULT_RULE_CODE[ruleId] || null;
+}
+
+/**
+ * Get the correct metadata (type and target fields) for a rule
+ */
+export function getDefaultRuleMetadata(ruleId: string): { ruleType: 'transform' | 'validate'; targetFields: string[] } | null {
+  return DEFAULT_RULE_METADATA[ruleId] || null;
 }
 
 /**
