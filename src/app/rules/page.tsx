@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -59,7 +59,7 @@ function validate(value, fieldName, row) {
 }`;
 
 export default function RulesPage() {
-  const { user, canEditRules } = useAuth();
+  const { user, canEditRules, isLoading: isAuthLoading } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
   const [columnHeadings, setColumnHeadings] = useState<ColumnHeading[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
@@ -76,6 +76,8 @@ export default function RulesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [customField, setCustomField] = useState('');
 
+  // Prevent double-loading when auth state changes
+  const hasLoadedRef = useRef(false);
   const accountId = user?.accountId || 'default';
 
   // Get all unique fields from column headings + rules
@@ -120,8 +122,13 @@ export default function RulesPage() {
   }, [accountId]);
 
   useEffect(() => {
+    // Wait for auth to finish loading before fetching rules
+    // This prevents the double-fetch that causes rules to disappear
+    if (isAuthLoading) return;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     loadRules();
-  }, [loadRules]);
+  }, [loadRules, isAuthLoading]);
 
   // Fetch source code for a rule
   const fetchSourceCode = async (ruleId: string, rule: AccountRule) => {
