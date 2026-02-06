@@ -223,9 +223,27 @@ export default function RulesPage() {
     setSyncMessage(null);
 
     try {
+      // First, sync built-in rules to the default account (adds any missing rules like encoding-detection)
+      const builtinResponse = await fetch('/api/rules/sync-builtin', { method: 'POST' });
+      const builtinResult = await builtinResponse.json();
+
+      let totalSynced = 0;
+      const messages: string[] = [];
+
+      if (builtinResult.added > 0) {
+        messages.push(`Added ${builtinResult.added} new built-in rule(s)`);
+        totalSynced += builtinResult.added;
+      }
+
+      // Then sync from default to current account
       const result = await syncRulesFromDefault(accountId);
       if (result.synced > 0) {
-        setSyncMessage({ type: 'success', text: `Synced ${result.synced} rule(s) from default` });
+        messages.push(`Synced ${result.synced} rule(s) to your account`);
+        totalSynced += result.synced;
+      }
+
+      if (totalSynced > 0) {
+        setSyncMessage({ type: 'success', text: messages.join('. ') });
         await loadRules(); // Reload to show updated rules
       } else if (result.errors.length > 0) {
         setSyncMessage({ type: 'error', text: result.errors.join(', ') });
