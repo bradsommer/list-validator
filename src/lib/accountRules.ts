@@ -383,7 +383,8 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
 
     // Update account rules that are missing code OR have incorrect metadata
     for (const accountRule of accountRules || []) {
-      const accountHasCode = !!(accountRule.config as Record<string, unknown>)?.code;
+      const currentCode = (accountRule.config as Record<string, unknown>)?.code as string | undefined;
+      const accountHasCode = !!currentCode;
       const builtInCode = getDefaultRuleCode(accountRule.rule_id);
       const builtInMetadata = getDefaultRuleMetadata(accountRule.rule_id);
 
@@ -394,11 +395,30 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
         JSON.stringify(accountRule.target_fields) !== JSON.stringify(builtInMetadata.targetFields)
       );
 
-      if (needsCodeUpdate || needsMetadataUpdate) {
+      // Check if existing code has wrong function type (transform vs validate mismatch)
+      // This fixes cases where rule_type was updated but code still has old function
+      let codeTypeMismatch = false;
+      if (accountHasCode && builtInMetadata && builtInCode) {
+        const hasTransformFn = currentCode!.includes('function transform');
+        const hasValidateFn = currentCode!.includes('function validate');
+        const expectedTransform = builtInMetadata.ruleType === 'transform';
+
+        if (expectedTransform && !hasTransformFn && hasValidateFn) {
+          codeTypeMismatch = true;
+        } else if (!expectedTransform && !hasValidateFn && hasTransformFn) {
+          codeTypeMismatch = true;
+        }
+      }
+
+      // When metadata changes (especially rule_type), also update code to ensure consistency
+      const needsCodeRefresh = (needsMetadataUpdate || codeTypeMismatch) && builtInCode;
+
+      if (needsCodeUpdate || needsMetadataUpdate || codeTypeMismatch) {
         // Build update object
         const updateData: Record<string, unknown> = {};
 
-        if (needsCodeUpdate && builtInCode) {
+        // Update code if missing OR if metadata is changing (to ensure code matches new type)
+        if ((needsCodeUpdate || needsCodeRefresh) && builtInCode) {
           updateData.config = {
             ...(accountRule.config as Record<string, unknown>),
             code: builtInCode,
@@ -421,7 +441,8 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
         } else {
           synced++;
           const updates = [];
-          if (needsCodeUpdate) updates.push('code');
+          if (needsCodeUpdate) updates.push('code (missing)');
+          if (codeTypeMismatch) updates.push('code (type mismatch)');
           if (needsMetadataUpdate) updates.push('metadata');
           console.log(`[syncRulesFromDefault] Synced ${updates.join(', ')} for ${accountRule.rule_id}`);
         }
