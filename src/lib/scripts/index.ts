@@ -184,7 +184,12 @@ export {
 // Create a dynamic script from a database rule with custom code
 export function createDynamicScript(rule: AccountRule): IValidationScript | null {
   const code = rule.config?.code as string;
-  if (!code) return null;
+  if (!code) {
+    console.log(`[createDynamicScript] Rule "${rule.name}" has no code`);
+    return null;
+  }
+
+  console.log(`[createDynamicScript] Creating script for "${rule.name}", targetFields:`, rule.targetFields);
 
   return {
     id: rule.ruleId,
@@ -212,6 +217,8 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
         });
       });
 
+      console.log(`[${rule.name}] Found ${targetMatches.length} target matches:`, targetMatches.map(m => m.originalHeader));
+
       if (targetMatches.length === 0) {
         return { success: true, changes, errors, warnings, modifiedRows };
       }
@@ -233,6 +240,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
         }
 
         if (!userFunction) {
+          console.error(`[${rule.name}] Failed to parse function from code`);
           errors.push({
             rowIndex: -1,
             field: '',
@@ -242,6 +250,8 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
           });
           return { success: false, changes, errors, warnings, modifiedRows };
         }
+
+        console.log(`[${rule.name}] Successfully parsed function, processing ${rows.length} rows`);
 
         // Apply the function to each row and target field
         for (let rowIndex = 0; rowIndex < modifiedRows.length; rowIndex++) {
@@ -315,6 +325,7 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
           modifiedRows,
         };
       } catch (err) {
+        console.error(`[${rule.name}] Code execution error:`, err);
         errors.push({
           rowIndex: -1,
           field: '',
@@ -336,29 +347,39 @@ export function runAllScriptsWithCustomRules(
   customRules: AccountRule[],
   enabledScriptIds?: string[]
 ): ScriptRunnerResult {
+  console.log(`[runAllScriptsWithCustomRules] Processing ${customRules.length} rules`);
+
   // Build scripts from database rules
   const scriptsToRun: IValidationScript[] = [];
 
   for (const rule of customRules) {
-    if (!rule.enabled) continue;
+    if (!rule.enabled) {
+      console.log(`[runAllScriptsWithCustomRules] Skipping disabled rule: ${rule.ruleId}`);
+      continue;
+    }
 
     if (rule.config?.code) {
       // Rule has custom code - use dynamic script
       const script = createDynamicScript(rule);
       if (script) {
         scriptsToRun.push(script);
+        console.log(`[runAllScriptsWithCustomRules] Added dynamic script: ${rule.ruleId}`);
       }
     } else {
       // Rule has no custom code - try built-in fallback for backwards compatibility
       const builtIn = ALL_SCRIPTS.find((s) => s.id === rule.ruleId);
       if (builtIn) {
         scriptsToRun.push(builtIn);
+        console.log(`[runAllScriptsWithCustomRules] Added built-in script: ${rule.ruleId}`);
+      } else {
+        console.log(`[runAllScriptsWithCustomRules] No code and no built-in for: ${rule.ruleId}`);
       }
     }
   }
 
   // Sort by display order
   const allScriptsToRun = scriptsToRun.sort((a, b) => a.order - b.order);
+  console.log(`[runAllScriptsWithCustomRules] Running ${allScriptsToRun.length} scripts in order:`, allScriptsToRun.map(s => s.id));
 
   const scriptResults: ScriptResult[] = [];
   let currentRows = [...rows];
