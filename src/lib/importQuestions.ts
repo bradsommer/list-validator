@@ -241,19 +241,23 @@ export async function updateImportQuestion(
 
     console.log('[importQuestions] Updating question:', questionId, 'with object_types:', dbUpdates.object_types);
 
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('import_questions')
       .update(dbUpdates)
       .eq('id', questionId)
-      .select('id, object_types')
-      .single();
+      .select('id, object_types');
 
     if (error) {
       console.error('[importQuestions] Update error:', error);
       return false;
     }
 
-    console.log('[importQuestions] Update result - object_types saved as:', data?.object_types);
+    if (!data || data.length === 0) {
+      console.error('[importQuestions] Update returned no rows - question ID may not exist:', questionId);
+      return false;
+    }
+
+    console.log('[importQuestions] Update result - object_types saved as:', data[0]?.object_types);
 
     return true;
   } catch (err) {
