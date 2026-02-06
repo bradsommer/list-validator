@@ -326,6 +326,26 @@ export default function RulesPage() {
       return;
     }
 
+    // If editing and no changes were made, just close the modal
+    if (editingRule) {
+      const originalCode = (editingRule.config?.code as string) || '';
+      const arraysEqual = (a: string[], b: string[]) =>
+        a.length === b.length && a.every((v, i) => v === b[i]);
+      const hasChanges =
+        formData.name.trim() !== editingRule.name ||
+        (formData.description.trim() || '') !== (editingRule.description || '') ||
+        formData.ruleType !== editingRule.ruleType ||
+        !arraysEqual(formData.targetFields, editingRule.targetFields) ||
+        !arraysEqual(formData.objectTypes, editingRule.objectTypes || []) ||
+        formData.displayOrder !== editingRule.displayOrder ||
+        formData.code !== originalCode;
+
+      if (!hasChanges) {
+        closeModal();
+        return;
+      }
+    }
+
     setIsSaving(true);
     setFormError('');
 

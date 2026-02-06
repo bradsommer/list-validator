@@ -628,7 +628,7 @@ export default function ImportQuestionsPage() {
                     disabled={isSaving}
                     className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
                   >
-                    {isSaving ? 'Saving...' : editingQuestion ? 'Update Question' : 'Create Question'}
+                    {isSaving ? 'Saving...' : editingQuestion ? 'Save' : 'Create Question'}
                   </button>
                   <button
                     onClick={resetForm}
