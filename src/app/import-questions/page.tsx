@@ -362,7 +362,9 @@ export default function ImportQuestionsPage() {
                         )}
                         <div className="mt-1 text-xs text-gray-400">
                           Objects:{' '}
-                          {question.objectTypes?.length === ALL_OBJECT_TYPES.length || !question.objectTypes?.length
+                          {question.objectTypes?.length === 0
+                            ? <span className="text-amber-600">None</span>
+                            : question.objectTypes?.length === ALL_OBJECT_TYPES.length || !question.objectTypes?.length
                             ? 'All'
                             : question.objectTypes.map(t => OBJECT_TYPES.find(ot => ot.value === t)?.label || t).join(', ')}
                         </div>
