@@ -358,22 +358,22 @@ export function runAllScriptsWithCustomRules(
       continue;
     }
 
-    if (rule.config?.code) {
-      // Rule has custom code - use dynamic script
+    // Check if there's a built-in script for this rule
+    const builtIn = ALL_SCRIPTS.find((s) => s.id === rule.ruleId);
+
+    if (builtIn) {
+      // Use built-in script (more reliable)
+      scriptsToRun.push(builtIn);
+      console.log(`[runAllScriptsWithCustomRules] Using built-in script: ${rule.ruleId}`);
+    } else if (rule.config?.code) {
+      // No built-in - use custom code from database
       const script = createDynamicScript(rule);
       if (script) {
         scriptsToRun.push(script);
-        console.log(`[runAllScriptsWithCustomRules] Added dynamic script: ${rule.ruleId}`);
+        console.log(`[runAllScriptsWithCustomRules] Using custom script: ${rule.ruleId}`);
       }
     } else {
-      // Rule has no custom code - try built-in fallback for backwards compatibility
-      const builtIn = ALL_SCRIPTS.find((s) => s.id === rule.ruleId);
-      if (builtIn) {
-        scriptsToRun.push(builtIn);
-        console.log(`[runAllScriptsWithCustomRules] Added built-in script: ${rule.ruleId}`);
-      } else {
-        console.log(`[runAllScriptsWithCustomRules] No code and no built-in for: ${rule.ruleId}`);
-      }
+      console.log(`[runAllScriptsWithCustomRules] No built-in and no code for: ${rule.ruleId}`);
     }
   }
 
