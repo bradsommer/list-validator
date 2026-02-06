@@ -349,7 +349,7 @@ export function runAllScriptsWithCustomRules(
 ): ScriptRunnerResult {
   console.log(`[runAllScriptsWithCustomRules] Processing ${customRules.length} rules`);
 
-  // Build scripts from database rules
+  // Build scripts from database rules - ALL rules use custom code from database
   const scriptsToRun: IValidationScript[] = [];
 
   for (const rule of customRules) {
@@ -358,22 +358,15 @@ export function runAllScriptsWithCustomRules(
       continue;
     }
 
-    // Check if there's a built-in script for this rule
-    const builtIn = ALL_SCRIPTS.find((s) => s.id === rule.ruleId);
-
-    if (builtIn) {
-      // Use built-in script (more reliable)
-      scriptsToRun.push(builtIn);
-      console.log(`[runAllScriptsWithCustomRules] Using built-in script: ${rule.ruleId}`);
-    } else if (rule.config?.code) {
-      // No built-in - use custom code from database
+    if (rule.config?.code) {
+      // Use custom code from database
       const script = createDynamicScript(rule);
       if (script) {
         scriptsToRun.push(script);
-        console.log(`[runAllScriptsWithCustomRules] Using custom script: ${rule.ruleId}`);
+        console.log(`[runAllScriptsWithCustomRules] Added custom rule: ${rule.ruleId}`);
       }
     } else {
-      console.log(`[runAllScriptsWithCustomRules] No built-in and no code for: ${rule.ruleId}`);
+      console.log(`[runAllScriptsWithCustomRules] Rule has no code: ${rule.ruleId}`);
     }
   }
 
