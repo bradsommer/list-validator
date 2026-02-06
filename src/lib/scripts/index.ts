@@ -3,6 +3,7 @@ import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptCha
 import type { AccountRule } from '@/lib/accountRules';
 
 // Import all scripts
+import { encodingDetectionScript } from './encoding-detection';
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
@@ -18,6 +19,7 @@ import { solutionNormalizationScript } from './solution-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
+  encodingDetectionScript,             // order: 5 - run first to fix encoding issues
   stateNormalizationScript,            // order: 10
   whitespaceValidationScript,          // order: 12
   newBusinessValidationScript,         // order: 13
@@ -167,6 +169,7 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
+  encodingDetectionScript,
   stateNormalizationScript,
   whitespaceValidationScript,
   newBusinessValidationScript,
