@@ -57,6 +57,8 @@ function transform(value, fieldName, row) {
 `,
 
   'whitespace-validation': `
+// Whitespace field validation - ensures values are Yes, No, or blank
+// Clears invalid values
 const VALUE_LOOKUP = {
   'yes': 'Yes', 'no': 'No', 'y': 'Yes', 'n': 'No',
   'true': 'Yes', 'false': 'No', '1': 'Yes', '0': 'No'
@@ -65,35 +67,40 @@ const VALUE_LOOKUP = {
 function transform(value, fieldName, row) {
   if (value === null || value === undefined) return value;
   const valueStr = String(value).trim();
+
+  // Already valid
   if (valueStr === '' || valueStr === 'Yes' || valueStr === 'No') return valueStr;
 
+  // Try to normalize common variants
   const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];
-  return normalized || '';
+  if (normalized) return normalized;
+
+  // Invalid value - clear it
+  return '';
 }
 `,
 
   'new-business-validation': `
+// New Business field validation - ensures values are Yes, No, or blank
+// Clears invalid values
 const VALUE_LOOKUP = {
   'yes': 'Yes', 'no': 'No', 'y': 'Yes', 'n': 'No',
   'true': 'Yes', 'false': 'No', '1': 'Yes', '0': 'No'
 };
 
-function validate(value, fieldName, row) {
-  if (value === null || value === undefined || String(value).trim() === '') {
-    return { valid: true };
-  }
-
+function transform(value, fieldName, row) {
+  if (value === null || value === undefined) return value;
   const valueStr = String(value).trim();
-  if (valueStr === 'Yes' || valueStr === 'No') {
-    return { valid: true };
-  }
 
+  // Already valid
+  if (valueStr === '' || valueStr === 'Yes' || valueStr === 'No') return valueStr;
+
+  // Try to normalize common variants
   const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];
-  if (normalized) {
-    return { valid: true };
-  }
+  if (normalized) return normalized;
 
-  return { valid: false, message: '"' + valueStr + '" is not a valid New Business value (expected Yes/No)' };
+  // Invalid value - clear it
+  return '';
 }
 `,
 
@@ -297,10 +304,51 @@ function transform(value, fieldName, row) {
 `,
 
   'duplicate-detection': `
+// IMPORTANT: Duplicate detection requires batch processing (access to all rows)
+// which the per-value dynamic script model doesn't support.
+// This rule needs special handling in the execution engine.
+// For now, this is a no-op placeholder.
+
+// Track seen values in closure (works for single execution)
+const seenEmails = {};
+const seenNames = {};
+const seenPhones = {};
+const duplicates = { emails: {}, names: {}, phones: {} };
+
 function validate(value, fieldName, row) {
-  // Duplicate detection needs access to all rows, which isn't available
-  // in the simple per-value validation model. This is a placeholder.
-  // Real duplicate detection should be done at the batch level.
+  // Get identifying values from the row
+  const email = (row.email || '').toString().toLowerCase().trim();
+  const firstName = (row.firstname || row.first_name || '').toString().toLowerCase().trim();
+  const lastName = (row.lastname || row.last_name || '').toString().toLowerCase().trim();
+  const phone = (row.phone || '').toString().replace(/\\D/g, '');
+
+  const warnings = [];
+
+  // Check email duplicates
+  if (email && fieldName.toLowerCase().includes('email')) {
+    if (seenEmails[email]) {
+      return { valid: false, message: 'Duplicate email: ' + email };
+    }
+    seenEmails[email] = true;
+  }
+
+  // Check name duplicates
+  if (firstName && lastName && (fieldName.toLowerCase().includes('name') || fieldName.toLowerCase().includes('first'))) {
+    const fullName = firstName + '|' + lastName;
+    if (seenNames[fullName]) {
+      return { valid: false, message: 'Duplicate name: ' + firstName + ' ' + lastName };
+    }
+    seenNames[fullName] = true;
+  }
+
+  // Check phone duplicates
+  if (phone && phone.length >= 7 && fieldName.toLowerCase().includes('phone')) {
+    if (seenPhones[phone]) {
+      return { valid: false, message: 'Duplicate phone: ' + phone };
+    }
+    seenPhones[phone] = true;
+  }
+
   return { valid: true };
 }
 `,
