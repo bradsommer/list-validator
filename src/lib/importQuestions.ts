@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import type { ObjectType } from './objectTypes';
 
 /**
  * Question input types:
@@ -23,6 +24,7 @@ export interface ImportQuestion {
   questionType: QuestionType;
   options: string[];
   optionValues: Record<string, string>;
+  objectTypes: ObjectType[];
   defaultValue: string | null;
   isRequired: boolean;
   displayOrder: number;
@@ -39,6 +41,7 @@ interface DbImportQuestion {
   question_type: QuestionType;
   options: string[];
   option_values: Record<string, string>;
+  object_types: ObjectType[];
   default_value: string | null;
   is_required: boolean;
   display_order: number;
@@ -56,6 +59,7 @@ function mapDbToImportQuestion(row: DbImportQuestion): ImportQuestion {
     questionType: row.question_type,
     options: row.options || [],
     optionValues: row.option_values || {},
+    objectTypes: row.object_types || ['contacts', 'companies', 'deals'],
     defaultValue: row.default_value,
     isRequired: row.is_required,
     displayOrder: row.display_order,
@@ -123,6 +127,7 @@ export async function createImportQuestion(
     questionType: QuestionType;
     options?: string[];
     optionValues?: Record<string, string>;
+    objectTypes?: ObjectType[];
     defaultValue?: string | null;
     isRequired?: boolean;
     displayOrder?: number;
@@ -139,6 +144,7 @@ export async function createImportQuestion(
         question_type: question.questionType,
         options: question.options || [],
         option_values: question.optionValues || {},
+        object_types: question.objectTypes || ['contacts', 'companies', 'deals'],
         default_value: question.defaultValue ?? null,
         is_required: question.isRequired ?? false,
         display_order: question.displayOrder ?? 100,
@@ -170,6 +176,7 @@ export async function updateImportQuestion(
     questionType: QuestionType;
     options: string[];
     optionValues: Record<string, string>;
+    objectTypes: ObjectType[];
     defaultValue: string | null;
     isRequired: boolean;
     displayOrder: number;
@@ -183,6 +190,7 @@ export async function updateImportQuestion(
     if (updates.questionType !== undefined) dbUpdates.question_type = updates.questionType;
     if (updates.options !== undefined) dbUpdates.options = updates.options;
     if (updates.optionValues !== undefined) dbUpdates.option_values = updates.optionValues;
+    if (updates.objectTypes !== undefined) dbUpdates.object_types = updates.objectTypes;
     if (updates.defaultValue !== undefined) dbUpdates.default_value = updates.defaultValue;
     if (updates.isRequired !== undefined) dbUpdates.is_required = updates.isRequired;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
@@ -264,6 +272,7 @@ export async function initializeAccountQuestions(
       question_type: q.question_type,
       options: q.options,
       option_values: q.option_values || {},
+      object_types: q.object_types || ['contacts', 'companies', 'deals'],
       default_value: q.default_value,
       is_required: q.is_required,
       display_order: q.display_order,

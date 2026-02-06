@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ImportQuestion, QuestionType } from '@/lib/importQuestions';
+import { OBJECT_TYPES, ALL_OBJECT_TYPES, type ObjectType } from '@/lib/objectTypes';
 
 export default function ImportQuestionsPage() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export default function ImportQuestionsPage() {
     questionType: 'dropdown' as QuestionType,
     options: [''],
     optionValues: {} as Record<string, string>,
+    objectTypes: [...ALL_OBJECT_TYPES] as ObjectType[],
     isRequired: false,
     displayOrder: 100,
     enabled: true,
@@ -81,6 +83,7 @@ export default function ImportQuestionsPage() {
       questionType: 'dropdown',
       options: [''],
       optionValues: {},
+      objectTypes: [...ALL_OBJECT_TYPES],
       isRequired: false,
       displayOrder: 100,
       enabled: true,
@@ -98,6 +101,7 @@ export default function ImportQuestionsPage() {
       questionType: question.questionType,
       options: question.options.length > 0 ? question.options : [''],
       optionValues: question.optionValues || {},
+      objectTypes: question.objectTypes || [...ALL_OBJECT_TYPES],
       isRequired: question.isRequired,
       displayOrder: question.displayOrder,
       enabled: question.enabled,
@@ -145,6 +149,7 @@ export default function ImportQuestionsPage() {
             questionType: formData.questionType,
             options: cleanOptions,
             optionValues: cleanOptionValues,
+            objectTypes: formData.objectTypes,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -167,6 +172,7 @@ export default function ImportQuestionsPage() {
             questionType: formData.questionType,
             options: cleanOptions,
             optionValues: cleanOptionValues,
+            objectTypes: formData.objectTypes,
             isRequired: formData.isRequired,
             displayOrder: formData.displayOrder,
             enabled: formData.enabled,
@@ -354,6 +360,12 @@ export default function ImportQuestionsPage() {
                             Options: {question.options.join(', ')}
                           </div>
                         )}
+                        <div className="mt-1 text-xs text-gray-400">
+                          Objects:{' '}
+                          {question.objectTypes?.length === ALL_OBJECT_TYPES.length || !question.objectTypes?.length
+                            ? 'All'
+                            : question.objectTypes.map(t => OBJECT_TYPES.find(ot => ot.value === t)?.label || t).join(', ')}
+                        </div>
                       </div>
                     </div>
 
@@ -553,6 +565,44 @@ export default function ImportQuestionsPage() {
                   <label className="text-sm text-gray-700">
                     Required question (users must answer before proceeding)
                   </label>
+                </div>
+
+                {/* Object Types */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Show for Object Types
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Select which object types this question should appear for.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {OBJECT_TYPES.map((type) => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            objectTypes: prev.objectTypes.includes(type.value)
+                              ? prev.objectTypes.filter((t) => t !== type.value)
+                              : [...prev.objectTypes, type.value],
+                          }));
+                        }}
+                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                          formData.objectTypes.includes(type.value)
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                  {formData.objectTypes.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      Warning: This question won&apos;t appear for any object type. Select at least one.
+                    </p>
+                  )}
                 </div>
 
                 {/* Display Order */}

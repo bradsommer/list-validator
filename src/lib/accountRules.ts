@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { getDefaultRuleCode, getDefaultRuleMetadata } from './defaultRuleCode';
+import type { ObjectType } from './objectTypes';
 
 export interface AccountRule {
   id: string;
@@ -15,6 +16,7 @@ export interface AccountRule {
   description: string | null;
   ruleType: 'transform' | 'validate';
   targetFields: string[];
+  objectTypes: ObjectType[];
   config: Record<string, unknown>;
   displayOrder: number;
   createdAt: string;
@@ -30,6 +32,7 @@ interface DbAccountRule {
   description: string | null;
   rule_type: 'transform' | 'validate';
   target_fields: string[];
+  object_types: ObjectType[];
   config: Record<string, unknown>;
   display_order: number;
   created_at: string;
@@ -46,6 +49,7 @@ function mapDbToAccountRule(row: DbAccountRule): AccountRule {
     description: row.description,
     ruleType: row.rule_type,
     targetFields: row.target_fields || [],
+    objectTypes: row.object_types || ['contacts', 'companies', 'deals'],
     config: row.config || {},
     displayOrder: row.display_order,
     createdAt: row.created_at,
@@ -200,6 +204,7 @@ export async function initializeAccountRules(
         description: rule.description,
         rule_type: rule.rule_type,
         target_fields: rule.target_fields,
+        object_types: rule.object_types || ['contacts', 'companies', 'deals'],
         config,
         display_order: rule.display_order,
       };
@@ -239,6 +244,7 @@ export interface CreateRuleInput {
   description?: string;
   ruleType: 'transform' | 'validate';
   targetFields: string[];
+  objectTypes?: ObjectType[];
   enabled?: boolean;
   displayOrder?: number;
   config?: Record<string, unknown>;
@@ -255,6 +261,7 @@ export async function createRule(input: CreateRuleInput): Promise<AccountRule | 
         description: input.description || null,
         rule_type: input.ruleType,
         target_fields: input.targetFields,
+        object_types: input.objectTypes || ['contacts', 'companies', 'deals'],
         enabled: input.enabled ?? true,
         display_order: input.displayOrder ?? 0,
         config: input.config || {},
@@ -282,6 +289,7 @@ export interface UpdateRuleInput {
   description?: string;
   ruleType?: 'transform' | 'validate';
   targetFields?: string[];
+  objectTypes?: ObjectType[];
   enabled?: boolean;
   displayOrder?: number;
   config?: Record<string, unknown>;
@@ -298,6 +306,7 @@ export async function updateRule(
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.ruleType !== undefined) dbUpdates.rule_type = updates.ruleType;
     if (updates.targetFields !== undefined) dbUpdates.target_fields = updates.targetFields;
+    if (updates.objectTypes !== undefined) dbUpdates.object_types = updates.objectTypes;
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.config !== undefined) dbUpdates.config = updates.config;
@@ -392,7 +401,8 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
       const needsCodeUpdate = !accountHasCode && builtInCode;
       const needsMetadataUpdate = builtInMetadata && (
         accountRule.rule_type !== builtInMetadata.ruleType ||
-        JSON.stringify(accountRule.target_fields) !== JSON.stringify(builtInMetadata.targetFields)
+        JSON.stringify(accountRule.target_fields) !== JSON.stringify(builtInMetadata.targetFields) ||
+        JSON.stringify(accountRule.object_types) !== JSON.stringify(builtInMetadata.objectTypes)
       );
 
       // Check if existing code has wrong function type (transform vs validate mismatch)
@@ -428,6 +438,7 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
         if (builtInMetadata) {
           updateData.rule_type = builtInMetadata.ruleType;
           updateData.target_fields = builtInMetadata.targetFields;
+          updateData.object_types = builtInMetadata.objectTypes;
         }
 
         const { error: updateError } = await supabase
@@ -470,6 +481,7 @@ export async function syncRulesFromDefault(accountId: string): Promise<{ synced:
           description: rule.description,
           rule_type: builtInMetadata?.ruleType || rule.rule_type,
           target_fields: builtInMetadata?.targetFields || rule.target_fields,
+          object_types: builtInMetadata?.objectTypes || rule.object_types || ['contacts', 'companies', 'deals'],
           config,
           display_order: rule.display_order,
         };

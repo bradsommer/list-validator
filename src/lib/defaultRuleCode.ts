@@ -8,24 +8,30 @@
  * - validate(value, fieldName, row) => { valid: boolean, message?: string }
  */
 
+import type { ObjectType } from './objectTypes';
+
 /**
- * Correct metadata for each rule (type and target fields).
+ * Correct metadata for each rule (type, target fields, and applicable object types).
  * This fixes cases where the database was seeded with incorrect values.
  */
-export const DEFAULT_RULE_METADATA: Record<string, { ruleType: 'transform' | 'validate'; targetFields: string[] }> = {
-  'encoding-detection': { ruleType: 'transform', targetFields: ['*'] },
-  'state-normalization': { ruleType: 'transform', targetFields: ['state'] },
-  'whitespace-validation': { ruleType: 'transform', targetFields: ['whitespace'] },
-  'new-business-validation': { ruleType: 'transform', targetFields: ['new_business'] },
-  'role-normalization': { ruleType: 'transform', targetFields: ['role'] },
-  'program-type-normalization': { ruleType: 'transform', targetFields: ['program_type'] },
-  'solution-normalization': { ruleType: 'transform', targetFields: ['solution'] },
-  'email-validation': { ruleType: 'validate', targetFields: ['email'] },
-  'phone-normalization': { ruleType: 'transform', targetFields: ['phone'] },
-  'date-normalization': { ruleType: 'transform', targetFields: ['date'] },
-  'name-capitalization': { ruleType: 'transform', targetFields: ['firstname', 'lastname'] },
-  'company-normalization': { ruleType: 'transform', targetFields: ['company'] },
-  'duplicate-detection': { ruleType: 'validate', targetFields: ['email', 'firstname', 'lastname', 'phone'] },
+export const DEFAULT_RULE_METADATA: Record<string, {
+  ruleType: 'transform' | 'validate';
+  targetFields: string[];
+  objectTypes: ObjectType[];
+}> = {
+  'encoding-detection': { ruleType: 'transform', targetFields: ['*'], objectTypes: ['contacts', 'companies', 'deals'] },
+  'state-normalization': { ruleType: 'transform', targetFields: ['state'], objectTypes: ['contacts', 'companies'] },
+  'whitespace-validation': { ruleType: 'transform', targetFields: ['whitespace'], objectTypes: ['contacts', 'companies', 'deals'] },
+  'new-business-validation': { ruleType: 'transform', targetFields: ['new_business'], objectTypes: ['deals'] },
+  'role-normalization': { ruleType: 'transform', targetFields: ['role'], objectTypes: ['contacts'] },
+  'program-type-normalization': { ruleType: 'transform', targetFields: ['program_type'], objectTypes: ['contacts'] },
+  'solution-normalization': { ruleType: 'transform', targetFields: ['solution'], objectTypes: ['deals'] },
+  'email-validation': { ruleType: 'validate', targetFields: ['email'], objectTypes: ['contacts', 'companies'] },
+  'phone-normalization': { ruleType: 'transform', targetFields: ['phone'], objectTypes: ['contacts', 'companies'] },
+  'date-normalization': { ruleType: 'transform', targetFields: ['date'], objectTypes: ['contacts', 'companies', 'deals'] },
+  'name-capitalization': { ruleType: 'transform', targetFields: ['firstname', 'lastname'], objectTypes: ['contacts'] },
+  'company-normalization': { ruleType: 'transform', targetFields: ['company'], objectTypes: ['contacts', 'companies'] },
+  'duplicate-detection': { ruleType: 'validate', targetFields: ['email', 'firstname', 'lastname', 'phone'], objectTypes: ['contacts'] },
 };
 
 export const DEFAULT_RULE_CODE: Record<string, string> = {
@@ -465,9 +471,13 @@ export function getDefaultRuleCode(ruleId: string): string | null {
 }
 
 /**
- * Get the correct metadata (type and target fields) for a rule
+ * Get the correct metadata (type, target fields, and object types) for a rule
  */
-export function getDefaultRuleMetadata(ruleId: string): { ruleType: 'transform' | 'validate'; targetFields: string[] } | null {
+export function getDefaultRuleMetadata(ruleId: string): {
+  ruleType: 'transform' | 'validate';
+  targetFields: string[];
+  objectTypes: ObjectType[];
+} | null {
   return DEFAULT_RULE_METADATA[ruleId] || null;
 }
 

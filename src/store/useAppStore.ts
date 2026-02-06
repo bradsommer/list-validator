@@ -10,6 +10,7 @@ import type {
   ValidationScript,
 } from '@/types';
 import { generateSessionId } from '@/lib/logger';
+import type { ObjectType } from '@/lib/objectTypes';
 
 // Column mapping: original spreadsheet header → HubSpot column heading name
 export type ColumnMapping = Record<string, string>;
@@ -29,6 +30,9 @@ interface AppState {
   sessionId: string;
   currentStep: number;
   steps: string[];
+
+  // Object type selection (contacts, companies, deals)
+  selectedObjectType: ObjectType | null;
 
   // File data
   parsedFile: ParsedFile | null;
@@ -65,6 +69,8 @@ interface AppState {
   nextStep: () => void;
   prevStep: () => void;
 
+  setSelectedObjectType: (type: ObjectType | null) => void;
+
   setParsedFile: (file: ParsedFile | null) => void;
   setProcessedData: (data: ParsedRow[]) => void;
 
@@ -95,7 +101,8 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Questions', 'Map Columns', 'Validate', 'Export'],
+  steps: ['Upload', 'Object Type', 'Questions', 'Map Columns', 'Validate', 'Export'],
+  selectedObjectType: null as ObjectType | null,
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,
   questionColumnValues: {} as QuestionColumnValues,
@@ -122,6 +129,8 @@ export const useAppStore = create<AppState>((set) => ({
   prevStep: () => set((state) => ({
     currentStep: Math.max(state.currentStep - 1, 0)
   })),
+
+  setSelectedObjectType: (type) => set({ selectedObjectType: type }),
 
   setParsedFile: (file) => set({ parsedFile: file }),
   setProcessedData: (data) => set({ processedData: data }),

@@ -16,6 +16,7 @@ import {
   type UpdateRuleInput,
 } from '@/lib/accountRules';
 import { fetchColumnHeadings, type ColumnHeading } from '@/lib/columnHeadings';
+import { OBJECT_TYPES, ALL_OBJECT_TYPES, type ObjectType } from '@/lib/objectTypes';
 
 interface RuleFormData {
   ruleId: string;
@@ -23,6 +24,7 @@ interface RuleFormData {
   description: string;
   ruleType: 'transform' | 'validate';
   targetFields: string[];
+  objectTypes: ObjectType[];
   displayOrder: number;
   code: string;
 }
@@ -33,6 +35,7 @@ const emptyFormData: RuleFormData = {
   description: '',
   ruleType: 'transform',
   targetFields: [],
+  objectTypes: [...ALL_OBJECT_TYPES],
   displayOrder: 0,
   code: '',
 };
@@ -267,6 +270,7 @@ export default function RulesPage() {
     setEditingRule(null);
     setFormData({
       ...emptyFormData,
+      objectTypes: [...ALL_OBJECT_TYPES],
       displayOrder: rules.length > 0 ? Math.max(...rules.map((r) => r.displayOrder)) + 10 : 10,
       code: defaultCodeTemplate,
     });
@@ -284,6 +288,7 @@ export default function RulesPage() {
       description: rule.description || '',
       ruleType: rule.ruleType,
       targetFields: rule.targetFields,
+      objectTypes: rule.objectTypes || [...ALL_OBJECT_TYPES],
       displayOrder: rule.displayOrder,
       code: storedCode || (rule.ruleType === 'transform' ? defaultCodeTemplate : defaultValidateTemplate),
     });
@@ -332,6 +337,7 @@ export default function RulesPage() {
           description: formData.description.trim() || undefined,
           ruleType: formData.ruleType,
           targetFields: formData.targetFields,
+          objectTypes: formData.objectTypes,
           displayOrder: formData.displayOrder,
           config: { ...editingRule.config, code: formData.code },
         };
@@ -353,6 +359,7 @@ export default function RulesPage() {
           description: formData.description.trim() || undefined,
           ruleType: formData.ruleType,
           targetFields: formData.targetFields,
+          objectTypes: formData.objectTypes,
           displayOrder: formData.displayOrder,
           enabled: true,
           config: { code: formData.code },
@@ -568,12 +575,20 @@ export default function RulesPage() {
                         {rule.description && (
                           <p className="text-sm text-gray-500 mt-0.5">{rule.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-gray-400">
                             Target fields: {rule.targetFields.includes('*') ? 'All fields' : rule.targetFields.join(', ')}
                           </span>
+                          <span className="text-xs text-gray-300">|</span>
                           <span className="text-xs text-gray-400">
                             Order: {rule.displayOrder}
+                          </span>
+                          <span className="text-xs text-gray-300">|</span>
+                          <span className="text-xs text-gray-400">
+                            Objects:{' '}
+                            {rule.objectTypes?.length === ALL_OBJECT_TYPES.length || !rule.objectTypes?.length
+                              ? 'All'
+                              : rule.objectTypes.map(t => OBJECT_TYPES.find(ot => ot.value === t)?.label || t).join(', ')}
                           </span>
                         </div>
                       </div>
@@ -814,6 +829,43 @@ export default function RulesPage() {
                     {formData.targetFields.length > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
                         Selected: {isAllFieldsSelected ? 'All fields (applies to every column)' : formData.targetFields.join(', ')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Applies To
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Select which object types this rule should run on.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {OBJECT_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              objectTypes: prev.objectTypes.includes(type.value)
+                                ? prev.objectTypes.filter((t) => t !== type.value)
+                                : [...prev.objectTypes, type.value],
+                            }));
+                          }}
+                          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                            formData.objectTypes.includes(type.value)
+                              ? 'bg-primary-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.objectTypes.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-2">
+                        Warning: This rule won&apos;t run on any object type. Select at least one.
                       </p>
                     )}
                   </div>
