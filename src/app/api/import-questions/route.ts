@@ -31,7 +31,14 @@ export async function GET(request: NextRequest) {
     questions = await fetchImportQuestions('default');
   }
 
-  return NextResponse.json({ success: true, questions });
+  return NextResponse.json(
+    { success: true, questions },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    }
+  );
 }
 
 /**

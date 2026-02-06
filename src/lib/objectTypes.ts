@@ -22,6 +22,11 @@ export function appliesToObjectType(
 ): boolean {
   // If no object types specified, applies to all
   if (!objectTypes || objectTypes.length === 0) return true;
+  // Ensure objectTypes is an array (defensive check for data integrity)
+  if (!Array.isArray(objectTypes)) {
+    console.warn('[appliesToObjectType] Expected array, got:', typeof objectTypes, objectTypes);
+    return true;
+  }
   return objectTypes.includes(selectedType);
 }
 

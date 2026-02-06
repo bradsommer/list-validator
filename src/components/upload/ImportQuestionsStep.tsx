@@ -247,17 +247,19 @@ export function ImportQuestionsStep() {
   const loadQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Add cache-busting parameter to ensure fresh data
       const response = await fetch(
-        `/api/import-questions?accountId=${encodeURIComponent(accountId)}`
+        `/api/import-questions?accountId=${encodeURIComponent(accountId)}&_t=${Date.now()}`
       );
       const data = await response.json();
       if (data.success) {
         // Filter to enabled questions that apply to the selected object type
-        const activeQuestions = data.questions.filter(
-          (q: ImportQuestion) => q.enabled && (
-            !selectedObjectType || appliesToObjectType(q.objectTypes, selectedObjectType)
-          )
-        );
+        const activeQuestions = selectedObjectType
+          ? data.questions.filter(
+              (q: ImportQuestion) =>
+                q.enabled && appliesToObjectType(q.objectTypes, selectedObjectType)
+            )
+          : data.questions.filter((q: ImportQuestion) => q.enabled);
         setQuestions(activeQuestions);
       }
     } catch (error) {
