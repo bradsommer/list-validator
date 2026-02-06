@@ -106,6 +106,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, ...updates } = body;
 
+    console.log('[import-questions] PUT request - id:', id, 'objectTypes:', updates.objectTypes);
+
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'Missing question ID' },

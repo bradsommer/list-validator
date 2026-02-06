@@ -64,6 +64,7 @@ export default function ImportQuestionsPage() {
       const response = await fetch(`/api/import-questions?accountId=${encodeURIComponent(accountId)}`);
       const data = await response.json();
       if (data.success) {
+        console.log('[import-questions-page] Loaded questions - objectTypes:', data.questions.map((q: ImportQuestion) => ({ id: q.id, text: q.questionText.substring(0, 20), objectTypes: q.objectTypes })));
         setQuestions(data.questions);
       }
     } catch (error) {
@@ -139,26 +140,32 @@ export default function ImportQuestionsPage() {
 
       if (editingQuestion) {
         // Update existing
+        const requestBody = {
+          id: editingQuestion.id,
+          questionText: formData.questionText,
+          columnHeader: formData.columnHeader,
+          questionType: formData.questionType,
+          options: cleanOptions,
+          optionValues: cleanOptionValues,
+          objectTypes: formData.objectTypes,
+          isRequired: formData.isRequired,
+          displayOrder: formData.displayOrder,
+          enabled: formData.enabled,
+        };
+        console.log('[import-questions-page] Saving with objectTypes:', formData.objectTypes);
+
         const response = await fetch('/api/import-questions', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingQuestion.id,
-            questionText: formData.questionText,
-            columnHeader: formData.columnHeader,
-            questionType: formData.questionType,
-            options: cleanOptions,
-            optionValues: cleanOptionValues,
-            objectTypes: formData.objectTypes,
-            isRequired: formData.isRequired,
-            displayOrder: formData.displayOrder,
-            enabled: formData.enabled,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (response.ok) {
           await loadQuestions();
           resetForm();
+        } else {
+          const errorData = await response.json();
+          console.error('[import-questions-page] Save failed:', errorData);
         }
       } else {
         // Create new

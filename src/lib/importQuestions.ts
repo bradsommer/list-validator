@@ -226,21 +226,34 @@ export async function updateImportQuestion(
     if (updates.questionType !== undefined) dbUpdates.question_type = updates.questionType;
     if (updates.options !== undefined) dbUpdates.options = updates.options;
     if (updates.optionValues !== undefined) dbUpdates.option_values = updates.optionValues;
-    if (updates.objectTypes !== undefined) dbUpdates.object_types = updates.objectTypes;
+    // Handle objectTypes explicitly - ensure array is spread to avoid reference issues
+    // and handle the case where it's passed as a value that needs to be stored
+    if (updates.objectTypes !== undefined) {
+      // Ensure we're saving an array, even if empty
+      dbUpdates.object_types = Array.isArray(updates.objectTypes)
+        ? [...updates.objectTypes]
+        : updates.objectTypes;
+    }
     if (updates.defaultValue !== undefined) dbUpdates.default_value = updates.defaultValue;
     if (updates.isRequired !== undefined) dbUpdates.is_required = updates.isRequired;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
 
-    const { error } = await supabase
+    console.log('[importQuestions] Updating question:', questionId, 'with object_types:', dbUpdates.object_types);
+
+    const { data, error } = await supabase
       .from('import_questions')
       .update(dbUpdates)
-      .eq('id', questionId);
+      .eq('id', questionId)
+      .select('id, object_types')
+      .single();
 
     if (error) {
       console.error('[importQuestions] Update error:', error);
       return false;
     }
+
+    console.log('[importQuestions] Update result - object_types saved as:', data?.object_types);
 
     return true;
   } catch (err) {
