@@ -327,3 +327,104 @@ export async function deleteRule(accountId: string, ruleId: string): Promise<boo
     return false;
   }
 }
+
+/**
+ * Sync rules from the default account - copies missing code to existing rules
+ * This is useful when rules exist but are missing their custom code
+ */
+export async function syncRulesFromDefault(accountId: string): Promise<{ synced: number; errors: string[] }> {
+  const errors: string[] = [];
+  let synced = 0;
+
+  try {
+    // Fetch default rules (source of truth for code)
+    const { data: defaultRules, error: defaultError } = await supabase
+      .from('account_rules')
+      .select('*')
+      .eq('account_id', 'default');
+
+    if (defaultError || !defaultRules?.length) {
+      return { synced: 0, errors: ['Failed to fetch default rules'] };
+    }
+
+    // Fetch current account rules
+    const { data: accountRules, error: accountError } = await supabase
+      .from('account_rules')
+      .select('*')
+      .eq('account_id', accountId);
+
+    if (accountError) {
+      return { synced: 0, errors: ['Failed to fetch account rules'] };
+    }
+
+    // Build a map of default rules by rule_id
+    const defaultRuleMap = new Map<string, DbAccountRule>();
+    for (const rule of defaultRules) {
+      defaultRuleMap.set(rule.rule_id, rule);
+    }
+
+    // Update account rules that are missing code
+    for (const accountRule of accountRules || []) {
+      const defaultRule = defaultRuleMap.get(accountRule.rule_id);
+      if (!defaultRule) continue;
+
+      // Check if account rule is missing code but default has it
+      const accountHasCode = !!(accountRule.config as Record<string, unknown>)?.code;
+      const defaultHasCode = !!(defaultRule.config as Record<string, unknown>)?.code;
+
+      if (!accountHasCode && defaultHasCode) {
+        // Copy code from default rule
+        const { error: updateError } = await supabase
+          .from('account_rules')
+          .update({
+            config: defaultRule.config,
+            // Also sync other fields that might be outdated
+            target_fields: defaultRule.target_fields,
+          })
+          .eq('account_id', accountId)
+          .eq('rule_id', accountRule.rule_id);
+
+        if (updateError) {
+          errors.push(`Failed to sync ${accountRule.rule_id}: ${updateError.message}`);
+        } else {
+          synced++;
+          console.log(`[syncRulesFromDefault] Synced code for ${accountRule.rule_id}`);
+        }
+      }
+    }
+
+    // Also add any missing rules from default
+    const accountRuleIds = new Set((accountRules || []).map(r => r.rule_id));
+    const missingRules = defaultRules.filter(r => !accountRuleIds.has(r.rule_id));
+
+    if (missingRules.length > 0) {
+      const newRules = missingRules.map(rule => ({
+        account_id: accountId,
+        rule_id: rule.rule_id,
+        enabled: rule.enabled,
+        name: rule.name,
+        description: rule.description,
+        rule_type: rule.rule_type,
+        target_fields: rule.target_fields,
+        config: rule.config,
+        display_order: rule.display_order,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('account_rules')
+        .insert(newRules);
+
+      if (insertError) {
+        errors.push(`Failed to add missing rules: ${insertError.message}`);
+      } else {
+        synced += missingRules.length;
+        console.log(`[syncRulesFromDefault] Added ${missingRules.length} missing rules`);
+      }
+    }
+
+    return { synced, errors };
+  } catch (err) {
+    console.error('[syncRulesFromDefault] Error:', err);
+    return { synced: 0, errors: ['Unexpected error during sync'] };
+  }
+}

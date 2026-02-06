@@ -10,6 +10,7 @@ import {
   createRule,
   updateRule,
   deleteRule,
+  syncRulesFromDefault,
   type AccountRule,
   type CreateRuleInput,
   type UpdateRuleInput,
@@ -79,6 +80,8 @@ export default function RulesPage() {
   // Prevent double-loading when auth state changes
   const hasLoadedRef = useRef(false);
   const accountId = user?.accountId || 'default';
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Get all unique fields from column headings + rules
   const getAllFields = useCallback(() => {
@@ -200,6 +203,32 @@ export default function RulesPage() {
       await toggleRuleEnabled(accountId, ruleId, false);
     }
   };
+
+  const handleSyncFromDefault = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const result = await syncRulesFromDefault(accountId);
+      if (result.synced > 0) {
+        setSyncMessage({ type: 'success', text: `Synced ${result.synced} rule(s) from default` });
+        await loadRules(); // Reload to show updated rules
+      } else if (result.errors.length > 0) {
+        setSyncMessage({ type: 'error', text: result.errors.join(', ') });
+      } else {
+        setSyncMessage({ type: 'success', text: 'All rules are already up to date' });
+      }
+    } catch {
+      setSyncMessage({ type: 'error', text: 'Failed to sync rules' });
+    } finally {
+      setIsSyncing(false);
+      // Clear message after 5 seconds
+      setTimeout(() => setSyncMessage(null), 5000);
+    }
+  };
+
+  // Count rules missing code
+  const rulesWithoutCode = rules.filter((r) => !r.config?.code).length;
 
   // Modal handlers
   const openAddModal = () => {
@@ -395,13 +424,38 @@ export default function RulesPage() {
               >
                 Disable All
               </button>
+              <button
+                onClick={handleSyncFromDefault}
+                disabled={isSyncing}
+                className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+                title="Copy missing code from default rules"
+              >
+                {isSyncing ? 'Syncing...' : 'Sync from Default'}
+              </button>
             </div>
           )}
         </div>
 
         <div className="text-sm text-gray-500">
           {enabledCount} of {rules.length} rules enabled
+          {rulesWithoutCode > 0 && (
+            <span className="ml-2 text-amber-600">
+              ({rulesWithoutCode} missing code - click &quot;Sync from Default&quot; to fix)
+            </span>
+          )}
         </div>
+
+        {syncMessage && (
+          <div
+            className={`text-sm px-3 py-2 rounded-lg ${
+              syncMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}
+          >
+            {syncMessage.text}
+          </div>
+        )}
 
         <div className="space-y-3">
           {isLoading ? (
@@ -452,9 +506,13 @@ export default function RulesPage() {
                           >
                             {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
                           </span>
-                          {!!rule.config?.code && (
+                          {rule.config?.code ? (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
                               Custom Code
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700">
+                              No Code
                             </span>
                           )}
                         </div>
