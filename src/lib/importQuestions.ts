@@ -5,6 +5,42 @@
 
 import { supabase } from './supabase';
 import type { ObjectType } from './objectTypes';
+import { ALL_OBJECT_TYPES } from './objectTypes';
+
+/**
+ * Safely parse object_types from database.
+ * Handles both proper arrays and Postgres string representations like "{contacts,companies}".
+ */
+function parseObjectTypes(value: unknown): ObjectType[] {
+  // Default: applies to all types
+  if (value === null || value === undefined) {
+    return [...ALL_OBJECT_TYPES];
+  }
+
+  // Already a proper array
+  if (Array.isArray(value)) {
+    return value as ObjectType[];
+  }
+
+  // Handle Postgres array string format: {contacts,companies,deals}
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const inner = trimmed.slice(1, -1).trim();
+      if (inner === '') {
+        return []; // Empty array explicitly means "none"
+      }
+      return inner.split(',').map(s => s.trim() as ObjectType);
+    }
+    // Single value without braces
+    if (trimmed && ['contacts', 'companies', 'deals'].includes(trimmed)) {
+      return [trimmed as ObjectType];
+    }
+  }
+
+  console.warn('[parseObjectTypes] Unexpected value, defaulting to all types:', value);
+  return [...ALL_OBJECT_TYPES];
+}
 
 /**
  * Question input types:
@@ -59,7 +95,7 @@ function mapDbToImportQuestion(row: DbImportQuestion): ImportQuestion {
     questionType: row.question_type,
     options: row.options || [],
     optionValues: row.option_values || {},
-    objectTypes: row.object_types || ['contacts', 'companies', 'deals'],
+    objectTypes: parseObjectTypes(row.object_types),
     defaultValue: row.default_value,
     isRequired: row.is_required,
     displayOrder: row.display_order,
@@ -272,7 +308,7 @@ export async function initializeAccountQuestions(
       question_type: q.question_type,
       options: q.options,
       option_values: q.option_values || {},
-      object_types: q.object_types || ['contacts', 'companies', 'deals'],
+      object_types: parseObjectTypes(q.object_types),
       default_value: q.default_value,
       is_required: q.is_required,
       display_order: q.display_order,
