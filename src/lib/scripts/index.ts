@@ -206,16 +206,20 @@ export function createDynamicScript(rule: AccountRule): IValidationScript | null
       const modifiedRows = rows.map((row) => ({ ...row }));
 
       // Find which columns match the target fields
+      // Special case: '*' means all fields
       // Match by: 1) matchedField.hubspotField, 2) original header name (case-insensitive)
-      const targetMatches = headerMatches.filter((match) => {
-        const hubspotField = match.matchedField?.hubspotField?.toLowerCase();
-        const originalHeader = match.originalHeader.toLowerCase();
+      const isAllFields = rule.targetFields.includes('*');
+      const targetMatches = isAllFields
+        ? headerMatches // All columns when '*' is in targetFields
+        : headerMatches.filter((match) => {
+            const hubspotField = match.matchedField?.hubspotField?.toLowerCase();
+            const originalHeader = match.originalHeader.toLowerCase();
 
-        return rule.targetFields.some((targetField) => {
-          const target = targetField.toLowerCase();
-          return hubspotField === target || originalHeader === target;
-        });
-      });
+            return rule.targetFields.some((targetField) => {
+              const target = targetField.toLowerCase();
+              return hubspotField === target || originalHeader === target;
+            });
+          });
 
       console.log(`[${rule.name}] Found ${targetMatches.length} target matches:`, targetMatches.map(m => m.originalHeader));
 

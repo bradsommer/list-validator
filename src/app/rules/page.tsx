@@ -355,13 +355,30 @@ export default function RulesPage() {
     }
   };
 
-  const toggleTargetField = (field: string) => {
+  const ALL_FIELDS_VALUE = '*';
+
+  const isAllFieldsSelected = formData.targetFields.includes(ALL_FIELDS_VALUE);
+
+  const toggleAllFields = () => {
     setFormData((prev) => ({
       ...prev,
-      targetFields: prev.targetFields.includes(field)
-        ? prev.targetFields.filter((f) => f !== field)
-        : [...prev.targetFields, field],
+      targetFields: prev.targetFields.includes(ALL_FIELDS_VALUE)
+        ? []
+        : [ALL_FIELDS_VALUE],
     }));
+  };
+
+  const toggleTargetField = (field: string) => {
+    setFormData((prev) => {
+      // If "all fields" is selected and user clicks a specific field, deselect "all fields"
+      const withoutAll = prev.targetFields.filter((f) => f !== ALL_FIELDS_VALUE);
+      return {
+        ...prev,
+        targetFields: withoutAll.includes(field)
+          ? withoutAll.filter((f) => f !== field)
+          : [...withoutAll, field],
+      };
+    });
   };
 
   const addCustomField = () => {
@@ -521,7 +538,7 @@ export default function RulesPage() {
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-gray-400">
-                            Target fields: {rule.targetFields.join(', ')}
+                            Target fields: {rule.targetFields.includes('*') ? 'All fields' : rule.targetFields.join(', ')}
                           </span>
                           <span className="text-xs text-gray-400">
                             Order: {rule.displayOrder}
@@ -692,15 +709,31 @@ export default function RulesPage() {
                       Target Fields
                     </label>
                     <div className="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50">
+                      {/* All Fields option - positioned first */}
+                      <button
+                        type="button"
+                        onClick={toggleAllFields}
+                        className={`px-2 py-1 text-xs rounded-full transition-colors font-medium ${
+                          isAllFieldsSelected
+                            ? 'bg-green-600 text-white'
+                            : 'bg-white text-green-700 hover:bg-green-100 border border-green-400'
+                        }`}
+                      >
+                        All Fields
+                      </button>
+                      <span className="text-gray-300">|</span>
                       {getAllFields().map((field) => (
                         <button
                           key={field}
                           type="button"
                           onClick={() => toggleTargetField(field)}
+                          disabled={isAllFieldsSelected}
                           className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                            formData.targetFields.includes(field)
-                              ? 'bg-primary-600 text-white'
-                              : 'bg-white text-gray-700 hover:bg-gray-200 border border-gray-300'
+                            isAllFieldsSelected
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : formData.targetFields.includes(field)
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-200 border border-gray-300'
                           }`}
                         >
                           {field}
@@ -726,7 +759,7 @@ export default function RulesPage() {
                     </div>
                     {formData.targetFields.length > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
-                        Selected: {formData.targetFields.join(', ')}
+                        Selected: {isAllFieldsSelected ? 'All fields (applies to every column)' : formData.targetFields.join(', ')}
                       </p>
                     )}
                   </div>

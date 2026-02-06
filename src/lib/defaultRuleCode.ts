@@ -13,6 +13,7 @@
  * This fixes cases where the database was seeded with incorrect values.
  */
 export const DEFAULT_RULE_METADATA: Record<string, { ruleType: 'transform' | 'validate'; targetFields: string[] }> = {
+  'encoding-detection': { ruleType: 'transform', targetFields: ['*'] },
   'state-normalization': { ruleType: 'transform', targetFields: ['state'] },
   'whitespace-validation': { ruleType: 'transform', targetFields: ['whitespace'] },
   'new-business-validation': { ruleType: 'transform', targetFields: ['new_business'] },
@@ -28,6 +29,89 @@ export const DEFAULT_RULE_METADATA: Record<string, { ruleType: 'transform' | 'va
 };
 
 export const DEFAULT_RULE_CODE: Record<string, string> = {
+  'encoding-detection': `
+// Encoding Detection & Fix - Sanitizes mojibake (garbled text from encoding issues)
+// Common pattern: UTF-8 text incorrectly decoded as Windows-1252/Latin-1
+
+// Common mojibake patterns and their correct UTF-8 equivalents
+const MOJIBAKE_MAP = {
+  // Smart quotes and apostrophes (UTF-8 interpreted as Windows-1252)
+  '‚Äö√Ñ√¥': "'",   // Right single quote
+  '‚Äô': "'",        // Right single quote variant
+  '‚Äò': "'",        // Left single quote
+  '‚Äú': '"',        // Left double quote
+  '‚Äù': '"',        // Right double quote
+  '‚Äî': '—',        // Em dash
+  '‚Äì': '–',        // En dash
+  '‚Ä¶': '…',        // Ellipsis
+  '√©': 'é',         // e-acute
+  '√®': 'è',         // e-grave
+  '√°': 'á',         // a-acute
+  '√±': 'ñ',         // n-tilde
+  '√º': 'ü',         // u-umlaut
+  '√∂': 'ö',         // o-umlaut
+  '√§': 'ä',         // a-umlaut
+  '√ü': 'ß',         // German eszett
+  '√Ñ': 'Ä',         // A-umlaut
+  '√ñ': 'Ö',         // O-umlaut
+  '√ú': 'Ü',         // U-umlaut
+  'Ã©': 'é',         // e-acute (different encoding)
+  'Ã¨': 'è',         // e-grave
+  'Ã¡': 'á',         // a-acute
+  'Ã±': 'ñ',         // n-tilde
+  'Ã¼': 'ü',         // u-umlaut
+  'Ã¶': 'ö',         // o-umlaut
+  'Ã¤': 'ä',         // a-umlaut
+  'ÃŸ': 'ß',         // German eszett
+  'Ã„': 'Ä',         // A-umlaut
+  'Ã–': 'Ö',         // O-umlaut
+  'Ãœ': 'Ü',         // U-umlaut
+  'Â´': "'",         // Acute accent as apostrophe
+  'â€™': "'",        // Right single quote
+  'â€˜': "'",        // Left single quote
+  'â€œ': '"',        // Left double quote
+  'â€': '"',         // Right double quote
+  'â€"': '—',        // Em dash
+  'â€"': '–',        // En dash
+  'â€¦': '…',        // Ellipsis
+  'Ã¢â‚¬â„¢': "'",   // Complex encoding of apostrophe
+  'Ã¢â‚¬Å"': '"',    // Complex encoding of left quote
+  'Ã¢â‚¬': '"',      // Complex encoding of right quote
+};
+
+// Regex pattern to detect likely mojibake sequences
+const MOJIBAKE_PATTERN = /[\\xc0-\\xc3][\\x80-\\xbf]{1,3}|[‚√Ã¢â€][\\w\\x80-\\xff]{1,5}/g;
+
+function transform(value, fieldName, row) {
+  if (value === null || value === undefined) return value;
+
+  let text = String(value);
+  if (text.trim() === '') return value;
+
+  // Replace known mojibake sequences
+  for (const [bad, good] of Object.entries(MOJIBAKE_MAP)) {
+    if (text.includes(bad)) {
+      text = text.split(bad).join(good);
+    }
+  }
+
+  // If text still has suspicious patterns, try decode/encode fix
+  if (MOJIBAKE_PATTERN.test(text)) {
+    try {
+      // Attempt to fix double-encoded UTF-8
+      const fixed = decodeURIComponent(escape(text));
+      if (fixed !== text && !MOJIBAKE_PATTERN.test(fixed)) {
+        text = fixed;
+      }
+    } catch (e) {
+      // decodeURIComponent failed, keep current text
+    }
+  }
+
+  return text;
+}
+`,
+
   'state-normalization': `
 // US State abbreviation to full name mapping
 const STATE_MAP = {
