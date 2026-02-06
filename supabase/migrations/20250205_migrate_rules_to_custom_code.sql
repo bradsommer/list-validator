@@ -1,418 +1,190 @@
--- Migration: Convert all built-in rules to custom code stored in database
--- This allows all validation rules to be managed through the admin UI
-
--- State Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// State Normalization - Converts abbreviations to full names
-function transform(value, fieldName, row) {
-  if (!value) return value;
-
-  const STATE_MAP = {
-    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
-    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
-    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
-    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
-    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
-    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
-    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
-    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
-    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
-    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
-    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
-    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
-    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
-    "PR": "Puerto Rico", "VI": "Virgin Islands", "GU": "Guam"
-  };
-
-  const STATE_VARIANTS = {
-    "CALI": "California", "CALIF": "California", "CALIFRONIA": "California",
-    "NEWYORK": "New York", "NYC": "New York", "TEXS": "Texas",
-    "FLORDA": "Florida", "FLORDIA": "Florida", "GEORIGA": "Georgia",
-    "ILLNOIS": "Illinois", "ILLINIOS": "Illinois", "MASSACHUSETS": "Massachusetts",
-    "MICHGAN": "Michigan", "MINNESOTTA": "Minnesota", "MISSIPPI": "Mississippi",
-    "MISOURI": "Missouri", "CONNETICUT": "Connecticut", "PENNSLVANIA": "Pennsylvania",
-    "TENNESSE": "Tennessee", "VIRGINA": "Virginia", "WASHINTON": "Washington"
-  };
-
-  const VALID_STATES = new Set(Object.values(STATE_MAP));
-
-  const valueStr = String(value).trim();
-  const upperValue = valueStr.toUpperCase();
-
-  // Already valid
-  if (VALID_STATES.has(valueStr)) return valueStr;
-
-  // Check abbreviation
-  if (STATE_MAP[upperValue]) return STATE_MAP[upperValue];
-
-  // Check misspelling
-  if (STATE_VARIANTS[upperValue]) return STATE_VARIANTS[upperValue];
-
-  // Case-insensitive match against valid names
-  for (const stateName of VALID_STATES) {
-    if (stateName.toUpperCase() === upperValue) return stateName;
-  }
-
-  return value;
-}'::text))
-WHERE rule_id = 'state-normalization';
-
--- Role Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Role Normalization - Validates against allowed list
-function transform(value, fieldName, row) {
-  if (!value) return value;
-
-  const VALID_ROLES = [
-    "Admin", "Administrator", "Ascend Employee", "ATI Champion", "ATI Employee",
-    "Champion Nominee", "Coordinator", "Dean", "Director", "Educator",
-    "Instructor", "Other", "Proctor", "Student", "TEAS Student", "LMS Admin"
-  ];
-
-  const ROLE_LOOKUP = {};
-  VALID_ROLES.forEach(r => ROLE_LOOKUP[r.toLowerCase()] = r);
-
-  const valueStr = String(value).trim();
-  if (valueStr === "") return value;
-
-  // Exact match
-  if (VALID_ROLES.includes(valueStr)) return valueStr;
-
-  // Case-insensitive match
-  const matched = ROLE_LOOKUP[valueStr.toLowerCase()];
-  if (matched) return matched;
-
-  // No match - return "Other"
-  return "Other";
-}'::text))
-WHERE rule_id = 'role-normalization';
-
--- Program Type Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Program Type Normalization - Validates against allowed list
-function transform(value, fieldName, row) {
-  if (!value) return value;
-
-  const VALID_TYPES = [
-    "ADN", "BSN", "OTHER-BSN", "RN", "PN", "Allied Health", "Diploma", "Other",
-    "Testing Center", "ATI Allied Health", "RN to BSN", "APRN", "Healthcare",
-    "Bookstore", "LPN", "DNP", "MSN", "CNA", "ADN - Online", "BSN - Online",
-    "BSN Philippines", "CT", "CV Sonography", "Dental Assisting", "Dental Hygiene",
-    "HCO", "Health Occupations", "Healthcare-ADN", "Hospital", "ICV", "LPN to RN",
-    "MRI", "Medical Assisting", "Medical Sonography", "NHA Allied Health",
-    "Nuclear Medicine", "Occupational Assisting", "PN - Online", "PhD",
-    "Physical Therapy", "Radiation Therapy", "Radiography", "Resident",
-    "Respiratory Therapy", "Sports Medicine", "TEAS Only", "Test Program Type",
-    "Therapeutic Massage"
-  ];
-
-  const TYPE_LOOKUP = {};
-  VALID_TYPES.forEach(t => TYPE_LOOKUP[t.toLowerCase()] = t);
-
-  const valueStr = String(value).trim();
-  if (valueStr === "") return value;
-
-  // Exact match
-  if (VALID_TYPES.includes(valueStr)) return valueStr;
-
-  // Case-insensitive match
-  const matched = TYPE_LOOKUP[valueStr.toLowerCase()];
-  if (matched) return matched;
-
-  // No match - return "Other"
-  return "Other";
-}'::text))
-WHERE rule_id = 'program-type-normalization';
-
--- Solution Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Solution Normalization - Validates against allowed list
-function transform(value, fieldName, row) {
-  if (!value) return value;
-
-  const VALID_SOLUTIONS = ["OPTIMAL", "SUPREME", "STO", "CARP", "BASIC", "MID-MARKET", "COMPLETE"];
-
-  const SOLUTION_LOOKUP = {};
-  VALID_SOLUTIONS.forEach(s => SOLUTION_LOOKUP[s.toUpperCase()] = s);
-
-  const valueStr = String(value).trim();
-  if (valueStr === "") return value;
-
-  // Exact match
-  if (VALID_SOLUTIONS.includes(valueStr)) return valueStr;
-
-  // Case-insensitive match
-  const matched = SOLUTION_LOOKUP[valueStr.toUpperCase()];
-  if (matched) return matched;
-
-  // No match - return "Other"
-  return "Other";
-}'::text))
-WHERE rule_id = 'solution-normalization';
-
--- Whitespace Validation (Yes/No field)
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Whitespace Validation - Normalizes Yes/No values
-function transform(value, fieldName, row) {
-  if (value === null || value === undefined) return value;
-
-  const VALUE_LOOKUP = {
-    "yes": "Yes", "no": "No", "y": "Yes", "n": "No",
-    "true": "Yes", "false": "No", "1": "Yes", "0": "No"
-  };
-
-  const valueStr = String(value).trim();
-  if (valueStr === "" || valueStr === "Yes" || valueStr === "No") return valueStr;
-
-  const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];
-  if (normalized) return normalized;
-
-  // Invalid value - clear it
-  return "";
-}'::text))
-WHERE rule_id = 'whitespace-validation';
-
--- New Business Validation (Yes/No field)
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// New Business Validation - Normalizes Yes/No values
-function transform(value, fieldName, row) {
-  if (value === null || value === undefined) return value;
-
-  const VALUE_LOOKUP = {
-    "yes": "Yes", "no": "No", "y": "Yes", "n": "No",
-    "true": "Yes", "false": "No", "1": "Yes", "0": "No"
-  };
-
-  const valueStr = String(value).trim();
-  if (valueStr === "" || valueStr === "Yes" || valueStr === "No") return valueStr;
-
-  const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];
-  if (normalized) return normalized;
-
-  // Invalid value - clear it
-  return "";
-}'::text))
-WHERE rule_id = 'new-business-validation';
-
--- Email Validation
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Email Validation - Validates format and cleans whitespace
-function validate(value, fieldName, row) {
-  if (!value || String(value).trim() === "") {
-    return { valid: true }; // Empty is ok unless required
-  }
-
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const DISPOSABLE_DOMAINS = ["mailinator.com", "guerrillamail.com", "tempmail.com", "throwaway.email", "10minutemail.com"];
-
-  const email = String(value).trim().toLowerCase();
-
-  // Basic format check
-  if (!EMAIL_REGEX.test(email)) {
-    return { valid: false, message: "Invalid email format" };
-  }
-
-  // Check disposable domains
-  const domain = email.split("@")[1];
-  if (DISPOSABLE_DOMAINS.includes(domain)) {
-    return { valid: false, message: "Disposable email domain: " + domain };
-  }
-
-  return { valid: true };
-}'::text))
-WHERE rule_id = 'email-validation';
-
--- Phone Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Phone Normalization - Standardizes to +1XXXXXXXXXX format
-function transform(value, fieldName, row) {
-  if (!value || String(value).trim() === "") return value;
-
-  const valueStr = String(value).trim();
-  const digitsOnly = valueStr.replace(/\D/g, "");
-
-  if (digitsOnly.length < 7) return value; // Too short
-
-  if (digitsOnly.length === 10) {
-    // US number without country code
-    return "+1" + digitsOnly;
-  }
-
-  if (digitsOnly.length === 11 && digitsOnly.startsWith("1")) {
-    // US number with leading 1
-    return "+" + digitsOnly;
-  }
-
-  if (digitsOnly.length > 10 && valueStr.startsWith("+")) {
-    // International with +
-    return "+" + digitsOnly;
-  }
-
-  if (digitsOnly.length > 10) {
-    // Longer number, might be international
-    return "+" + digitsOnly;
-  }
-
-  // 7-9 digits, add +1 anyway
-  return "+1" + digitsOnly;
-}'::text))
-WHERE rule_id = 'phone-normalization';
-
--- Date Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Date Normalization - Standardizes to MM/DD/YYYY
-function transform(value, fieldName, row) {
-  if (!value || String(value).trim() === "") return value;
-
-  const trimmed = String(value).trim();
-
-  // Already in target format
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) return trimmed;
-
-  // ISO: YYYY-MM-DD
-  let match = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (match) {
-    const [, y, m, d] = match;
-    return m.padStart(2, "0") + "/" + d.padStart(2, "0") + "/" + y;
-  }
-
-  // M/D/YYYY
-  match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (match) {
-    const [, m, d, y] = match;
-    return m.padStart(2, "0") + "/" + d.padStart(2, "0") + "/" + y;
-  }
-
-  // MM/DD/YY
-  match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-  if (match) {
-    const [, m, d, y] = match;
-    const fullYear = parseInt(y) > 50 ? 1900 + parseInt(y) : 2000 + parseInt(y);
-    return m.padStart(2, "0") + "/" + d.padStart(2, "0") + "/" + fullYear;
-  }
-
-  return value; // Could not parse
-}'::text))
-WHERE rule_id = 'date-normalization';
-
--- Name Capitalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Name Capitalization - Properly capitalizes names
-function transform(value, fieldName, row) {
-  if (!value || String(value).trim() === "") return value;
-
-  const LOWERCASE_PREFIXES = ["van", "von", "de", "del", "della", "di", "da", "du", "la", "le", "el"];
-  const SPECIAL_PREFIXES = { "mc": "Mc", "mac": "Mac", "o''": "O''" };
-
-  function capitalize(word) {
-    if (!word) return word;
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  }
-
-  function processWord(word, isLast) {
-    const lower = word.toLowerCase();
-
-    // Special prefixes (Mc, Mac, O'')
-    for (const [prefix, formatted] of Object.entries(SPECIAL_PREFIXES)) {
-      if (lower.startsWith(prefix) && lower.length > prefix.length) {
-        const rest = word.substring(prefix.length);
-        return formatted + capitalize(rest);
-      }
-    }
-
-    // Lowercase prefixes for last names
-    if (isLast && LOWERCASE_PREFIXES.includes(lower)) {
-      return lower;
-    }
-
-    return capitalize(word);
-  }
-
-  const name = String(value).trim().replace(/\s+/g, " ");
-  const isLastName = fieldName === "lastname" || fieldName.toLowerCase().includes("last");
-
-  // Handle hyphenated names
-  if (name.includes("-")) {
-    return name.split("-").map((p, i) => processWord(p.trim(), isLastName && i > 0)).join("-");
-  }
-
-  // Handle space-separated names
-  if (name.includes(" ")) {
-    return name.split(" ").map((w, i) => processWord(w, isLastName && i > 0)).join(" ");
-  }
-
-  return processWord(name, isLastName);
-}'::text))
-WHERE rule_id = 'name-capitalization';
-
--- Company Normalization
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Company Normalization - Standardizes company name formatting
-function transform(value, fieldName, row) {
-  if (!value || String(value).trim() === "") return value;
-
-  const SUFFIXES = {
-    "inc": "Inc.", "inc.": "Inc.", "incorporated": "Inc.",
-    "llc": "LLC", "l.l.c.": "LLC", "llp": "LLP",
-    "ltd": "Ltd.", "ltd.": "Ltd.", "limited": "Ltd.",
-    "corp": "Corp.", "corp.": "Corp.", "corporation": "Corp.",
-    "co": "Co.", "co.": "Co.", "company": "Co.",
-    "plc": "PLC", "gmbh": "GmbH", "ag": "AG"
-  };
-
-  const ACRONYMS = ["ibm", "hp", "usa", "uk", "ai", "it", "hr", "api", "aws", "crm", "erp", "b2b", "b2c"];
-  const LOWERCASE = ["a", "an", "the", "and", "or", "of", "for", "in", "on", "at", "to", "by"];
-
-  function titleCase(word) {
-    if (!word) return word;
-    if (word.length > 1 && word !== word.toLowerCase() && word !== word.toUpperCase()) {
-      return word; // Mixed case like iPhone
-    }
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  }
-
-  const normalized = String(value).trim().replace(/\s+/g, " ");
-  const words = normalized.split(" ");
-  const processed = [];
-
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const lower = word.toLowerCase();
-
-    if (SUFFIXES[lower]) {
-      processed.push(SUFFIXES[lower]);
-    } else if (ACRONYMS.includes(lower)) {
-      processed.push(lower.toUpperCase());
-    } else if (i > 0 && LOWERCASE.includes(lower)) {
-      processed.push(lower);
-    } else {
-      processed.push(titleCase(word));
-    }
-  }
-
-  return processed.join(" ").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
-}'::text))
-WHERE rule_id = 'company-normalization';
-
--- Duplicate Detection (validate type - checks for duplicates)
-UPDATE account_rules
-SET config = jsonb_set(COALESCE(config, '{}'), '{code}', to_jsonb(
-'// Duplicate Detection - Flags potential duplicates
-// Note: This runs per-value but the warning helps identify potential issues
-function validate(value, fieldName, row) {
-  // This is a simplified version - full duplicate detection happens at the row level
-  // The built-in logic handles cross-row duplicate checking
-  return { valid: true };
-}'::text))
-WHERE rule_id = 'duplicate-detection';
+-- Migration: Create all validation rules as custom code in database
+-- This replaces hardcoded TypeScript scripts with database-driven rules
+-- All rules are fully editable through the admin UI
+
+-- First, clear existing rules for 'default' account to ensure clean state
+DELETE FROM account_rules WHERE account_id = 'default';
+
+-- Insert all rules with their custom code
+
+-- 1. State Normalization (order: 10)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'state-normalization',
+  'State Normalization',
+  'Converts state abbreviations to full names and fixes common misspellings',
+  'transform',
+  ARRAY['state'],
+  10,
+  true,
+  '{"code": "// State Normalization - Converts abbreviations to full names\nfunction transform(value, fieldName, row) {\n  if (!value) return value;\n\n  const STATE_MAP = {\n    \"AL\": \"Alabama\", \"AK\": \"Alaska\", \"AZ\": \"Arizona\", \"AR\": \"Arkansas\",\n    \"CA\": \"California\", \"CO\": \"Colorado\", \"CT\": \"Connecticut\", \"DE\": \"Delaware\",\n    \"FL\": \"Florida\", \"GA\": \"Georgia\", \"HI\": \"Hawaii\", \"ID\": \"Idaho\",\n    \"IL\": \"Illinois\", \"IN\": \"Indiana\", \"IA\": \"Iowa\", \"KS\": \"Kansas\",\n    \"KY\": \"Kentucky\", \"LA\": \"Louisiana\", \"ME\": \"Maine\", \"MD\": \"Maryland\",\n    \"MA\": \"Massachusetts\", \"MI\": \"Michigan\", \"MN\": \"Minnesota\", \"MS\": \"Mississippi\",\n    \"MO\": \"Missouri\", \"MT\": \"Montana\", \"NE\": \"Nebraska\", \"NV\": \"Nevada\",\n    \"NH\": \"New Hampshire\", \"NJ\": \"New Jersey\", \"NM\": \"New Mexico\", \"NY\": \"New York\",\n    \"NC\": \"North Carolina\", \"ND\": \"North Dakota\", \"OH\": \"Ohio\", \"OK\": \"Oklahoma\",\n    \"OR\": \"Oregon\", \"PA\": \"Pennsylvania\", \"RI\": \"Rhode Island\", \"SC\": \"South Carolina\",\n    \"SD\": \"South Dakota\", \"TN\": \"Tennessee\", \"TX\": \"Texas\", \"UT\": \"Utah\",\n    \"VT\": \"Vermont\", \"VA\": \"Virginia\", \"WA\": \"Washington\", \"WV\": \"West Virginia\",\n    \"WI\": \"Wisconsin\", \"WY\": \"Wyoming\", \"DC\": \"District of Columbia\",\n    \"PR\": \"Puerto Rico\", \"VI\": \"Virgin Islands\", \"GU\": \"Guam\"\n  };\n\n  const STATE_VARIANTS = {\n    \"CALI\": \"California\", \"CALIF\": \"California\", \"CALIFRONIA\": \"California\",\n    \"NEWYORK\": \"New York\", \"NYC\": \"New York\", \"TEXS\": \"Texas\",\n    \"FLORDA\": \"Florida\", \"FLORDIA\": \"Florida\", \"GEORIGA\": \"Georgia\",\n    \"ILLNOIS\": \"Illinois\", \"ILLINIOS\": \"Illinois\", \"MASSACHUSETS\": \"Massachusetts\",\n    \"MICHGAN\": \"Michigan\", \"MINNESOTTA\": \"Minnesota\", \"MISSIPPI\": \"Mississippi\",\n    \"MISOURI\": \"Missouri\", \"CONNETICUT\": \"Connecticut\", \"PENNSLVANIA\": \"Pennsylvania\",\n    \"TENNESSE\": \"Tennessee\", \"VIRGINA\": \"Virginia\", \"WASHINTON\": \"Washington\"\n  };\n\n  const VALID_STATES = new Set(Object.values(STATE_MAP));\n\n  const valueStr = String(value).trim();\n  const upperValue = valueStr.toUpperCase();\n\n  if (VALID_STATES.has(valueStr)) return valueStr;\n  if (STATE_MAP[upperValue]) return STATE_MAP[upperValue];\n  if (STATE_VARIANTS[upperValue]) return STATE_VARIANTS[upperValue];\n\n  for (const stateName of VALID_STATES) {\n    if (stateName.toUpperCase() === upperValue) return stateName;\n  }\n\n  return value;\n}"}'::jsonb
+);
+
+-- 2. Whitespace Validation (order: 12)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'whitespace-validation',
+  'Whitespace Validation',
+  'Normalizes Yes/No values for the Whitespace field',
+  'transform',
+  ARRAY['whitespace'],
+  12,
+  true,
+  '{"code": "// Whitespace Validation - Normalizes Yes/No values\nfunction transform(value, fieldName, row) {\n  if (value === null || value === undefined) return value;\n\n  const VALUE_LOOKUP = {\n    \"yes\": \"Yes\", \"no\": \"No\", \"y\": \"Yes\", \"n\": \"No\",\n    \"true\": \"Yes\", \"false\": \"No\", \"1\": \"Yes\", \"0\": \"No\"\n  };\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\" || valueStr === \"Yes\" || valueStr === \"No\") return valueStr;\n\n  const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];\n  if (normalized) return normalized;\n\n  return \"\";\n}"}'::jsonb
+);
+
+-- 3. New Business Validation (order: 13)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'new-business-validation',
+  'New Business Validation',
+  'Normalizes Yes/No values for the New Business field',
+  'transform',
+  ARRAY['new_business'],
+  13,
+  true,
+  '{"code": "// New Business Validation - Normalizes Yes/No values\nfunction transform(value, fieldName, row) {\n  if (value === null || value === undefined) return value;\n\n  const VALUE_LOOKUP = {\n    \"yes\": \"Yes\", \"no\": \"No\", \"y\": \"Yes\", \"n\": \"No\",\n    \"true\": \"Yes\", \"false\": \"No\", \"1\": \"Yes\", \"0\": \"No\"\n  };\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\" || valueStr === \"Yes\" || valueStr === \"No\") return valueStr;\n\n  const normalized = VALUE_LOOKUP[valueStr.toLowerCase()];\n  if (normalized) return normalized;\n\n  return \"\";\n}"}'::jsonb
+);
+
+-- 4. Role Normalization (order: 15)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'role-normalization',
+  'Role Normalization',
+  'Validates and normalizes role values against allowed list',
+  'transform',
+  ARRAY['role'],
+  15,
+  true,
+  '{"code": "// Role Normalization - Validates against allowed list\nfunction transform(value, fieldName, row) {\n  if (!value) return value;\n\n  const VALID_ROLES = [\n    \"Admin\", \"Administrator\", \"Ascend Employee\", \"ATI Champion\", \"ATI Employee\",\n    \"Champion Nominee\", \"Coordinator\", \"Dean\", \"Director\", \"Educator\",\n    \"Instructor\", \"Other\", \"Proctor\", \"Student\", \"TEAS Student\", \"LMS Admin\"\n  ];\n\n  const ROLE_LOOKUP = {};\n  VALID_ROLES.forEach(r => ROLE_LOOKUP[r.toLowerCase()] = r);\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\") return value;\n\n  if (VALID_ROLES.includes(valueStr)) return valueStr;\n\n  const matched = ROLE_LOOKUP[valueStr.toLowerCase()];\n  if (matched) return matched;\n\n  return \"Other\";\n}"}'::jsonb
+);
+
+-- 5. Program Type Normalization (order: 16)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'program-type-normalization',
+  'Program Type Normalization',
+  'Validates and normalizes program type values against allowed list',
+  'transform',
+  ARRAY['program_type'],
+  16,
+  true,
+  '{"code": "// Program Type Normalization - Validates against allowed list\nfunction transform(value, fieldName, row) {\n  if (!value) return value;\n\n  const VALID_TYPES = [\n    \"ADN\", \"BSN\", \"OTHER-BSN\", \"RN\", \"PN\", \"Allied Health\", \"Diploma\", \"Other\",\n    \"Testing Center\", \"ATI Allied Health\", \"RN to BSN\", \"APRN\", \"Healthcare\",\n    \"Bookstore\", \"LPN\", \"DNP\", \"MSN\", \"CNA\", \"ADN - Online\", \"BSN - Online\",\n    \"BSN Philippines\", \"CT\", \"CV Sonography\", \"Dental Assisting\", \"Dental Hygiene\",\n    \"HCO\", \"Health Occupations\", \"Healthcare-ADN\", \"Hospital\", \"ICV\", \"LPN to RN\",\n    \"MRI\", \"Medical Assisting\", \"Medical Sonography\", \"NHA Allied Health\",\n    \"Nuclear Medicine\", \"Occupational Assisting\", \"PN - Online\", \"PhD\",\n    \"Physical Therapy\", \"Radiation Therapy\", \"Radiography\", \"Resident\",\n    \"Respiratory Therapy\", \"Sports Medicine\", \"TEAS Only\", \"Test Program Type\",\n    \"Therapeutic Massage\"\n  ];\n\n  const TYPE_LOOKUP = {};\n  VALID_TYPES.forEach(t => TYPE_LOOKUP[t.toLowerCase()] = t);\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\") return value;\n\n  if (VALID_TYPES.includes(valueStr)) return valueStr;\n\n  const matched = TYPE_LOOKUP[valueStr.toLowerCase()];\n  if (matched) return matched;\n\n  return \"Other\";\n}"}'::jsonb
+);
+
+-- 6. Solution Normalization (order: 17)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'solution-normalization',
+  'Solution Normalization',
+  'Validates and normalizes solution values against allowed list',
+  'transform',
+  ARRAY['solution'],
+  17,
+  true,
+  '{"code": "// Solution Normalization - Validates against allowed list\nfunction transform(value, fieldName, row) {\n  if (!value) return value;\n\n  const VALID_SOLUTIONS = [\"OPTIMAL\", \"SUPREME\", \"STO\", \"CARP\", \"BASIC\", \"MID-MARKET\", \"COMPLETE\"];\n\n  const SOLUTION_LOOKUP = {};\n  VALID_SOLUTIONS.forEach(s => SOLUTION_LOOKUP[s.toUpperCase()] = s);\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\") return value;\n\n  if (VALID_SOLUTIONS.includes(valueStr)) return valueStr;\n\n  const matched = SOLUTION_LOOKUP[valueStr.toUpperCase()];\n  if (matched) return matched;\n\n  return \"Other\";\n}"}'::jsonb
+);
+
+-- 7. Region Normalization (order: 18)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'region-normalization',
+  'Region Normalization',
+  'Normalizes region values to: Global, Great Lakes, Northeast, National, Other, South, West',
+  'transform',
+  ARRAY['region'],
+  18,
+  true,
+  '{"code": "// Region Normalization - Normalizes region values to standard format\nfunction transform(value, fieldName, row) {\n  if (!value) return value;\n\n  const VALID_REGIONS = [\"Global\", \"Great Lakes\", \"Northeast\", \"National\", \"Other\", \"South\", \"West\"];\n  \n  const REGION_LOOKUP = {};\n  VALID_REGIONS.forEach(r => REGION_LOOKUP[r.toLowerCase()] = r);\n\n  const valueStr = String(value).trim();\n  if (valueStr === \"\") return value;\n\n  if (VALID_REGIONS.includes(valueStr)) return valueStr;\n\n  const matched = REGION_LOOKUP[valueStr.toLowerCase()];\n  if (matched) return matched;\n\n  return \"Other\";\n}"}'::jsonb
+);
+
+-- 8. Email Validation (order: 20)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'email-validation',
+  'Email Validation',
+  'Validates email format and checks for disposable domains',
+  'validate',
+  ARRAY['email'],
+  20,
+  true,
+  '{"code": "// Email Validation - Validates format and checks disposable domains\nfunction validate(value, fieldName, row) {\n  if (!value || String(value).trim() === \"\") {\n    return { valid: true };\n  }\n\n  const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  const DISPOSABLE_DOMAINS = [\"mailinator.com\", \"guerrillamail.com\", \"tempmail.com\", \"throwaway.email\", \"10minutemail.com\"];\n\n  const email = String(value).trim().toLowerCase();\n\n  if (!EMAIL_REGEX.test(email)) {\n    return { valid: false, message: \"Invalid email format\" };\n  }\n\n  const domain = email.split(\"@\")[1];\n  if (DISPOSABLE_DOMAINS.includes(domain)) {\n    return { valid: false, message: \"Disposable email domain: \" + domain };\n  }\n\n  return { valid: true };\n}"}'::jsonb
+);
+
+-- 9. Phone Normalization (order: 30)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'phone-normalization',
+  'Phone Normalization',
+  'Standardizes phone numbers to +1XXXXXXXXXX format',
+  'transform',
+  ARRAY['phone'],
+  30,
+  true,
+  '{"code": "// Phone Normalization - Standardizes to +1XXXXXXXXXX format\nfunction transform(value, fieldName, row) {\n  if (!value || String(value).trim() === \"\") return value;\n\n  const valueStr = String(value).trim();\n  const digitsOnly = valueStr.replace(/\\D/g, \"\");\n\n  if (digitsOnly.length < 7) return value;\n\n  if (digitsOnly.length === 10) {\n    return \"+1\" + digitsOnly;\n  }\n\n  if (digitsOnly.length === 11 && digitsOnly.startsWith(\"1\")) {\n    return \"+\" + digitsOnly;\n  }\n\n  if (digitsOnly.length > 10 && valueStr.startsWith(\"+\")) {\n    return \"+\" + digitsOnly;\n  }\n\n  if (digitsOnly.length > 10) {\n    return \"+\" + digitsOnly;\n  }\n\n  return \"+1\" + digitsOnly;\n}"}'::jsonb
+);
+
+-- 10. Date Normalization (order: 35)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'date-normalization',
+  'Date Normalization',
+  'Standardizes dates to MM/DD/YYYY format',
+  'transform',
+  ARRAY['date'],
+  35,
+  true,
+  '{"code": "// Date Normalization - Standardizes to MM/DD/YYYY\nfunction transform(value, fieldName, row) {\n  if (!value || String(value).trim() === \"\") return value;\n\n  const trimmed = String(value).trim();\n\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(trimmed)) return trimmed;\n\n  let match = trimmed.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);\n  if (match) {\n    const [, y, m, d] = match;\n    return m.padStart(2, \"0\") + \"/\" + d.padStart(2, \"0\") + \"/\" + y;\n  }\n\n  match = trimmed.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (match) {\n    const [, m, d, y] = match;\n    return m.padStart(2, \"0\") + \"/\" + d.padStart(2, \"0\") + \"/\" + y;\n  }\n\n  match = trimmed.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2})$/);\n  if (match) {\n    const [, m, d, y] = match;\n    const fullYear = parseInt(y) > 50 ? 1900 + parseInt(y) : 2000 + parseInt(y);\n    return m.padStart(2, \"0\") + \"/\" + d.padStart(2, \"0\") + \"/\" + fullYear;\n  }\n\n  return value;\n}"}'::jsonb
+);
+
+-- 11. Name Capitalization (order: 50)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'name-capitalization',
+  'Name Capitalization',
+  'Properly capitalizes names, handling McDonald, O''Brien, van der Berg, etc.',
+  'transform',
+  ARRAY['firstname', 'lastname'],
+  50,
+  true,
+  '{"code": "// Name Capitalization - Properly capitalizes names\nfunction transform(value, fieldName, row) {\n  if (!value || String(value).trim() === \"\") return value;\n\n  const LOWERCASE_PREFIXES = [\"van\", \"von\", \"de\", \"del\", \"della\", \"di\", \"da\", \"du\", \"la\", \"le\", \"el\"];\n  const SPECIAL_PREFIXES = { \"mc\": \"Mc\", \"mac\": \"Mac\", \"o''\": \"O''\" };\n\n  function capitalize(word) {\n    if (!word) return word;\n    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();\n  }\n\n  function processWord(word, isLast) {\n    const lower = word.toLowerCase();\n\n    for (const [prefix, formatted] of Object.entries(SPECIAL_PREFIXES)) {\n      if (lower.startsWith(prefix) && lower.length > prefix.length) {\n        const rest = word.substring(prefix.length);\n        return formatted + capitalize(rest);\n      }\n    }\n\n    if (isLast && LOWERCASE_PREFIXES.includes(lower)) {\n      return lower;\n    }\n\n    return capitalize(word);\n  }\n\n  const name = String(value).trim().replace(/\\s+/g, \" \");\n  const isLastName = fieldName === \"lastname\" || fieldName.toLowerCase().includes(\"last\");\n\n  if (name.includes(\"-\")) {\n    return name.split(\"-\").map((p, i) => processWord(p.trim(), isLastName && i > 0)).join(\"-\");\n  }\n\n  if (name.includes(\" \")) {\n    return name.split(\" \").map((w, i) => processWord(w, isLastName && i > 0)).join(\" \");\n  }\n\n  return processWord(name, isLastName);\n}"}'::jsonb
+);
+
+-- 12. Company Normalization (order: 60)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'company-normalization',
+  'Company Name Normalization',
+  'Standardizes company name formatting, suffixes (Inc., LLC, Ltd.), and acronyms',
+  'transform',
+  ARRAY['company'],
+  60,
+  true,
+  '{"code": "// Company Normalization - Standardizes company name formatting\nfunction transform(value, fieldName, row) {\n  if (!value || String(value).trim() === \"\") return value;\n\n  const SUFFIXES = {\n    \"inc\": \"Inc.\", \"inc.\": \"Inc.\", \"incorporated\": \"Inc.\",\n    \"llc\": \"LLC\", \"l.l.c.\": \"LLC\", \"llp\": \"LLP\",\n    \"ltd\": \"Ltd.\", \"ltd.\": \"Ltd.\", \"limited\": \"Ltd.\",\n    \"corp\": \"Corp.\", \"corp.\": \"Corp.\", \"corporation\": \"Corp.\",\n    \"co\": \"Co.\", \"co.\": \"Co.\", \"company\": \"Co.\",\n    \"plc\": \"PLC\", \"gmbh\": \"GmbH\", \"ag\": \"AG\"\n  };\n\n  const ACRONYMS = [\"ibm\", \"hp\", \"usa\", \"uk\", \"ai\", \"it\", \"hr\", \"api\", \"aws\", \"crm\", \"erp\", \"b2b\", \"b2c\"];\n  const LOWERCASE = [\"a\", \"an\", \"the\", \"and\", \"or\", \"of\", \"for\", \"in\", \"on\", \"at\", \"to\", \"by\"];\n\n  function titleCase(word) {\n    if (!word) return word;\n    if (word.length > 1 && word !== word.toLowerCase() && word !== word.toUpperCase()) {\n      return word;\n    }\n    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();\n  }\n\n  const normalized = String(value).trim().replace(/\\s+/g, \" \");\n  const words = normalized.split(\" \");\n  const processed = [];\n\n  for (let i = 0; i < words.length; i++) {\n    const word = words[i];\n    const lower = word.toLowerCase();\n\n    if (SUFFIXES[lower]) {\n      processed.push(SUFFIXES[lower]);\n    } else if (ACRONYMS.includes(lower)) {\n      processed.push(lower.toUpperCase());\n    } else if (i > 0 && LOWERCASE.includes(lower)) {\n      processed.push(lower);\n    } else {\n      processed.push(titleCase(word));\n    }\n  }\n\n  return processed.join(\" \").replace(/\\s*,\\s*/g, \", \").replace(/\\s+/g, \" \").trim();\n}"}'::jsonb
+);
+
+-- 13. Duplicate Detection (order: 100)
+INSERT INTO account_rules (account_id, rule_id, name, description, rule_type, target_fields, display_order, enabled, config)
+VALUES (
+  'default',
+  'duplicate-detection',
+  'Duplicate Detection',
+  'Flags potential duplicate records based on email, name, and company',
+  'validate',
+  ARRAY['email', 'firstname', 'lastname', 'company'],
+  100,
+  true,
+  '{"code": "// Duplicate Detection - Flags potential duplicates\n// Note: Full cross-row duplicate detection is handled by the built-in system\nfunction validate(value, fieldName, row) {\n  return { valid: true };\n}"}'::jsonb
+);
