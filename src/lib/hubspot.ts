@@ -79,6 +79,7 @@ export async function getAuthorizeUrl(accountId?: string): Promise<string> {
   const clientId = await getHubSpotClientIdAsync();
   const redirectUri = getRedirectUri();
   const scopes = [
+    'oauth',
     'crm.schemas.contacts.read',
     'crm.schemas.companies.read',
     'crm.schemas.deals.read',
