@@ -159,11 +159,16 @@ function HeadingDropdown({
                   key={h.id}
                   type="button"
                   onClick={() => handleSelect(h.name)}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between gap-2 ${
                     value === h.name ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700'
                   }`}
                 >
-                  {h.name}
+                  <span className="truncate">{h.name}</span>
+                  {h.source === 'hubspot' && (
+                    <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                      HubSpot
+                    </span>
+                  )}
                 </button>
               ))
             ) : search ? (
