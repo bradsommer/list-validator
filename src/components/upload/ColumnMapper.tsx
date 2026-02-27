@@ -164,7 +164,7 @@ function HeadingDropdown({
                   }`}
                 >
                   <span className="truncate">{h.name}</span>
-                  {h.source === 'hubspot' && (
+                  {(h.source === 'hubspot' || h.hubspotFieldName) && (
                     <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
                       HubSpot
                     </span>
