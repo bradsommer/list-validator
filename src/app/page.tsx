@@ -339,7 +339,7 @@ function Dashboard() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-green-900">Column Headings</p>
+                <p className="text-sm font-semibold text-green-900">Output Headings</p>
                 <p className="text-sm text-green-700">Manage HubSpot column heading names</p>
               </div>
             </div>

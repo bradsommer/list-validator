@@ -14,7 +14,7 @@ const mainNavItems = [
   { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
   { href: '/rules', label: 'Rules', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
   { href: '/import-questions', label: 'Import Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { href: '/column-headings', label: 'Column Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+  { href: '/column-headings', label: 'Output Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
 ];
 
 const adminNavItems = [
