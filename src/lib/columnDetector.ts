@@ -26,6 +26,7 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   solution: ['solution_type', 'solution type', 'solutiontype', 'solution'],
   deal_name: ['deal_name', 'deal name', 'dealname', 'deal', 'opportunity'],
   amount: ['amount', 'deal_amount', 'value', 'revenue', 'price'],
+  region: ['region', 'sales_region', 'sales region', 'geographic region'],
 };
 
 /**

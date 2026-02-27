@@ -4,10 +4,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
+import type { HubSpotObjectType } from '@/types';
+
+function ruleAppliesToObjectType(rule: AccountRule, objectType: HubSpotObjectType | null): boolean {
+  const types = (rule.config?.objectTypes as HubSpotObjectType[]) || [];
+  // No objectTypes configured = applies to all object types
+  if (types.length === 0) return true;
+  // If no object type selected in the import, show all rules
+  if (!objectType) return true;
+  return types.includes(objectType);
+}
 
 export function RulesStep() {
   const { user } = useAuth();
   const {
+    objectType,
     importRuleOverrides,
     setImportRuleOverrides,
     toggleImportRuleOverride,
@@ -24,12 +35,14 @@ export function RulesStep() {
     setIsLoading(true);
     try {
       const accountRules = await fetchAccountRules(accountId);
-      setRules(accountRules);
+      // Filter to only rules that apply to the selected object type
+      const applicableRules = accountRules.filter((r) => ruleAppliesToObjectType(r, objectType));
+      setRules(applicableRules);
 
       // Initialize overrides from DB defaults only if not already set
       if (Object.keys(importRuleOverrides).length === 0) {
         const overrides: Record<string, boolean> = {};
-        for (const rule of accountRules) {
+        for (const rule of applicableRules) {
           overrides[rule.ruleId] = rule.enabled;
         }
         setImportRuleOverrides(overrides);
@@ -38,7 +51,7 @@ export function RulesStep() {
       console.error('Failed to load rules:', error);
     }
     setIsLoading(false);
-  }, [accountId, importRuleOverrides, setImportRuleOverrides]);
+  }, [accountId, objectType, importRuleOverrides, setImportRuleOverrides]);
 
   useEffect(() => {
     loadRules();

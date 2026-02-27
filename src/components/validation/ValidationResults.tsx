@@ -6,7 +6,7 @@ import { validateAndTransform, getValidationSummary, getScriptSummary, getAvaila
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
-import type { ScriptResult } from '@/types';
+import type { ScriptResult, HubSpotObjectType } from '@/types';
 
 export function ValidationResults() {
   const { user } = useAuth();
@@ -20,6 +20,7 @@ export function ValidationResults() {
     scriptRunnerResult,
     enabledScripts,
     availableScripts,
+    objectType,
     questionColumnValues,
     importRuleOverrides,
     setValidationResult,
@@ -70,9 +71,17 @@ export function ValidationResults() {
       try {
         const allRules = await fetchAccountRules(accountId);
 
+        // Filter by object type — rules with no objectTypes apply to all
+        const applicableRules = allRules.filter((r) => {
+          const types = (r.config?.objectTypes as HubSpotObjectType[]) || [];
+          if (types.length === 0) return true;
+          if (!objectType) return true;
+          return types.includes(objectType);
+        });
+
         // Apply import-level overrides if the user configured them in the Rules step
         const hasOverrides = Object.keys(importRuleOverrides).length > 0;
-        const enabledRules = allRules.filter((r) =>
+        const enabledRules = applicableRules.filter((r) =>
           hasOverrides ? importRuleOverrides[r.ruleId] : r.enabled
         );
 
@@ -92,7 +101,7 @@ export function ValidationResults() {
     };
 
     loadScriptsAndRules();
-  }, [accountId, availableScripts.length, importRuleOverrides, setAvailableScripts, setEnabledScripts]);
+  }, [accountId, objectType, availableScripts.length, importRuleOverrides, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
     // Always use original data from parsedFile to ensure scripts see fresh data

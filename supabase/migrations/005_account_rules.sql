@@ -71,6 +71,15 @@ VALUES
    'Standardizes company name formatting and common abbreviations (Inc., LLC, Corp., etc.).',
    'transform', ARRAY['company'], 60, '{}'),
 
+  ('default', 'region-normalization', 'Region Normalization',
+   'Normalizes region values to: Global, Great Lakes, Northeast, National, Other, South, West. Non-matching values are set to "Other".',
+   'transform', ARRAY['region'], 18,
+   '{"validValues": ["Global", "Great Lakes", "Northeast", "National", "Other", "South", "West"]}'),
+
+  ('default', 'encoding-normalization', 'Encoding Normalization',
+   'Fixes common character encoding issues (mojibake), smart quotes, and invisible characters across all text fields.',
+   'transform', ARRAY['*'], 5, '{}'),
+
   ('default', 'duplicate-detection', 'Duplicate Detection',
    'Identifies potential duplicate records based on email address or name + company combination.',
    'validate', ARRAY['email', 'firstname', 'lastname', 'company'], 100, '{}')

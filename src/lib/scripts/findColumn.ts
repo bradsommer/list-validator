@@ -27,6 +27,7 @@ const HEADER_PATTERNS: Record<string, string[]> = {
   website: ['website', 'url', 'web', 'homepage'],
   deal_name: ['deal name', 'deal_name', 'deal', 'opportunity'],
   amount: ['amount', 'deal amount', 'value', 'revenue', 'price'],
+  region: ['region', 'sales region', 'sales_region', 'geographic region'],
 };
 
 /**

@@ -14,21 +14,25 @@ import { whitespaceValidationScript } from './whitespace-validation';
 import { newBusinessValidationScript } from './new-business-validation';
 import { programTypeNormalizationScript } from './program-type-normalization';
 import { solutionNormalizationScript } from './solution-normalization';
+import { regionNormalizationScript } from './region-normalization';
+import { encodingNormalizationScript } from './encoding-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
-  stateNormalizationScript,            // order: 10
-  whitespaceValidationScript,          // order: 12
-  newBusinessValidationScript,         // order: 13
-  roleNormalizationScript,             // order: 15
-  programTypeNormalizationScript,      // order: 16
-  solutionNormalizationScript,         // order: 17
-  emailValidationScript,               // order: 20
-  phoneNormalizationScript,            // order: 30
-  dateNormalizationScript,             // order: 35
-  nameCapitalizationScript,            // order: 50
-  companyNormalizationScript,          // order: 60
-  duplicateDetectionScript,            // order: 100 - run last
+  encodingNormalizationScript,           // order: 5
+  stateNormalizationScript,              // order: 10
+  whitespaceValidationScript,            // order: 12
+  newBusinessValidationScript,           // order: 13
+  roleNormalizationScript,               // order: 15
+  programTypeNormalizationScript,        // order: 16
+  solutionNormalizationScript,           // order: 17
+  regionNormalizationScript,             // order: 18
+  emailValidationScript,                 // order: 20
+  phoneNormalizationScript,              // order: 30
+  dateNormalizationScript,               // order: 35
+  nameCapitalizationScript,              // order: 50
+  companyNormalizationScript,            // order: 60
+  duplicateDetectionScript,              // order: 100 - run last
 ].sort((a, b) => a.order - b.order);
 
 // Get list of all available scripts (for UI display)
@@ -232,12 +236,14 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
+  encodingNormalizationScript,
   stateNormalizationScript,
   whitespaceValidationScript,
   newBusinessValidationScript,
   roleNormalizationScript,
   programTypeNormalizationScript,
   solutionNormalizationScript,
+  regionNormalizationScript,
   emailValidationScript,
   phoneNormalizationScript,
   dateNormalizationScript,
