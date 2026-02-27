@@ -236,6 +236,7 @@ export function ColumnMapper() {
     headerMatches,
     columnMapping,
     questionColumnValues,
+    objectType,
     setColumnMapping,
     nextStep,
     prevStep,
@@ -244,9 +245,17 @@ export function ColumnMapper() {
   const { user } = useAuth();
   const accountId = user?.accountId || '';
 
-  const [headings, setHeadings] = useState<ColumnHeading[]>([]);
+  const [allHeadingsRaw, setAllHeadingsRaw] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [headingsLoaded, setHeadingsLoaded] = useState(false);
+
+  // Filter headings by object type: show manual headings always,
+  // but only show HubSpot-sourced headings matching the selected object type
+  const headings = allHeadingsRaw.filter((h) => {
+    if (h.source !== 'hubspot') return true;
+    if (!objectType) return true;
+    return h.hubspotObjectType === objectType;
+  });
 
   // Get all headers: spreadsheet headers + question column headers (that don't already exist)
   const questionHeaders = Object.keys(questionColumnValues).filter(
@@ -262,7 +271,7 @@ export function ColumnMapper() {
     } else {
       currentHeadings = getColumnHeadings();
     }
-    setHeadings(currentHeadings);
+    setAllHeadingsRaw(currentHeadings);
     setHeadingsLoaded(true);
     return currentHeadings;
   }, [accountId]);
@@ -372,7 +381,7 @@ export function ColumnMapper() {
                 &rarr;
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-1/2">
-                HubSpot Output Heading
+                Output Heading
               </th>
             </tr>
           </thead>
