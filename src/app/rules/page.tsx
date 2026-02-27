@@ -40,6 +40,9 @@ export default function RulesPage() {
   const [editDescription, setEditDescription] = useState('');
   const [editTargetFields, setEditTargetFields] = useState('');
   const [editObjectTypes, setEditObjectTypes] = useState<HubSpotObjectType[]>([]);
+  const [editCode, setEditCode] = useState('');
+  const [loadingEditCode, setLoadingEditCode] = useState(false);
+  const [savingCode, setSavingCode] = useState(false);
 
   const accountId = user?.accountId || 'default';
 
@@ -146,12 +149,32 @@ export default function RulesPage() {
     }
   };
 
-  const startEditing = (rule: AccountRule) => {
+  const startEditing = async (rule: AccountRule) => {
     setEditingRule(rule.ruleId);
     setEditName(rule.name);
     setEditDescription(rule.description || '');
     setEditTargetFields(rule.targetFields.join(', '));
     setEditObjectTypes(getObjectTypes(rule));
+
+    // Load source code for editing
+    if (sourceCode[rule.ruleId]) {
+      setEditCode(sourceCode[rule.ruleId]);
+    } else {
+      setLoadingEditCode(true);
+      try {
+        const response = await fetch(`/api/rules/source?id=${encodeURIComponent(rule.ruleId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSourceCode((prev) => ({ ...prev, [rule.ruleId]: data.source }));
+          setEditCode(data.source);
+        } else {
+          setEditCode('// Source code not available');
+        }
+      } catch {
+        setEditCode('// Failed to load source code');
+      }
+      setLoadingEditCode(false);
+    }
   };
 
   const cancelEditing = () => {
@@ -185,6 +208,25 @@ export default function RulesPage() {
       targetFields,
       config: updatedConfig,
     });
+
+    // Save source code if it was modified
+    const originalCode = sourceCode[rule.ruleId] || '';
+    if (editCode && editCode !== originalCode) {
+      setSavingCode(true);
+      try {
+        const res = await fetch('/api/rules/source', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: rule.ruleId, source: editCode }),
+        });
+        if (res.ok) {
+          setSourceCode((prev) => ({ ...prev, [rule.ruleId]: editCode }));
+        }
+      } catch {
+        console.error('Failed to save source code');
+      }
+      setSavingCode(false);
+    }
 
     if (success) {
       setRules((prev) =>
@@ -414,6 +456,28 @@ export default function RulesPage() {
                         </p>
                       </div>
 
+                      {/* Source Code */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Source Code</label>
+                        {loadingEditCode ? (
+                          <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
+                            <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                            Loading source code...
+                          </div>
+                        ) : (
+                          <textarea
+                            value={editCode}
+                            onChange={(e) => setEditCode(e.target.value)}
+                            spellCheck={false}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono bg-gray-900 text-green-400 focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-y"
+                            rows={20}
+                          />
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          Changes to source code require a server restart to take effect in the validation pipeline.
+                        </p>
+                      </div>
+
                       {/* Save / Cancel */}
                       <div className="flex justify-end gap-2 pt-2">
                         <button
@@ -424,10 +488,10 @@ export default function RulesPage() {
                         </button>
                         <button
                           onClick={() => handleSave(rule)}
-                          disabled={isSaving}
+                          disabled={isSaving || savingCode}
                           className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
                         >
-                          {isSaving ? 'Saving...' : 'Save Changes'}
+                          {isSaving || savingCode ? 'Saving...' : 'Save Changes'}
                         </button>
                       </div>
                     </div>
