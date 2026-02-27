@@ -208,14 +208,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Footer */}
           <footer className="shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
               <p>&copy; {new Date().getFullYear()} List Validator. All rights reserved.</p>
               <div className="flex items-center gap-3">
-                <Link href="/legal/privacy" className="hover:text-gray-600 transition-colors">
+                <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
                   Privacy Policy
                 </Link>
                 <span>|</span>
-                <Link href="/legal/terms" className="hover:text-gray-600 transition-colors">
+                <Link href="/legal/terms" className="hover:text-gray-700 transition-colors">
                   Terms of Use
                 </Link>
               </div>
