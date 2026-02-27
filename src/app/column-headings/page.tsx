@@ -239,6 +239,7 @@ export default function ColumnHeadingsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Output Heading</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Object</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Source</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Added</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
@@ -262,6 +263,13 @@ export default function ColumnHeadingsPage() {
                           />
                         ) : (
                           <span className="font-medium text-gray-900">{heading.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {heading.hubspotObjectType ? (
+                          <span className="capitalize">{heading.hubspotObjectType}</span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
