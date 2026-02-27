@@ -100,12 +100,12 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <div className="mt-6 text-center text-sm text-gray-400">
-          <Link href="/legal/privacy" className="hover:text-gray-600 transition-colors">
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
             Privacy Policy
           </Link>
           <span className="mx-2">|</span>
-          <Link href="/legal/terms" className="hover:text-gray-600 transition-colors">
+          <Link href="/legal/terms" className="hover:text-gray-700 transition-colors">
             Terms of Use
           </Link>
         </div>

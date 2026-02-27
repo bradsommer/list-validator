@@ -25,6 +25,9 @@ export type QuestionAnswers = Record<string, QuestionAnswer>;
 // Question column values: column header → answer value (set when continuing from questions step)
 export type QuestionColumnValues = Record<string, string>;
 
+// Import-level rule overrides: ruleId → enabled (set during the Rules step)
+export type ImportRuleOverrides = Record<string, boolean>;
+
 interface AppState {
   // Session
   sessionId: string;
@@ -50,6 +53,9 @@ interface AppState {
 
   // Question column values (column header → value) for applying after validation
   questionColumnValues: QuestionColumnValues;
+
+  // Import-level rule overrides (from Rules step)
+  importRuleOverrides: ImportRuleOverrides;
 
   // Validation
   validationResult: ValidationResult | null;
@@ -84,6 +90,9 @@ interface AppState {
   setQuestionAnswer: (questionId: string, answer: QuestionAnswer) => void;
   setQuestionColumnValues: (values: QuestionColumnValues) => void;
 
+  setImportRuleOverrides: (overrides: ImportRuleOverrides) => void;
+  toggleImportRuleOverride: (ruleId: string) => void;
+
   setValidationResult: (result: ValidationResult | null) => void;
   setScriptRunnerResult: (result: ScriptRunnerResult | null) => void;
   setEnabledScripts: (scriptIds: string[]) => void;
@@ -101,11 +110,12 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Object Type', 'Questions', 'Map Columns', 'Validate', 'Export'],
+  steps: ['Upload', 'Object Type', 'Questions', 'Rules', 'Map Columns', 'Validate', 'Export'],
   objectType: null as HubSpotObjectType | null,
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,
   questionColumnValues: {} as QuestionColumnValues,
+  importRuleOverrides: {} as ImportRuleOverrides,
   parsedFile: null,
   processedData: [],
   headerMatches: [],
@@ -146,6 +156,14 @@ export const useAppStore = create<AppState>((set) => ({
     questionAnswers: { ...state.questionAnswers, [questionId]: answer }
   })),
   setQuestionColumnValues: (values) => set({ questionColumnValues: values }),
+
+  setImportRuleOverrides: (overrides) => set({ importRuleOverrides: overrides }),
+  toggleImportRuleOverride: (ruleId) => set((state) => ({
+    importRuleOverrides: {
+      ...state.importRuleOverrides,
+      [ruleId]: !state.importRuleOverrides[ruleId],
+    }
+  })),
 
   setValidationResult: (result) => set({ validationResult: result }),
   setScriptRunnerResult: (result) => set({ scriptRunnerResult: result }),
