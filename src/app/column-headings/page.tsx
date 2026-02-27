@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -12,6 +12,9 @@ import {
   type ColumnHeading,
 } from '@/lib/columnHeadings';
 
+type SortKey = 'name' | 'hubspotObjectType' | 'source' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
+
 export default function ColumnHeadingsPage() {
   const { user } = useAuth();
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
@@ -22,6 +25,8 @@ export default function ColumnHeadingsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hubspotConnected, setHubspotConnected] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const accountId = user?.accountId || '';
 
@@ -154,6 +159,48 @@ export default function ColumnHeadingsPage() {
     }
   };
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedHeadings = useMemo(() => {
+    const sorted = [...headings].sort((a, b) => {
+      let aVal: string;
+      let bVal: string;
+
+      switch (sortKey) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'hubspotObjectType':
+          aVal = (a.hubspotObjectType || '').toLowerCase();
+          bVal = (b.hubspotObjectType || '').toLowerCase();
+          break;
+        case 'source':
+          aVal = a.source || '';
+          bVal = b.source || '';
+          break;
+        case 'createdAt':
+          aVal = a.createdAt || '';
+          bVal = b.createdAt || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [headings, sortKey, sortDirection]);
+
   const manualCount = headings.filter((h) => h.source !== 'hubspot').length;
   const hubspotCount = headings.filter((h) => h.source === 'hubspot').length;
 
@@ -238,15 +285,34 @@ export default function ColumnHeadingsPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Output Heading</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Object</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Source</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Added</th>
+                  {([
+                    { key: 'name' as SortKey, label: 'Output Heading', align: 'left' },
+                    { key: 'hubspotObjectType' as SortKey, label: 'Object', align: 'left' },
+                    { key: 'source' as SortKey, label: 'Source', align: 'left' },
+                    { key: 'createdAt' as SortKey, label: 'Added', align: 'left' },
+                  ]).map((col) => (
+                    <th
+                      key={col.key}
+                      onClick={() => handleSort(col.key)}
+                      className="text-left px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        <svg className={`w-3.5 h-3.5 ${sortKey === col.key ? 'text-gray-900' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {sortKey === col.key && sortDirection === 'desc' ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          )}
+                        </svg>
+                      </span>
+                    </th>
+                  ))}
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {headings.map((heading) => {
+                {sortedHeadings.map((heading) => {
                   const isHubSpot = heading.source === 'hubspot';
 
                   return (
