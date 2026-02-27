@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -98,6 +99,15 @@ export default function LoginPage() {
               {isSubmitting ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+        </div>
+        <div className="mt-6 text-center text-sm text-gray-400">
+          <Link href="/legal/privacy" className="hover:text-gray-600 transition-colors">
+            Privacy Policy
+          </Link>
+          <span className="mx-2">|</span>
+          <Link href="/legal/terms" className="hover:text-gray-600 transition-colors">
+            Terms of Use
+          </Link>
         </div>
       </div>
     </div>

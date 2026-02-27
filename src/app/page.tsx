@@ -275,6 +275,15 @@ function LandingPage() {
               </div>
               <span className="text-lg font-bold text-white">List Validator</span>
             </div>
+            <div className="flex items-center gap-4 text-sm">
+              <Link href="/legal/privacy" className="hover:text-white transition-colors">
+                Privacy Policy
+              </Link>
+              <span className="text-gray-600">|</span>
+              <Link href="/legal/terms" className="hover:text-white transition-colors">
+                Terms of Use
+              </Link>
+            </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} List Validator. All rights reserved.</p>
           </div>
         </div>

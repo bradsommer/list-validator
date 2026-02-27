@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +43,9 @@ export default function RulesPage() {
   const [editCode, setEditCode] = useState('');
   const [loadingEditCode, setLoadingEditCode] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
+  const [copiedEditCode, setCopiedEditCode] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const accountId = user?.accountId || 'default';
 
@@ -146,6 +149,30 @@ export default function RulesPage() {
       document.body.removeChild(textarea);
       setCopiedRule(ruleId);
       setTimeout(() => setCopiedRule(null), 2000);
+    }
+  };
+
+  const handleCopyEditCode = async () => {
+    if (!editCode) return;
+    try {
+      await navigator.clipboard.writeText(editCode);
+      setCopiedEditCode(true);
+      setTimeout(() => setCopiedEditCode(false), 2000);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = editCode;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiedEditCode(true);
+      setTimeout(() => setCopiedEditCode(false), 2000);
+    }
+  };
+
+  const handleEditCodeScroll = () => {
+    if (editTextareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = editTextareaRef.current.scrollTop;
     }
   };
 
@@ -305,6 +332,14 @@ export default function RulesPage() {
         </div>
 
         <div className="space-y-3">
+          {/* Column header */}
+          {!isLoading && rules.length > 0 && (
+            <div className="flex items-center px-4 py-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <div className="w-10 shrink-0 text-center mr-3">Run on Import</div>
+              <div className="flex-1">Rule</div>
+              <div className="shrink-0 ml-2">Actions</div>
+            </div>
+          )}
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
@@ -330,18 +365,23 @@ export default function RulesPage() {
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 flex-1">
                       {/* Toggle */}
-                      <button
-                        onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
-                        className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
-                          rule.enabled ? 'bg-green-500' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            rule.enabled ? 'left-5' : 'left-0.5'
+                      <div className="flex flex-col items-center shrink-0">
+                        <button
+                          onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
+                          className={`relative w-10 h-5 rounded-full transition-colors ${
+                            rule.enabled ? 'bg-green-500' : 'bg-gray-300'
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                              rule.enabled ? 'left-5' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[10px] mt-0.5 ${rule.enabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {rule.enabled ? 'On' : 'Off'}
+                        </span>
+                      </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -458,20 +498,63 @@ export default function RulesPage() {
 
                       {/* Source Code */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Source Code</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-sm font-medium text-gray-700">Source Code</label>
+                          {!loadingEditCode && editCode && (
+                            <button
+                              type="button"
+                              onClick={handleCopyEditCode}
+                              className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                              title="Copy code"
+                            >
+                              {copiedEditCode ? (
+                                <>
+                                  <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                         {loadingEditCode ? (
                           <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
                             <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
                             Loading source code...
                           </div>
                         ) : (
-                          <textarea
-                            value={editCode}
-                            onChange={(e) => setEditCode(e.target.value)}
-                            spellCheck={false}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono bg-gray-900 text-green-400 focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-y"
-                            rows={20}
-                          />
+                          <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900">
+                            <div className="flex" style={{ height: '480px' }}>
+                              {/* Line numbers */}
+                              <div
+                                ref={lineNumbersRef}
+                                className="select-none overflow-hidden shrink-0 py-3 pl-3 pr-2 text-right text-sm font-mono text-gray-600 bg-gray-950 border-r border-gray-700"
+                                style={{ lineHeight: '1.5rem' }}
+                              >
+                                {editCode.split('\n').map((_, i) => (
+                                  <div key={i}>{i + 1}</div>
+                                ))}
+                              </div>
+                              {/* Code textarea */}
+                              <textarea
+                                ref={editTextareaRef}
+                                value={editCode}
+                                onChange={(e) => setEditCode(e.target.value)}
+                                onScroll={handleEditCodeScroll}
+                                spellCheck={false}
+                                className="flex-1 px-3 py-3 text-sm font-mono bg-gray-900 text-green-400 outline-none resize-none"
+                                style={{ lineHeight: '1.5rem' }}
+                              />
+                            </div>
+                          </div>
                         )}
                         <p className="text-xs text-gray-400 mt-1">
                           Changes to source code require a server restart to take effect in the validation pipeline.
