@@ -7,7 +7,7 @@ import type { ParsedRow } from '@/types';
  */
 const HEADER_PATTERNS: Record<string, string[]> = {
   // State patterns - ordered from most specific to least specific
-  state: ['state/province', 'state province', 'state/region', 'state region', 'state_province', 'state_region', 'province', 'region', 'state'],
+  state: ['state/province', 'state province', 'state/region', 'state region', 'state_province', 'state_region', 'mailing state', 'billing state', 'home state', 'work state', 'province', 'region', 'state'],
   solution: ['solution type', 'solution_type', 'solutiontype', 'solution'],
   email: ['email', 'e-mail', 'email address', 'email_address'],
   phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'mobile', 'cell', 'cell phone', 'mobile phone'],
@@ -54,9 +54,7 @@ export function findColumnHeader(
   if (matches.length > 0) {
     // Sort by confidence (highest first)
     matches.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-    const bestMatch = matches[0];
-    console.log(`[findColumnHeader] Found '${fieldName}' via headerMatches: '${bestMatch.originalHeader}' (confidence: ${bestMatch.confidence}, ${matches.length} candidates)`);
-    return bestMatch.originalHeader;
+    return matches[0].originalHeader;
   }
 
   // 2. Direct column name match — if fieldName is an actual column header, use it directly
@@ -64,47 +62,39 @@ export function findColumnHeader(
     const rowKeys = Object.keys(rows[0]);
     // Exact match
     if (rowKeys.includes(fieldName)) {
-      console.log(`[findColumnHeader] Found '${fieldName}' via exact column name match`);
       return fieldName;
     }
     // Case-insensitive match
     const lowerField = fieldName.toLowerCase();
     const directMatch = rowKeys.find((k) => k.toLowerCase() === lowerField);
     if (directMatch) {
-      console.log(`[findColumnHeader] Found '${fieldName}' via case-insensitive column name match: '${directMatch}'`);
       return directMatch;
     }
   }
 
   // 3. Fallback: scan row keys for known patterns
   if (rows.length === 0) {
-    console.log(`[findColumnHeader] No rows to scan for '${fieldName}'`);
     return null;
   }
 
   const patterns = HEADER_PATTERNS[fieldName];
   if (!patterns) {
-    console.log(`[findColumnHeader] No patterns defined for '${fieldName}'`);
     return null;
   }
 
   const rowKeys = Object.keys(rows[0]);
-  console.log(`[findColumnHeader] Scanning ${rowKeys.length} columns for '${fieldName}':`, rowKeys);
 
   // First pass: exact match after normalization
   for (const key of rowKeys) {
     const normalizedKey = key.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
-    console.log(`[findColumnHeader] Checking '${key}' → normalized: '${normalizedKey}'`);
 
     if (patterns.includes(normalizedKey)) {
-      console.log(`[findColumnHeader] ✓ Found '${fieldName}' via exact match: '${key}' (normalized: '${normalizedKey}')`);
       return key;
     }
 
     // Partial match: normalized key contains a pattern
     for (const pattern of patterns) {
       if (normalizedKey.includes(pattern)) {
-        console.log(`[findColumnHeader] ✓ Found '${fieldName}' via partial match: '${key}' contains '${pattern}'`);
         return key;
       }
     }
@@ -116,12 +106,10 @@ export function findColumnHeader(
     const keyLower = key.toLowerCase();
     for (const pattern of patterns) {
       if (keyLower.includes(pattern)) {
-        console.log(`[findColumnHeader] ✓ Found '${fieldName}' via simple substring: '${key}' contains '${pattern}'`);
         return key;
       }
     }
   }
 
-  console.log(`[findColumnHeader] Could not find column for '${fieldName}'. Patterns:`, patterns);
   return null;
 }

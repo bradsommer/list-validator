@@ -271,7 +271,7 @@ export default function ColumnHeadingsPage() {
         </div>
 
         {/* Headings list */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
@@ -282,7 +282,7 @@ export default function ColumnHeadingsPage() {
               No output headings added yet. Add your first one above.
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {([

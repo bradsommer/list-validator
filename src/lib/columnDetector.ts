@@ -11,7 +11,7 @@ const FIELD_PATTERNS: Record<string, string[]> = {
   lastname: ['last_name', 'lastname', 'last name', 'last', 'surname', 'family_name', 'family name', 'familyname'],
   company: ['company', 'company_name', 'company name', 'companyname', 'organization', 'organisation', 'org', 'employer'],
   // State patterns - longer patterns first so they get higher priority in partial matching
-  state: ['state/province', 'state_province', 'state province', 'state/region', 'state_region', 'state region', 'province', 'region', 'state'],
+  state: ['state/province', 'state_province', 'state province', 'state/region', 'state_region', 'state region', 'mailing state', 'billing state', 'home state', 'work state', 'province', 'region', 'state'],
   date: ['date', 'created_date', 'create_date', 'close_date', 'closedate', 'start_date', 'end_date', 'birthday', 'birthdate', 'date_of_birth', 'datetime', 'date_time', 'timestamp', 'created_at', 'updated_at'],
   city: ['city', 'town'],
   zip: ['zip', 'zipcode', 'zip_code', 'postal_code', 'postalcode', 'postal'],

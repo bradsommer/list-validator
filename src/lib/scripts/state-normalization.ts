@@ -1,4 +1,4 @@
-import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange } from './types';
+import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
 import type { ParsedRow } from '@/types';
 import { findColumnHeader } from './findColumn';
 
@@ -97,8 +97,11 @@ const STATE_VARIANTS: Record<string, string> = {
   'WISCONSN': 'Wisconsin',
 };
 
-// Valid full state names (for checking if already correct)
+// Valid full state names — case-insensitive lookup
 const VALID_STATE_NAMES = new Set(Object.values(STATE_MAP));
+const VALID_STATE_NAMES_UPPER = new Map(
+  Object.values(STATE_MAP).map((name) => [name.toUpperCase(), name])
+);
 
 export class StateNormalizationScript implements IValidationScript {
   id = 'state-normalization';
@@ -111,100 +114,99 @@ export class StateNormalizationScript implements IValidationScript {
   execute(context: ScriptContext): ScriptExecutionResult {
     const { rows, headerMatches } = context;
     const changes: ScriptChange[] = [];
+    const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
-
-    // DEBUG: Log all available headers and first row
-    console.log('[StateNormalization] headerMatches:', headerMatches.map(m => ({
-      original: m.originalHeader,
-      matched: m.matchedField?.hubspotField,
-      isMatched: m.isMatched
-    })));
-    if (rows.length > 0) {
-      console.log('[StateNormalization] Row keys:', Object.keys(rows[0]));
-      console.log('[StateNormalization] First row data:', JSON.stringify(rows[0], null, 2));
-    }
 
     // Find the state column — tries headerMatches first, then scans row keys
     const targetField = context.targetFields?.[0] || 'state';
     const stateHeader = findColumnHeader(targetField, headerMatches, rows);
 
-    console.log('[StateNormalization] Found stateHeader:', stateHeader);
-
     if (!stateHeader) {
-      // No state field found, nothing to do
-      console.log('[StateNormalization] No state column found - returning unchanged');
       return {
         success: true,
         changes: [],
         errors: [],
-        warnings: [],
+        warnings: [{
+          rowIndex: -1,
+          field: 'state',
+          value: null,
+          warningType: 'column_not_found',
+          message: `No "${targetField}" column found in the data — state normalization skipped`,
+        }],
         modifiedRows: [...rows],
       };
-    }
-
-    // DEBUG: Log sample values
-    if (rows.length > 0) {
-      console.log('[StateNormalization] Sample values:', rows.slice(0, 3).map(r => r[stateHeader]));
     }
 
     rows.forEach((row, index) => {
       const newRow = { ...row };
       const originalValue = row[stateHeader];
 
-      // Log first few rows for debugging
-      if (index < 5) {
-        console.log(`[StateNormalization] Row ${index}: value='${originalValue}', type=${typeof originalValue}`);
+      if (originalValue === null || originalValue === undefined) {
+        modifiedRows.push(newRow);
+        return;
       }
 
-      if (originalValue !== null && originalValue !== undefined) {
-        const valueStr = String(originalValue).trim();
-        const upperValue = valueStr.toUpperCase();
+      const valueStr = String(originalValue).trim();
 
-        // Skip if already a valid full state name
-        if (VALID_STATE_NAMES.has(valueStr)) {
-          if (index < 5) console.log(`[StateNormalization] Row ${index}: Already valid state name`);
-          modifiedRows.push(newRow);
-          return;
-        }
+      // Skip empty values
+      if (!valueStr) {
+        modifiedRows.push(newRow);
+        return;
+      }
 
-        // Check if it's a state abbreviation
-        if (STATE_MAP[upperValue]) {
-          if (index < 5) console.log(`[StateNormalization] Row ${index}: Converting '${upperValue}' to '${STATE_MAP[upperValue]}'`);
-          const newValue = STATE_MAP[upperValue];
-          newRow[stateHeader] = newValue;
+      const upperValue = valueStr.toUpperCase();
+
+      // Skip if already a valid full state name (exact match)
+      if (VALID_STATE_NAMES.has(valueStr)) {
+        modifiedRows.push(newRow);
+        return;
+      }
+
+      // Check if it's a state abbreviation (e.g., CA → California)
+      if (STATE_MAP[upperValue]) {
+        const newValue = STATE_MAP[upperValue];
+        newRow[stateHeader] = newValue;
+        changes.push({
+          rowIndex: index,
+          field: targetField,
+          originalValue,
+          newValue,
+          reason: `Converted abbreviation "${valueStr}" to full state name`,
+        });
+      }
+      // Check if it's a common misspelling (e.g., CALIFRONIA → California)
+      else if (STATE_VARIANTS[upperValue]) {
+        const newValue = STATE_VARIANTS[upperValue];
+        newRow[stateHeader] = newValue;
+        changes.push({
+          rowIndex: index,
+          field: targetField,
+          originalValue,
+          newValue,
+          reason: `Fixed misspelling "${valueStr}" to "${newValue}"`,
+        });
+      }
+      // Case-insensitive match against valid state names (e.g., california → California)
+      else {
+        const properCase = VALID_STATE_NAMES_UPPER.get(upperValue);
+        if (properCase) {
+          newRow[stateHeader] = properCase;
           changes.push({
             rowIndex: index,
-            field: 'state',
+            field: targetField,
             originalValue,
-            newValue,
-            reason: `Converted abbreviation "${valueStr}" to full state name`,
+            newValue: properCase,
+            reason: `Normalized "${valueStr}" to "${properCase}"`,
           });
-        }
-        // Check if it's a common misspelling
-        else if (STATE_VARIANTS[upperValue]) {
-          const newValue = STATE_VARIANTS[upperValue];
-          newRow[stateHeader] = newValue;
-          changes.push({
+        } else {
+          // Value is not a recognized state — emit a warning
+          warnings.push({
             rowIndex: index,
-            field: 'state',
-            originalValue,
-            newValue,
-            reason: `Fixed misspelling "${valueStr}" to "${newValue}"`,
+            field: targetField,
+            value: originalValue,
+            warningType: 'unrecognized_state',
+            message: `"${valueStr}" in "${stateHeader}" is not a recognized US state`,
           });
-        }
-        // Check if it's a misspelling with minor variations
-        else {
-          const normalized = this.fuzzyMatchState(valueStr);
-          if (normalized && normalized !== valueStr) {
-            newRow[stateHeader] = normalized;
-            changes.push({
-              rowIndex: index,
-              field: 'state',
-              originalValue,
-              newValue: normalized,
-              reason: `Normalized "${valueStr}" to "${normalized}"`,
-            });
-          }
         }
       }
 
@@ -215,23 +217,9 @@ export class StateNormalizationScript implements IValidationScript {
       success: true,
       changes,
       errors: [],
-      warnings: [],
+      warnings,
       modifiedRows,
     };
-  }
-
-  private fuzzyMatchState(value: string): string | null {
-    const normalized = value.trim();
-    const upper = normalized.toUpperCase();
-
-    // Try to match against full state names (case-insensitive)
-    for (const stateName of VALID_STATE_NAMES) {
-      if (stateName.toUpperCase() === upper) {
-        return stateName;
-      }
-    }
-
-    return null;
   }
 }
 
