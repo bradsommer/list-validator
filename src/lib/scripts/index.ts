@@ -85,21 +85,47 @@ export function runScript(
     targetFields: targetFieldsOverride || script.targetFields,
   };
 
-  const result = script.execute(context);
-  const executionTimeMs = performance.now() - startTime;
+  try {
+    const result = script.execute(context);
+    const executionTimeMs = performance.now() - startTime;
 
-  return {
-    scriptId: script.id,
-    scriptName: script.name,
-    scriptType: script.type,
-    success: result.success,
-    changes: result.changes,
-    errors: result.errors,
-    warnings: result.warnings,
-    rowsProcessed: rows.length,
-    rowsModified: result.changes.length > 0 ? new Set(result.changes.map((c) => c.rowIndex)).size : 0,
-    executionTimeMs,
-  };
+    return {
+      scriptId: script.id,
+      scriptName: script.name,
+      scriptType: script.type,
+      success: result.success,
+      changes: result.changes,
+      errors: result.errors,
+      warnings: result.warnings,
+      rowsProcessed: rows.length,
+      rowsModified: result.changes.length > 0 ? new Set(result.changes.map((c) => c.rowIndex)).size : 0,
+      executionTimeMs,
+    };
+  } catch (err) {
+    const executionTimeMs = performance.now() - startTime;
+    console.error(`[ScriptRunner] Script "${script.id}" threw an error:`, err);
+
+    return {
+      scriptId: script.id,
+      scriptName: script.name,
+      scriptType: script.type,
+      success: false,
+      changes: [],
+      errors: [
+        {
+          rowIndex: -1,
+          field: '',
+          value: null,
+          errorType: 'script_error',
+          message: `Script "${script.name}" failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        },
+      ],
+      warnings: [],
+      rowsProcessed: rows.length,
+      rowsModified: 0,
+      executionTimeMs,
+    };
+  }
 }
 
 // Run all enabled scripts in order
@@ -134,31 +160,63 @@ export function runAllScripts(
       targetFields: overriddenTargetFields || script.targetFields,
     };
 
-    const result = script.execute(context);
-    const executionTimeMs = performance.now() - startTime;
+    let scriptResult: ScriptResult;
 
-    const scriptResult: ScriptResult = {
-      scriptId: script.id,
-      scriptName: script.name,
-      scriptType: script.type,
-      success: result.success,
-      changes: result.changes,
-      errors: result.errors,
-      warnings: result.warnings,
-      rowsProcessed: currentRows.length,
-      rowsModified: result.changes.length > 0 ? new Set(result.changes.map((c) => c.rowIndex)).size : 0,
-      executionTimeMs,
-    };
+    try {
+      const result = script.execute(context);
+      const executionTimeMs = performance.now() - startTime;
+
+      scriptResult = {
+        scriptId: script.id,
+        scriptName: script.name,
+        scriptType: script.type,
+        success: result.success,
+        changes: result.changes,
+        errors: result.errors,
+        warnings: result.warnings,
+        rowsProcessed: currentRows.length,
+        rowsModified: result.changes.length > 0 ? new Set(result.changes.map((c) => c.rowIndex)).size : 0,
+        executionTimeMs,
+      };
+
+      totalChanges += result.changes.length;
+      totalErrors += result.errors.length;
+      totalWarnings += result.warnings.length;
+
+      // Use modified rows for next script (transform scripts modify data)
+      if (script.type === 'transform' && result.modifiedRows?.length > 0) {
+        currentRows = result.modifiedRows;
+      }
+    } catch (err) {
+      const executionTimeMs = performance.now() - startTime;
+      console.error(`[ScriptRunner] Script "${script.id}" threw an error:`, err);
+
+      scriptResult = {
+        scriptId: script.id,
+        scriptName: script.name,
+        scriptType: script.type,
+        success: false,
+        changes: [],
+        errors: [
+          {
+            rowIndex: -1,
+            field: '',
+            value: null,
+            errorType: 'script_error',
+            message: `Script "${script.name}" failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          },
+        ],
+        warnings: [],
+        rowsProcessed: currentRows.length,
+        rowsModified: 0,
+        executionTimeMs,
+      };
+
+      totalErrors += 1;
+      // currentRows stays unchanged — next script gets the last good data
+    }
 
     scriptResults.push(scriptResult);
-    totalChanges += result.changes.length;
-    totalErrors += result.errors.length;
-    totalWarnings += result.warnings.length;
-
-    // Use modified rows for next script (transform scripts modify data)
-    if (script.type === 'transform') {
-      currentRows = result.modifiedRows;
-    }
   }
 
   return {
