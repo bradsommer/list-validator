@@ -9,6 +9,7 @@ import { FileUpload } from '@/components/upload/FileUpload';
 import { ObjectTypeStep } from '@/components/upload/ObjectTypeStep';
 import { ColumnMapper } from '@/components/upload/ColumnMapper';
 import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
+import { RulesStep } from '@/components/upload/RulesStep';
 import { ValidationResults } from '@/components/validation/ValidationResults';
 import { AuditReview } from '@/components/audit/AuditReview';
 
@@ -37,10 +38,12 @@ export default function ImportPage() {
       case 2:
         return <ImportQuestionsStep />;
       case 3:
-        return <ColumnMapper />;
+        return <RulesStep />;
       case 4:
-        return <ValidationResults />;
+        return <ColumnMapper />;
       case 5:
+        return <ValidationResults />;
+      case 6:
         return <AuditReview />;
       default:
         return <FileUpload />;

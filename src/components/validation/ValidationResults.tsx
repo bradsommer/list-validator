@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchEnabledRules, type AccountRule } from '@/lib/accountRules';
+import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
@@ -21,6 +21,7 @@ export function ValidationResults() {
     enabledScripts,
     availableScripts,
     questionColumnValues,
+    importRuleOverrides,
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
@@ -57,7 +58,7 @@ export function ValidationResults() {
     }
   }
 
-  // Load available scripts and enabled rules from database
+  // Load available scripts and rules, applying import-level overrides
   useEffect(() => {
     const loadScriptsAndRules = async () => {
       if (availableScripts.length === 0) {
@@ -65,14 +66,21 @@ export function ValidationResults() {
         setAvailableScripts(scripts);
       }
 
-      // Fetch enabled rules from database (per-account) with full config
+      // Fetch all rules from database (per-account) with full config
       try {
-        const rules = await fetchEnabledRules(accountId);
-        setAccountRules(rules);
-        if (rules.length > 0) {
-          setEnabledScripts(rules.map((r) => r.ruleId));
+        const allRules = await fetchAccountRules(accountId);
+
+        // Apply import-level overrides if the user configured them in the Rules step
+        const hasOverrides = Object.keys(importRuleOverrides).length > 0;
+        const enabledRules = allRules.filter((r) =>
+          hasOverrides ? importRuleOverrides[r.ruleId] : r.enabled
+        );
+
+        setAccountRules(enabledRules);
+        if (enabledRules.length > 0) {
+          setEnabledScripts(enabledRules.map((r) => r.ruleId));
         } else {
-          // Fallback: if no rules in database, enable all available scripts
+          // Fallback: if no rules enabled, enable all available scripts
           const scripts = getAvailableScripts();
           setEnabledScripts(scripts.map((s) => s.id));
         }
@@ -84,7 +92,7 @@ export function ValidationResults() {
     };
 
     loadScriptsAndRules();
-  }, [accountId, availableScripts.length, setAvailableScripts, setEnabledScripts]);
+  }, [accountId, availableScripts.length, importRuleOverrides, setAvailableScripts, setEnabledScripts]);
 
   const runValidation = async () => {
     // Always use original data from parsedFile to ensure scripts see fresh data
