@@ -34,6 +34,7 @@ export function ValidationResults() {
   } = useAppStore();
 
   const [isValidating, setIsValidating] = useState(false);
+  const [scriptsLoaded, setScriptsLoaded] = useState(false);
   const [showScripts, setShowScripts] = useState(true);
   const [showErrors, setShowErrors] = useState(true);
   const [showWarnings, setShowWarnings] = useState(true);
@@ -62,6 +63,8 @@ export function ValidationResults() {
   // Load available scripts and rules, applying import-level overrides
   useEffect(() => {
     const loadScriptsAndRules = async () => {
+      setScriptsLoaded(false);
+
       if (availableScripts.length === 0) {
         const scripts = getAvailableScripts();
         setAvailableScripts(scripts);
@@ -86,18 +89,13 @@ export function ValidationResults() {
         );
 
         setAccountRules(enabledRules);
-        if (enabledRules.length > 0) {
-          setEnabledScripts(enabledRules.map((r) => r.ruleId));
-        } else {
-          // Fallback: if no rules enabled, enable all available scripts
-          const scripts = getAvailableScripts();
-          setEnabledScripts(scripts.map((s) => s.id));
-        }
+        setEnabledScripts(enabledRules.map((r) => r.ruleId));
       } catch {
-        // On error, enable all scripts as fallback
-        const scripts = getAvailableScripts();
-        setEnabledScripts(scripts.map((s) => s.id));
+        // On error, run no scripts rather than silently ignoring user overrides
+        setEnabledScripts([]);
       }
+
+      setScriptsLoaded(true);
     };
 
     loadScriptsAndRules();
@@ -120,7 +118,7 @@ export function ValidationResults() {
         sourceData,
         headerMatches,
         requiredFields,
-        enabledScripts.length > 0 ? enabledScripts : undefined,
+        enabledScripts,
         targetFieldsOverrides
       );
 
@@ -158,12 +156,13 @@ export function ValidationResults() {
 
   // Run validation on mount or when scripts change
   // Use parsedFile to determine if we have data, since processedData gets transformed
+  // Wait until scriptsLoaded is true so import-level overrides have been applied
   useEffect(() => {
     const hasData = parsedFile?.rows?.length || processedData.length > 0;
-    if (hasData && enabledScripts.length > 0 && !validationResult) {
+    if (hasData && scriptsLoaded && !validationResult) {
       runValidation();
     }
-  }, [parsedFile?.rows?.length, processedData.length, enabledScripts.length]);
+  }, [parsedFile?.rows?.length, processedData.length, scriptsLoaded]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);

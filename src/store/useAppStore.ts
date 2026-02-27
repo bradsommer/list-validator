@@ -175,7 +175,6 @@ export const useAppStore = create<AppState>((set) => ({
   })),
   setAvailableScripts: (scripts) => set({
     availableScripts: scripts,
-    enabledScripts: scripts.map(s => s.id),
   }),
 
   setAuditResult: (result) => set({ auditResult: result }),
