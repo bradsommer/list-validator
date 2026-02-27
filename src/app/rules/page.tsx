@@ -335,8 +335,8 @@ export default function RulesPage() {
           {/* Column header */}
           {!isLoading && rules.length > 0 && (
             <div className="flex items-center px-4 py-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
-              <div className="w-10 shrink-0 text-center mr-3">Run on Import</div>
-              <div className="flex-1">Rule</div>
+              <div className="w-10 shrink-0 text-center mr-3">Enabled</div>
+              <div className="flex-1"></div>
               <div className="shrink-0 ml-2">Actions</div>
             </div>
           )}
