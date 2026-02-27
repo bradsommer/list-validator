@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/hubspot';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
 const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
@@ -59,11 +59,18 @@ async function fetchPropertiesFromHubSpot(
 }
 
 async function savePropertiesToDB(accountId: string, properties: HubSpotProperty[]): Promise<void> {
+  const db = getServerSupabase();
+
   // Delete existing properties for this account, then insert fresh
-  await supabase
+  const { error: deleteError } = await db
     .from('hubspot_properties')
     .delete()
     .eq('account_id', accountId);
+
+  if (deleteError) {
+    console.error('Failed to delete existing properties:', deleteError.message);
+    throw new Error(`Failed to clear existing HubSpot properties: ${deleteError.message}`);
+  }
 
   // Insert in batches of 500
   for (let i = 0; i < properties.length; i += 500) {
@@ -79,12 +86,13 @@ async function savePropertiesToDB(accountId: string, properties: HubSpotProperty
       options: p.options,
     }));
 
-    const { error } = await supabase
+    const { error } = await db
       .from('hubspot_properties')
       .insert(batch);
 
     if (error) {
       console.error(`Failed to insert properties batch ${i}:`, error.message);
+      throw new Error(`Failed to save HubSpot properties to database: ${error.message}`);
     }
   }
 }
@@ -120,7 +128,9 @@ export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') as ObjectType | null;
   const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
 
-  let query = supabase
+  const db = getServerSupabase();
+
+  let query = db
     .from('hubspot_properties')
     .select('field_name, field_label, field_type, group_name, object_type, description, hubspot_type, options')
     .eq('account_id', accountId)
@@ -146,7 +156,7 @@ export async function GET(request: NextRequest) {
     try {
       const result = await fetchAndStoreProperties(accountId);
       // Re-query after storing
-      let retryQuery = supabase
+      let retryQuery = db
         .from('hubspot_properties')
         .select('field_name, field_label, field_type, group_name, object_type, description, hubspot_type, options')
         .eq('account_id', accountId)
@@ -187,7 +197,8 @@ export async function POST(request: NextRequest) {
     const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
 
     // Get existing count for comparison
-    const { count: previousCount } = await supabase
+    const db = getServerSupabase();
+    const { count: previousCount } = await db
       .from('hubspot_properties')
       .select('id', { count: 'exact', head: true })
       .eq('account_id', accountId);
