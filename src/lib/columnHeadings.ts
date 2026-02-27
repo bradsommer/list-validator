@@ -237,6 +237,8 @@ export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promis
       const { error } = await supabase.from('column_headings').insert(batch);
       if (error) {
         console.error('[columnHeadings] Insert batch error:', error);
+        // Surface the error so the user knows why sync failed
+        throw new Error(`Failed to insert HubSpot headings: ${error.message}. You may need to run the database migration (007_add_source_to_column_headings.sql).`);
       } else {
         added += batch.length;
       }
