@@ -30,7 +30,8 @@ export class WhitespaceValidationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const header = findColumnHeader('whitespace', headerMatches, rows);
+    const targetField = context.targetFields?.[0] || 'whitespace';
+    const header = findColumnHeader(targetField, headerMatches, rows);
 
     if (!header) {
       return {

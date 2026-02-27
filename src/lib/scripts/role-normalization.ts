@@ -41,7 +41,8 @@ export class RoleNormalizationScript implements IValidationScript {
     const changes: ScriptChange[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const roleHeader = findColumnHeader('role', headerMatches, rows);
+    const targetField = context.targetFields?.[0] || 'role';
+    const roleHeader = findColumnHeader(targetField, headerMatches, rows);
 
     if (!roleHeader) {
       return {

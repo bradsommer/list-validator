@@ -59,7 +59,24 @@ export function findColumnHeader(
     return bestMatch.originalHeader;
   }
 
-  // 2. Fallback: scan row keys for known patterns
+  // 2. Direct column name match — if fieldName is an actual column header, use it directly
+  if (rows.length > 0) {
+    const rowKeys = Object.keys(rows[0]);
+    // Exact match
+    if (rowKeys.includes(fieldName)) {
+      console.log(`[findColumnHeader] Found '${fieldName}' via exact column name match`);
+      return fieldName;
+    }
+    // Case-insensitive match
+    const lowerField = fieldName.toLowerCase();
+    const directMatch = rowKeys.find((k) => k.toLowerCase() === lowerField);
+    if (directMatch) {
+      console.log(`[findColumnHeader] Found '${fieldName}' via case-insensitive column name match: '${directMatch}'`);
+      return directMatch;
+    }
+  }
+
+  // 3. Fallback: scan row keys for known patterns
   if (rows.length === 0) {
     console.log(`[findColumnHeader] No rows to scan for '${fieldName}'`);
     return null;

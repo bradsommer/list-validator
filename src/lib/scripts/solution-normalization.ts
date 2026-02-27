@@ -42,8 +42,9 @@ export class SolutionNormalizationScript implements IValidationScript {
       console.log('[SolutionNormalization] Row keys:', Object.keys(rows[0]));
     }
 
-    // Find the solution column — tries headerMatches first, then scans row keys
-    const solHeader = findColumnHeader('solution', headerMatches, rows);
+    // Find the solution column (uses DB-configured target field if available)
+    const targetField = context.targetFields?.[0] || 'solution';
+    const solHeader = findColumnHeader(targetField, headerMatches, rows);
 
     console.log('[SolutionNormalization] Found solHeader:', solHeader);
 

@@ -64,13 +64,14 @@ export function validateAndTransform(
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
   requiredFields: string[],
-  enabledScriptIds?: string[]
+  enabledScriptIds?: string[],
+  targetFieldsOverrides?: Record<string, string[]>
 ): {
   validationResult: ValidationResult;
   scriptRunnerResult: ScriptRunnerResult;
   transformedData: ParsedRow[];
 } {
-  const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds);
+  const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds, targetFieldsOverrides);
 
   // Convert to legacy format
   const errors: ValidationError[] = [];

@@ -59,8 +59,9 @@ export class CompanyNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find the company field
-    const companyHeader = findColumnHeader('company', headerMatches, rows);
+    // Find the company field (uses DB-configured target field if available)
+    const targetField = context.targetFields?.[0] || 'company';
+    const companyHeader = findColumnHeader(targetField, headerMatches, rows);
 
     if (!companyHeader) {
       return {
