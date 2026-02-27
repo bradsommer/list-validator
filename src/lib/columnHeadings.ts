@@ -12,6 +12,9 @@ const MAPPING_HISTORY_KEY = 'column_mapping_history';
 export interface ColumnHeading {
   id: string;
   name: string;
+  source: 'manual' | 'hubspot';
+  hubspotObjectType?: string | null;
+  hubspotFieldName?: string | null;
   createdAt: string;
 }
 
@@ -24,7 +27,7 @@ export async function fetchColumnHeadings(accountId: string): Promise<ColumnHead
   try {
     const { data, error } = await supabase
       .from('column_headings')
-      .select('id, name, created_at')
+      .select('id, name, source, hubspot_object_type, hubspot_field_name, created_at')
       .eq('account_id', accountId)
       .order('name');
 
@@ -36,6 +39,9 @@ export async function fetchColumnHeadings(accountId: string): Promise<ColumnHead
     const headings = (data || []).map((row) => ({
       id: row.id,
       name: row.name,
+      source: (row.source || 'manual') as 'manual' | 'hubspot',
+      hubspotObjectType: row.hubspot_object_type || null,
+      hubspotFieldName: row.hubspot_field_name || null,
       createdAt: row.created_at,
     }));
 
@@ -55,8 +61,8 @@ export async function addColumnHeadingAsync(name: string, accountId: string): Pr
   try {
     const { data, error } = await supabase
       .from('column_headings')
-      .insert({ account_id: accountId, name: trimmedName })
-      .select('id, name, created_at')
+      .insert({ account_id: accountId, name: trimmedName, source: 'manual' })
+      .select('id, name, source, created_at')
       .single();
 
     if (error) {
@@ -68,6 +74,7 @@ export async function addColumnHeadingAsync(name: string, accountId: string): Pr
     const heading: ColumnHeading = {
       id: data.id,
       name: data.name,
+      source: 'manual',
       createdAt: data.created_at,
     };
 
@@ -123,6 +130,140 @@ export async function updateColumnHeadingAsync(id: string, name: string, account
 
   // Always update localStorage cache
   updateColumnHeadingInLocalStorage(id, trimmedName);
+}
+
+// ============================================================================
+// HUBSPOT PROPERTY SYNC - Import HubSpot properties as column headings
+// ============================================================================
+
+/** Sync HubSpot properties into column_headings with source='hubspot' */
+export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promise<{
+  added: number;
+  updated: number;
+  removed: number;
+  total: number;
+}> {
+  // 1. Fetch all HubSpot properties stored in the hubspot_properties table
+  const { data: hubspotProps, error: fetchError } = await supabase
+    .from('hubspot_properties')
+    .select('field_name, field_label, object_type')
+    .eq('account_id', accountId);
+
+  if (fetchError) {
+    console.error('[columnHeadings] Failed to fetch HubSpot properties:', fetchError);
+    throw new Error('Failed to fetch HubSpot properties');
+  }
+
+  if (!hubspotProps || hubspotProps.length === 0) {
+    // No HubSpot properties — remove all hubspot-sourced headings
+    const { data: existing } = await supabase
+      .from('column_headings')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('source', 'hubspot');
+
+    const removedCount = existing?.length || 0;
+    if (removedCount > 0) {
+      await supabase
+        .from('column_headings')
+        .delete()
+        .eq('account_id', accountId)
+        .eq('source', 'hubspot');
+    }
+
+    return { added: 0, updated: 0, removed: removedCount, total: 0 };
+  }
+
+  // 2. Fetch existing hubspot-sourced headings for this account
+  const { data: existingHeadings } = await supabase
+    .from('column_headings')
+    .select('id, name, hubspot_object_type, hubspot_field_name')
+    .eq('account_id', accountId)
+    .eq('source', 'hubspot');
+
+  const existingMap = new Map(
+    (existingHeadings || []).map((h) => [`${h.hubspot_object_type}:${h.hubspot_field_name}`, h])
+  );
+
+  // 3. Build the set of new hubspot properties
+  const incomingKeys = new Set<string>();
+  const toInsert: Array<{
+    account_id: string;
+    name: string;
+    source: string;
+    hubspot_object_type: string;
+    hubspot_field_name: string;
+  }> = [];
+  const toUpdate: Array<{ id: string; name: string }> = [];
+
+  for (const prop of hubspotProps) {
+    const key = `${prop.object_type}:${prop.field_name}`;
+    incomingKeys.add(key);
+
+    const existing = existingMap.get(key);
+    if (existing) {
+      // Update label if changed
+      if (existing.name !== prop.field_label) {
+        toUpdate.push({ id: existing.id, name: prop.field_label });
+      }
+    } else {
+      // New property — insert
+      toInsert.push({
+        account_id: accountId,
+        name: prop.field_label,
+        source: 'hubspot',
+        hubspot_object_type: prop.object_type,
+        hubspot_field_name: prop.field_name,
+      });
+    }
+  }
+
+  // 4. Remove headings for properties no longer in HubSpot
+  const toRemoveIds: string[] = [];
+  existingMap.forEach((heading, key) => {
+    if (!incomingKeys.has(key)) {
+      toRemoveIds.push(heading.id);
+    }
+  });
+
+  // 5. Execute DB operations
+  let added = 0;
+  let updated = 0;
+
+  if (toInsert.length > 0) {
+    // Insert in batches of 500
+    for (let i = 0; i < toInsert.length; i += 500) {
+      const batch = toInsert.slice(i, i + 500);
+      const { error } = await supabase.from('column_headings').insert(batch);
+      if (error) {
+        console.error('[columnHeadings] Insert batch error:', error);
+      } else {
+        added += batch.length;
+      }
+    }
+  }
+
+  for (const item of toUpdate) {
+    const { error } = await supabase
+      .from('column_headings')
+      .update({ name: item.name })
+      .eq('id', item.id);
+    if (!error) updated++;
+  }
+
+  if (toRemoveIds.length > 0) {
+    await supabase
+      .from('column_headings')
+      .delete()
+      .in('id', toRemoveIds);
+  }
+
+  return {
+    added,
+    updated,
+    removed: toRemoveIds.length,
+    total: hubspotProps.length,
+  };
 }
 
 // ============================================================================
@@ -258,6 +399,7 @@ function addColumnHeadingToLocalStorage(name: string): ColumnHeading {
   const heading: ColumnHeading = {
     id: crypto.randomUUID(),
     name: name.trim(),
+    source: 'manual',
     createdAt: new Date().toISOString(),
   };
   headings.push(heading);

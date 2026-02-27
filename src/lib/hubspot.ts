@@ -94,6 +94,7 @@ export async function getAuthorizeUrl(accountId?: string): Promise<string> {
     'crm.schemas.deals.read',
     'crm.schemas.deals.write',
     'crm.dealsplits.read_write',
+    'crm.objects.custom.read',
   ].join(' ');
 
   const params = new URLSearchParams({

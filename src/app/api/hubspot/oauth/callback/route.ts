@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, setTokens, resetClient } from '@/lib/hubspot';
 import { cache, CACHE_KEYS } from '@/lib/cache';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
+import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
@@ -48,10 +49,14 @@ export async function GET(request: NextRequest) {
     // Invalidate cached connection status
     cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
 
-    // Auto-fetch HubSpot properties and store in DB
+    // Auto-fetch HubSpot properties and sync as column headings
     try {
       const result = await fetchAndStoreProperties(accountId);
       console.log(`Auto-fetched ${result.total} HubSpot properties on connect`);
+
+      // Also sync properties as column headings
+      const headingsResult = await syncHubSpotPropertiesAsHeadings(accountId);
+      console.log(`Auto-synced ${headingsResult.added} HubSpot properties as column headings`);
     } catch (err) {
       console.error('Failed to auto-fetch properties on connect:', err);
       // Non-blocking — user can still manually sync later
