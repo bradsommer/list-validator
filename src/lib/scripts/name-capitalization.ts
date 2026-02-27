@@ -29,9 +29,11 @@ export class NameCapitalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find name fields
-    const firstHeader = findColumnHeader('firstname', headerMatches, rows);
-    const lastHeader = findColumnHeader('lastname', headerMatches, rows);
+    // Find name fields (uses DB-configured target fields if available)
+    const firstField = context.targetFields?.[0] || 'firstname';
+    const lastField = context.targetFields?.[1] || 'lastname';
+    const firstHeader = findColumnHeader(firstField, headerMatches, rows);
+    const lastHeader = findColumnHeader(lastField, headerMatches, rows);
 
     rows.forEach((row, index) => {
       const newRow = { ...row };

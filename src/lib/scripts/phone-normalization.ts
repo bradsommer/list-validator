@@ -16,7 +16,8 @@ export class PhoneNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const phoneHeader = findColumnHeader('phone', headerMatches, rows);
+    const targetField = context.targetFields?.[0] || 'phone';
+    const phoneHeader = findColumnHeader(targetField, headerMatches, rows);
 
     if (!phoneHeader) {
       return {

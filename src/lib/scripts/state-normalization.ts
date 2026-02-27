@@ -125,7 +125,8 @@ export class StateNormalizationScript implements IValidationScript {
     }
 
     // Find the state column — tries headerMatches first, then scans row keys
-    const stateHeader = findColumnHeader('state', headerMatches, rows);
+    const targetField = context.targetFields?.[0] || 'state';
+    const stateHeader = findColumnHeader(targetField, headerMatches, rows);
 
     console.log('[StateNormalization] Found stateHeader:', stateHeader);
 

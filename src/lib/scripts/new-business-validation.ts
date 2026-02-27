@@ -30,7 +30,8 @@ export class NewBusinessValidationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    const header = findColumnHeader('new_business', headerMatches, rows);
+    const targetField = context.targetFields?.[0] || 'new_business';
+    const header = findColumnHeader(targetField, headerMatches, rows);
 
     if (!header) {
       return {

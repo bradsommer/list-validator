@@ -54,8 +54,9 @@ export class EmailValidationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find the email field
-    const emailHeader = findColumnHeader('email', headerMatches, rows);
+    // Find the email field (uses DB-configured target field if available)
+    const targetField = context.targetFields?.[0] || 'email';
+    const emailHeader = findColumnHeader(targetField, headerMatches, rows);
 
     if (!emailHeader) {
       // No email field mapped

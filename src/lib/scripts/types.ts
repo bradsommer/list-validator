@@ -5,6 +5,8 @@ export interface ScriptContext {
   rows: ParsedRow[];
   headerMatches: HeaderMatch[];
   requiredFields: string[];
+  // Target fields override from database — when set, scripts use these instead of hardcoded defaults
+  targetFields?: string[];
 }
 
 // Interface that all validation scripts must implement

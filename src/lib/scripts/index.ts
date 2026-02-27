@@ -49,7 +49,8 @@ export function runScript(
   scriptId: string,
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
-  requiredFields: string[]
+  requiredFields: string[],
+  targetFieldsOverride?: string[]
 ): ScriptResult {
   const startTime = performance.now();
   const script = ALL_SCRIPTS.find((s) => s.id === scriptId);
@@ -81,6 +82,7 @@ export function runScript(
     rows,
     headerMatches,
     requiredFields,
+    targetFields: targetFieldsOverride || script.targetFields,
   };
 
   const result = script.execute(context);
@@ -101,11 +103,13 @@ export function runScript(
 }
 
 // Run all enabled scripts in order
+// targetFieldsOverrides: optional map of scriptId → targetFields from database
 export function runAllScripts(
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
   requiredFields: string[],
-  enabledScriptIds?: string[]
+  enabledScriptIds?: string[],
+  targetFieldsOverrides?: Record<string, string[]>
 ): ScriptRunnerResult {
   const scriptsToRun = enabledScriptIds
     ? ALL_SCRIPTS.filter((s) => enabledScriptIds.includes(s.id))
@@ -120,10 +124,14 @@ export function runAllScripts(
   for (const script of scriptsToRun) {
     const startTime = performance.now();
 
+    // Use DB target fields if available, otherwise fall back to script defaults
+    const overriddenTargetFields = targetFieldsOverrides?.[script.id];
+
     const context: ScriptContext = {
       rows: currentRows,
       headerMatches,
       requiredFields,
+      targetFields: overriddenTargetFields || script.targetFields,
     };
 
     const result = script.execute(context);

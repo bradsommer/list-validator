@@ -15,11 +15,15 @@ export class DuplicateDetectionScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows = [...rows];
 
-    // Find relevant fields
-    const emailHeader = findColumnHeader('email', headerMatches, rows);
-    const firstHeader = findColumnHeader('firstname', headerMatches, rows);
-    const lastHeader = findColumnHeader('lastname', headerMatches, rows);
-    const phoneHeader = findColumnHeader('phone', headerMatches, rows);
+    // Find relevant fields (uses DB-configured target fields if available)
+    const emailField = context.targetFields?.[0] || 'email';
+    const firstField = context.targetFields?.[1] || 'firstname';
+    const lastField = context.targetFields?.[2] || 'lastname';
+    const phoneField = context.targetFields?.[3] || 'phone';
+    const emailHeader = findColumnHeader(emailField, headerMatches, rows);
+    const firstHeader = findColumnHeader(firstField, headerMatches, rows);
+    const lastHeader = findColumnHeader(lastField, headerMatches, rows);
+    const phoneHeader = findColumnHeader(phoneField, headerMatches, rows);
 
     // Check for email duplicates
     if (emailHeader) {

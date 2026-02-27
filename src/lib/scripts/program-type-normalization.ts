@@ -74,8 +74,9 @@ export class ProgramTypeNormalizationScript implements IValidationScript {
     const warnings: ScriptWarning[] = [];
     const modifiedRows: ParsedRow[] = [];
 
-    // Find the program type field
-    const ptHeader = findColumnHeader('program_type', headerMatches, rows);
+    // Find the program type field (uses DB-configured target field if available)
+    const targetField = context.targetFields?.[0] || 'program_type';
+    const ptHeader = findColumnHeader(targetField, headerMatches, rows);
 
     if (!ptHeader) {
       return {

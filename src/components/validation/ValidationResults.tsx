@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEnabledRuleIds } from '@/lib/accountRules';
+import { fetchEnabledRules, type AccountRule } from '@/lib/accountRules';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
@@ -37,6 +37,7 @@ export function ValidationResults() {
   const [showWarnings, setShowWarnings] = useState(true);
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
+  const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
 
   const accountId = user?.accountId || 'default';
 
@@ -48,6 +49,14 @@ export function ValidationResults() {
     return match?.originalHeader || fieldName;
   };
 
+  // Build target fields overrides map from account rules
+  const targetFieldsOverrides: Record<string, string[]> = {};
+  for (const rule of accountRules) {
+    if (rule.targetFields.length > 0) {
+      targetFieldsOverrides[rule.ruleId] = rule.targetFields;
+    }
+  }
+
   // Load available scripts and enabled rules from database
   useEffect(() => {
     const loadScriptsAndRules = async () => {
@@ -56,11 +65,12 @@ export function ValidationResults() {
         setAvailableScripts(scripts);
       }
 
-      // Fetch enabled rules from database (per-account)
+      // Fetch enabled rules from database (per-account) with full config
       try {
-        const enabledIds = await getEnabledRuleIds(accountId);
-        if (enabledIds.length > 0) {
-          setEnabledScripts(enabledIds);
+        const rules = await fetchEnabledRules(accountId);
+        setAccountRules(rules);
+        if (rules.length > 0) {
+          setEnabledScripts(rules.map((r) => r.ruleId));
         } else {
           // Fallback: if no rules in database, enable all available scripts
           const scripts = getAvailableScripts();
@@ -93,7 +103,8 @@ export function ValidationResults() {
         sourceData,
         headerMatches,
         requiredFields,
-        enabledScripts.length > 0 ? enabledScripts : undefined
+        enabledScripts.length > 0 ? enabledScripts : undefined,
+        targetFieldsOverrides
       );
 
       setValidationResult(result.validationResult);
