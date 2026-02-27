@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { ColumnMapping } from '@/store/useAppStore';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   getColumnHeadings,
+  fetchColumnHeadings,
   addColumnHeading,
+  addColumnHeadingAsync,
   getMappingHistory,
   saveMappingHistory,
   autoMatchHeader,
@@ -238,8 +241,12 @@ export function ColumnMapper() {
     prevStep,
   } = useAppStore();
 
+  const { user } = useAuth();
+  const accountId = user?.accountId || '';
+
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
+  const [headingsLoaded, setHeadingsLoaded] = useState(false);
 
   // Get all headers: spreadsheet headers + question column headers (that don't already exist)
   const questionHeaders = Object.keys(questionColumnValues).filter(
@@ -247,39 +254,54 @@ export function ColumnMapper() {
   );
   const allHeaders = parsedFile ? [...parsedFile.headers, ...questionHeaders] : [];
 
-  useEffect(() => {
-    const currentHeadings = getColumnHeadings();
-    setHeadings(currentHeadings);
-
-    if (parsedFile) {
-      const headingNames = currentHeadings.map((h) => h.name);
-      const history = getMappingHistory();
-      const initial: ColumnMapping = {};
-
-      // Map spreadsheet headers
-      for (const header of parsedFile.headers) {
-        // If already set from store (e.g. user went back and forward), keep it
-        if (columnMapping[header]) {
-          initial[header] = columnMapping[header];
-        } else {
-          // Auto-match: history first, then exact, then fuzzy
-          initial[header] = autoMatchHeader(header, headingNames, history);
-        }
-      }
-
-      // Map question headers (new columns from import questions)
-      for (const header of questionHeaders) {
-        if (columnMapping[header]) {
-          initial[header] = columnMapping[header];
-        } else {
-          // Auto-match question headers too
-          initial[header] = autoMatchHeader(header, headingNames, history);
-        }
-      }
-
-      setMapping(initial);
+  // Load headings from Supabase (includes HubSpot-synced properties) or fall back to localStorage
+  const loadHeadings = useCallback(async () => {
+    let currentHeadings: ColumnHeading[];
+    if (accountId) {
+      currentHeadings = await fetchColumnHeadings(accountId);
+    } else {
+      currentHeadings = getColumnHeadings();
     }
-  }, [parsedFile, columnMapping, questionColumnValues]);
+    setHeadings(currentHeadings);
+    setHeadingsLoaded(true);
+    return currentHeadings;
+  }, [accountId]);
+
+  useEffect(() => {
+    loadHeadings();
+  }, [loadHeadings]);
+
+  // Build initial mapping once headings are loaded
+  useEffect(() => {
+    if (!headingsLoaded || !parsedFile) return;
+
+    const headingNames = headings.map((h) => h.name);
+    const history = getMappingHistory();
+    const initial: ColumnMapping = {};
+
+    // Map spreadsheet headers
+    for (const header of parsedFile.headers) {
+      // If already set from store (e.g. user went back and forward), keep it
+      if (columnMapping[header]) {
+        initial[header] = columnMapping[header];
+      } else {
+        // Auto-match: history first, then exact, then fuzzy
+        initial[header] = autoMatchHeader(header, headingNames, history);
+      }
+    }
+
+    // Map question headers (new columns from import questions)
+    for (const header of questionHeaders) {
+      if (columnMapping[header]) {
+        initial[header] = columnMapping[header];
+      } else {
+        // Auto-match question headers too
+        initial[header] = autoMatchHeader(header, headingNames, history);
+      }
+    }
+
+    setMapping(initial);
+  }, [headingsLoaded, headings, parsedFile, columnMapping, questionColumnValues]);
 
   const handleSelect = (originalHeader: string, value: string) => {
     setMapping((prev) => ({
@@ -288,13 +310,17 @@ export function ColumnMapper() {
     }));
   };
 
-  const handleAddNew = (originalHeader: string, name: string) => {
+  const handleAddNew = async (originalHeader: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (!headings.some((h) => h.name.toLowerCase() === trimmed.toLowerCase())) {
-      addColumnHeading(trimmed);
+      if (accountId) {
+        await addColumnHeadingAsync(trimmed, accountId);
+      } else {
+        addColumnHeading(trimmed);
+      }
     }
-    setHeadings(getColumnHeadings());
+    await loadHeadings();
     setMapping((prev) => ({
       ...prev,
       [originalHeader]: trimmed,
