@@ -332,6 +332,14 @@ export default function RulesPage() {
         </div>
 
         <div className="space-y-3">
+          {/* Column header */}
+          {!isLoading && rules.length > 0 && (
+            <div className="flex items-center px-4 py-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <div className="w-10 shrink-0 text-center mr-3">Run on Import</div>
+              <div className="flex-1">Rule</div>
+              <div className="shrink-0 ml-2">Actions</div>
+            </div>
+          )}
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
@@ -357,18 +365,23 @@ export default function RulesPage() {
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 flex-1">
                       {/* Toggle */}
-                      <button
-                        onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
-                        className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
-                          rule.enabled ? 'bg-green-500' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            rule.enabled ? 'left-5' : 'left-0.5'
+                      <div className="flex flex-col items-center shrink-0">
+                        <button
+                          onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
+                          className={`relative w-10 h-5 rounded-full transition-colors ${
+                            rule.enabled ? 'bg-green-500' : 'bg-gray-300'
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                              rule.enabled ? 'left-5' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[10px] mt-0.5 ${rule.enabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {rule.enabled ? 'On' : 'Off'}
+                        </span>
+                      </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
