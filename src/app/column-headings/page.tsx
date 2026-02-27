@@ -19,8 +19,29 @@ export default function ColumnHeadingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hubspotConnected, setHubspotConnected] = useState(false);
 
   const accountId = user?.accountId || '';
+
+  // Check HubSpot connection status
+  useEffect(() => {
+    async function checkConnection() {
+      try {
+        const response = await fetch('/api/hubspot/oauth', {
+          headers: {
+            'x-account-id': accountId || '00000000-0000-0000-0000-000000000001',
+          },
+        });
+        const data = await response.json();
+        setHubspotConnected(data.connected === true);
+      } catch {
+        setHubspotConnected(false);
+      }
+    }
+    checkConnection();
+  }, [accountId]);
 
   // Load headings from Supabase (or localStorage fallback)
   const loadHeadings = useCallback(async () => {
@@ -109,14 +130,79 @@ export default function ColumnHeadingsPage() {
     }
   };
 
+  const handleReSync = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    try {
+      const response = await fetch('/api/hubspot/sync-headings', {
+        method: 'POST',
+        headers: {
+          'x-account-id': accountId || '00000000-0000-0000-0000-000000000001',
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSyncMessage({ type: 'success', text: data.message });
+        await loadHeadings();
+      } else {
+        setSyncMessage({ type: 'error', text: data.error || 'Failed to sync.' });
+      }
+    } catch {
+      setSyncMessage({ type: 'error', text: 'Failed to sync HubSpot properties.' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const manualCount = headings.filter((h) => h.source !== 'hubspot').length;
+  const hubspotCount = headings.filter((h) => h.source === 'hubspot').length;
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <p className="text-gray-600">
-            Manage the column headings you use when importing lists into HubSpot. During import, you can map your spreadsheet columns to these headings so the exported file matches HubSpot's expected format.
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-gray-600">
+              Manage the column headings you use when importing lists into HubSpot. During import, you can map your spreadsheet columns to these headings so the exported file matches HubSpot&#39;s expected format.
+            </p>
+          </div>
+
+          {hubspotConnected && (
+            <button
+              onClick={handleReSync}
+              disabled={isSyncing}
+              className="ml-4 flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSyncing ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Re-Sync
+                </>
+              )}
+            </button>
+          )}
         </div>
+
+        {/* Sync status message */}
+        {syncMessage && (
+          <div className={`p-4 rounded-lg ${
+            syncMessage.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {syncMessage.text}
+          </div>
+        )}
 
         {/* Add new heading */}
         <div className="flex gap-3">
@@ -153,65 +239,86 @@ export default function ColumnHeadingsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Column Heading</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Source</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Added</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {headings.map((heading) => (
-                  <tr key={heading.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      {editingId === heading.id ? (
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, handleSaveEdit)}
-                          autoFocus
-                          className="px-3 py-1 border border-primary-300 rounded focus:ring-2 focus:ring-primary-500 outline-none w-full max-w-sm"
-                        />
-                      ) : (
-                        <span className="font-medium text-gray-900">{heading.name}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {new Date(heading.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {editingId === heading.id ? (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={handleSaveEdit}
-                            className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleStartEdit(heading)}
-                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleRemove(heading.id)}
-                            className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {headings.map((heading) => {
+                  const isHubSpot = heading.source === 'hubspot';
+
+                  return (
+                    <tr key={heading.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        {editingId === heading.id ? (
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, handleSaveEdit)}
+                            autoFocus
+                            className="px-3 py-1 border border-primary-300 rounded focus:ring-2 focus:ring-primary-500 outline-none w-full max-w-sm"
+                          />
+                        ) : (
+                          <span className="font-medium text-gray-900">{heading.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isHubSpot ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                              <path d="M17.83 11.14V7.52a2.12 2.12 0 0 0 1.23-1.92 2.14 2.14 0 0 0-2.14-2.14 2.14 2.14 0 0 0-2.14 2.14c0 .84.5 1.57 1.21 1.92v3.62a4.93 4.93 0 0 0-2.31 1.19l-6.1-4.75a2.07 2.07 0 0 0 .06-.48 2.07 2.07 0 1 0-2.07 2.07c.35 0 .68-.09.97-.25l5.99 4.66a4.94 4.94 0 0 0-.49 2.14 5 5 0 0 0 5 5 5 5 0 0 0 5-5 4.99 4.99 0 0 0-4.21-4.94zm-.91 7.44a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                            </svg>
+                            HubSpot
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                            Manual
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {new Date(heading.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {editingId === heading.id ? (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : isHubSpot ? (
+                          <span className="text-xs text-gray-400 italic">Managed by HubSpot</span>
+                        ) : (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleStartEdit(heading)}
+                              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleRemove(heading.id)}
+                              className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -219,6 +326,11 @@ export default function ColumnHeadingsPage() {
 
         <div className="text-sm text-gray-500">
           {headings.length} column heading{headings.length !== 1 ? 's' : ''} configured
+          {hubspotCount > 0 && (
+            <span className="ml-2">
+              ({manualCount} manual, {hubspotCount} from HubSpot)
+            </span>
+          )}
         </div>
       </div>
     </AdminLayout>

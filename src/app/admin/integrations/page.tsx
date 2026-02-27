@@ -112,12 +112,30 @@ export default function IntegrationsPage() {
     setIsSyncing(true);
     setMessage(null);
     try {
-      const response = await fetch('/api/hubspot/properties', { method: 'POST' });
-      const data = await response.json();
-      if (data.success) {
-        setMessage({ type: 'success', text: data.message || 'HubSpot properties synced successfully.' });
+      // Sync properties and column headings in sequence
+      const propsResponse = await fetch('/api/hubspot/properties', {
+        method: 'POST',
+        headers: {
+          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+        },
+      });
+      const propsData = await propsResponse.json();
+
+      const headingsResponse = await fetch('/api/hubspot/sync-headings', {
+        method: 'POST',
+        headers: {
+          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+        },
+      });
+      const headingsData = await headingsResponse.json();
+
+      if (propsData.success && headingsData.success) {
+        setMessage({
+          type: 'success',
+          text: `${propsData.message} Column headings: ${headingsData.added} added, ${headingsData.updated} updated, ${headingsData.removed} removed.`,
+        });
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to sync properties.' });
+        setMessage({ type: 'error', text: propsData.error || headingsData.error || 'Failed to sync.' });
       }
     } catch {
       setMessage({ type: 'error', text: 'Failed to sync HubSpot properties.' });
@@ -237,7 +255,12 @@ export default function IntegrationsPage() {
                                 Syncing...
                               </>
                             ) : (
-                              'Sync Properties'
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Re-Sync
+                              </>
                             )}
                           </button>
                         )}
