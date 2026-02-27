@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -232,6 +233,13 @@ export default function RulesPage() {
           <div>
             <p className="text-gray-600">
               Validation rules that clean and format your uploaded data. Toggle rules on or off to control which validations run during import.
+              {' '}
+              <Link href="/docs/rules" className="text-primary-600 hover:text-primary-700 hover:underline inline-flex items-center gap-1">
+                View documentation
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </p>
           </div>
           <div className="flex gap-2">
