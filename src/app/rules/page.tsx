@@ -318,9 +318,10 @@ export default function RulesPage() {
         <div className="space-y-3">
           {/* Column header with Enable/Disable All */}
           {!isLoading && rules.length > 0 && (
-            <div className="flex items-center px-4 py-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
-              <div className="shrink-0 mr-3">Enabled</div>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center px-4 py-1 text-xs font-medium uppercase tracking-wider">
+              <div className="shrink-0 mr-3 text-gray-500">Enabled</div>
+              <div className="flex-1"></div>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
                 <button
                   onClick={enableAll}
                   className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 normal-case tracking-normal"
@@ -333,9 +334,8 @@ export default function RulesPage() {
                 >
                   Disable All
                 </button>
+                <span className="text-gray-400 ml-1">Actions</span>
               </div>
-              <div className="flex-1"></div>
-              <div className="shrink-0 ml-2">Actions</div>
             </div>
           )}
           {isLoading ? (
