@@ -86,7 +86,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const pageTitle = activeItem?.label || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
