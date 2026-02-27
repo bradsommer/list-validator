@@ -111,6 +111,35 @@ export async function removeColumnHeadingAsync(id: string, accountId: string): P
   removeColumnHeadingFromLocalStorage(id);
 }
 
+/** Remove all HubSpot-sourced column headings for an account */
+export async function removeAllHubSpotHeadingsAsync(accountId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('column_headings')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('source', 'hubspot')
+      .select('id');
+
+    if (error) {
+      console.error('[columnHeadings] Supabase bulk delete error:', error);
+      return 0;
+    }
+
+    const removedCount = data?.length || 0;
+
+    // Update localStorage cache
+    const cached = getColumnHeadingsFromLocalStorage();
+    const filtered = cached.filter((h) => h.source !== 'hubspot');
+    saveColumnHeadingsToLocalStorage(filtered);
+
+    return removedCount;
+  } catch (err) {
+    console.error('[columnHeadings] Bulk remove error:', err);
+    return 0;
+  }
+}
+
 /** Update a column heading in Supabase */
 export async function updateColumnHeadingAsync(id: string, name: string, accountId: string): Promise<void> {
   const trimmedName = name.trim();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthorizeUrl, getHubSpotClientIdAsync, isConnected, getTokens, getPortalId, clearTokens } from '@/lib/hubspot';
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
+import { removeAllHubSpotHeadingsAsync } from '@/lib/columnHeadings';
 
 interface ConnectionStatus {
   connected: boolean;
@@ -57,11 +58,12 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// DELETE - disconnect HubSpot (invalidates cache)
+// DELETE - disconnect HubSpot (invalidates cache and removes HubSpot headings)
 export async function DELETE(request: NextRequest) {
   const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
   await clearTokens(accountId);
+  const removedHeadings = await removeAllHubSpotHeadingsAsync(accountId);
   cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
   cache.invalidate(CACHE_KEYS.HUBSPOT_OWNERS);
-  return NextResponse.json({ success: true, connected: false });
+  return NextResponse.json({ success: true, connected: false, removedHeadings });
 }

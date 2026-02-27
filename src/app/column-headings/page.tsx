@@ -305,16 +305,16 @@ export default function ColumnHeadingsPage() {
                               Cancel
                             </button>
                           </div>
-                        ) : isHubSpot ? (
-                          <span className="text-xs text-gray-400 italic">Managed by HubSpot</span>
                         ) : (
                           <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => handleStartEdit(heading)}
-                              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                            >
-                              Edit
-                            </button>
+                            {!isHubSpot && (
+                              <button
+                                onClick={() => handleStartEdit(heading)}
+                                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                              >
+                                Edit
+                              </button>
+                            )}
                             <button
                               onClick={() => handleRemove(heading.id)}
                               className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
