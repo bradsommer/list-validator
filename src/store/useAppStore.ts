@@ -3,6 +3,7 @@ import type {
   ParsedFile,
   ParsedRow,
   HeaderMatch,
+  HubSpotObjectType,
   ValidationResult,
   AuditResult,
   LogEntry,
@@ -29,6 +30,9 @@ interface AppState {
   sessionId: string;
   currentStep: number;
   steps: string[];
+
+  // Object type selection (contacts, companies, deals)
+  objectType: HubSpotObjectType | null;
 
   // File data
   parsedFile: ParsedFile | null;
@@ -65,6 +69,8 @@ interface AppState {
   nextStep: () => void;
   prevStep: () => void;
 
+  setObjectType: (type: HubSpotObjectType | null) => void;
+
   setParsedFile: (file: ParsedFile | null) => void;
   setProcessedData: (data: ParsedRow[]) => void;
 
@@ -96,6 +102,7 @@ const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
   steps: ['Upload', 'Questions', 'Map Columns', 'Validate', 'Export'],
+  objectType: null as HubSpotObjectType | null,
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,
   questionColumnValues: {} as QuestionColumnValues,
@@ -122,6 +129,8 @@ export const useAppStore = create<AppState>((set) => ({
   prevStep: () => set((state) => ({
     currentStep: Math.max(state.currentStep - 1, 0)
   })),
+
+  setObjectType: (type) => set({ objectType: type }),
 
   setParsedFile: (file) => set({ parsedFile: file }),
   setProcessedData: (data) => set({ processedData: data }),
