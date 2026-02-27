@@ -163,7 +163,7 @@ export default function ColumnHeadingsPage() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-gray-600">
-              Manage the column headings you use when importing lists into HubSpot. During import, you can map your spreadsheet columns to these headings so the exported file matches HubSpot&#39;s expected format.
+              Manage the output headings you use when importing lists into HubSpot. During import, you can map your spreadsheet columns to these headings so the exported file matches HubSpot&#39;s expected format.
             </p>
           </div>
 
@@ -211,7 +211,7 @@ export default function ColumnHeadingsPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, handleAdd)}
-            placeholder="Enter a column heading name..."
+            placeholder="Enter an output heading name..."
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
           />
           <button
@@ -232,13 +232,13 @@ export default function ColumnHeadingsPage() {
             </div>
           ) : headings.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              No column headings added yet. Add your first one above.
+              No output headings added yet. Add your first one above.
             </div>
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Column Heading</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Output Heading</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Source</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Added</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
@@ -325,7 +325,7 @@ export default function ColumnHeadingsPage() {
         </div>
 
         <div className="text-sm text-gray-500">
-          {headings.length} column heading{headings.length !== 1 ? 's' : ''} configured
+          {headings.length} output heading{headings.length !== 1 ? 's' : ''} configured
           {hubspotCount > 0 && (
             <span className="ml-2">
               ({manualCount} manual, {hubspotCount} from HubSpot)
