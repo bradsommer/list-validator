@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAppStore, type QuestionAnswer } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ImportQuestion } from '@/lib/importQuestions';
-import type { HubSpotObjectType } from '@/types';
 
 interface QuestionInputProps {
   question: ImportQuestion;
@@ -226,17 +225,9 @@ function QuestionInput({ question, answer, onAnswer }: QuestionInputProps) {
   );
 }
 
-const OBJECT_TYPE_OPTIONS: { value: HubSpotObjectType; label: string; description: string }[] = [
-  { value: 'contacts', label: 'Contacts', description: 'People and individuals' },
-  { value: 'companies', label: 'Companies', description: 'Organizations and businesses' },
-  { value: 'deals', label: 'Deals', description: 'Sales opportunities and transactions' },
-];
-
 export function ImportQuestionsStep() {
   const { user } = useAuth();
   const {
-    objectType,
-    setObjectType,
     questionAnswers,
     setQuestionAnswer,
     setQuestionColumnValues,
@@ -280,12 +271,6 @@ export function ImportQuestionsStep() {
   };
 
   const handleContinue = () => {
-    // Require object type selection
-    if (!objectType) {
-      alert('Please select the type of records you are importing.');
-      return;
-    }
-
     // Validate required questions
     for (const question of questions) {
       if (question.isRequired) {
@@ -323,6 +308,13 @@ export function ImportQuestionsStep() {
     nextStep();
   };
 
+  // If no questions to show, auto-advance (but still apply defaults)
+  useEffect(() => {
+    if (!isLoading && questions.length === 0) {
+      handleContinue();
+    }
+  }, [isLoading, questions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -332,56 +324,33 @@ export function ImportQuestionsStep() {
     );
   }
 
+  if (questions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Processing...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Import Questions</h2>
         <p className="text-gray-600 mt-1">
-          Answer the following questions before mapping your columns.
+          Answer the following questions to add data to your import.
         </p>
       </div>
 
-      {/* Object type selector */}
-      <div className="border rounded-lg p-4 bg-white">
-        <h4 className="font-medium text-gray-900 mb-1">
-          What type of records are you importing?
-          <span className="text-red-500 ml-1">*</span>
-        </h4>
-        <p className="text-sm text-gray-500 mb-3">
-          This determines which HubSpot properties are available for column mapping.
-        </p>
-        <div className="grid grid-cols-3 gap-3">
-          {OBJECT_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setObjectType(opt.value)}
-              className={`flex flex-col items-center px-4 py-3 rounded-lg border-2 transition-colors ${
-                objectType === opt.value
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 hover:border-gray-300 text-gray-700'
-              }`}
-            >
-              <span className="font-medium text-sm">{opt.label}</span>
-              <span className="text-xs text-gray-500 mt-0.5">{opt.description}</span>
-            </button>
-          ))}
-        </div>
+      <div className="space-y-4">
+        {questions.map((question) => (
+          <QuestionInput
+            key={question.id}
+            question={question}
+            answer={questionAnswers[question.id]}
+            onAnswer={(answer) => handleAnswer(question.id, answer)}
+          />
+        ))}
       </div>
-
-      {/* Import questions */}
-      {questions.length > 0 && (
-        <div className="space-y-4">
-          {questions.map((question) => (
-            <QuestionInput
-              key={question.id}
-              question={question}
-              answer={questionAnswers[question.id]}
-              onAnswer={(answer) => handleAnswer(question.id, answer)}
-            />
-          ))}
-        </div>
-      )}
 
       <div className="flex items-center justify-between pt-4 border-t">
         <button

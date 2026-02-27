@@ -6,6 +6,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
 import { LogViewer } from '@/components/layout/LogViewer';
 import { FileUpload } from '@/components/upload/FileUpload';
+import { ObjectTypeStep } from '@/components/upload/ObjectTypeStep';
 import { ColumnMapper } from '@/components/upload/ColumnMapper';
 import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
 import { ValidationResults } from '@/components/validation/ValidationResults';
@@ -32,12 +33,14 @@ export default function ImportPage() {
       case 0:
         return <FileUpload />;
       case 1:
-        return <ImportQuestionsStep />;
+        return <ObjectTypeStep />;
       case 2:
-        return <ColumnMapper />;
+        return <ImportQuestionsStep />;
       case 3:
-        return <ValidationResults />;
+        return <ColumnMapper />;
       case 4:
+        return <ValidationResults />;
+      case 5:
         return <AuditReview />;
       default:
         return <FileUpload />;
