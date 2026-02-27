@@ -23,7 +23,7 @@ function getObjectTypes(rule: AccountRule): HubSpotObjectType[] {
 }
 
 export default function RulesPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
   const [editingRule, setEditingRule] = useState<string | null>(null);
@@ -67,8 +67,12 @@ export default function RulesPage() {
   }, [accountId]);
 
   useEffect(() => {
-    loadRules();
-  }, [loadRules]);
+    // Wait for auth to finish loading before fetching rules,
+    // otherwise accountId defaults to 'default' and shows empty state
+    if (!isAuthLoading) {
+      loadRules();
+    }
+  }, [loadRules, isAuthLoading]);
 
   // Fetch source code for a rule
   const fetchSourceCode = async (ruleId: string) => {
