@@ -16,6 +16,8 @@ const RULE_FILES: Record<string, string> = {
   'name-capitalization': 'name-capitalization.ts',
   'company-normalization': 'company-normalization.ts',
   'duplicate-detection': 'duplicate-detection.ts',
+  'region-normalization': 'region-normalization.ts',
+  'encoding-normalization': 'encoding-normalization.ts',
 };
 
 /**
