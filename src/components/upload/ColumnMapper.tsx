@@ -355,7 +355,7 @@ export function ColumnMapper() {
       <div>
         <h2 className="text-xl font-semibold">Map Columns</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Choose a HubSpot column heading for each column in your spreadsheet. Mapped columns will be renamed in the exported file.
+          Choose an output heading for each column in your spreadsheet. Mapped columns will be renamed in the exported file.
           Columns set to &ldquo;Do not use&rdquo; will be excluded from the export.
         </p>
       </div>
