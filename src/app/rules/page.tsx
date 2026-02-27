@@ -6,18 +6,38 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchAccountRules,
   toggleRuleEnabled,
+  updateRuleConfig,
   initializeAccountRules,
   type AccountRule,
 } from '@/lib/accountRules';
+import type { HubSpotObjectType } from '@/types';
+
+const OBJECT_TYPES: { value: HubSpotObjectType; label: string }[] = [
+  { value: 'contacts', label: 'Contacts' },
+  { value: 'companies', label: 'Companies' },
+  { value: 'deals', label: 'Deals' },
+];
+
+function getObjectTypes(rule: AccountRule): HubSpotObjectType[] {
+  return (rule.config?.objectTypes as HubSpotObjectType[]) || [];
+}
 
 export default function RulesPage() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [rules, setRules] = useState<AccountRule[]>([]);
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
+  const [editingRule, setEditingRule] = useState<string | null>(null);
   const [sourceCode, setSourceCode] = useState<Record<string, string>>({});
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  // Edit form state
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editTargetFields, setEditTargetFields] = useState('');
+  const [editObjectTypes, setEditObjectTypes] = useState<HubSpotObjectType[]>([]);
 
   const accountId = user?.accountId || 'default';
 
@@ -51,7 +71,7 @@ export default function RulesPage() {
 
   // Fetch source code for a rule
   const fetchSourceCode = async (ruleId: string) => {
-    if (sourceCode[ruleId]) return; // Already loaded
+    if (sourceCode[ruleId]) return;
 
     setLoadingSource(ruleId);
     try {
@@ -69,14 +89,12 @@ export default function RulesPage() {
   };
 
   const handleToggleRule = async (ruleId: string, currentEnabled: boolean) => {
-    // Optimistic update
     setRules((prev) =>
       prev.map((r) => (r.ruleId === ruleId ? { ...r, enabled: !currentEnabled } : r))
     );
 
     const success = await toggleRuleEnabled(accountId, ruleId, !currentEnabled);
     if (!success) {
-      // Revert on failure
       setRules((prev) =>
         prev.map((r) => (r.ruleId === ruleId ? { ...r, enabled: currentEnabled } : r))
       );
@@ -90,6 +108,66 @@ export default function RulesPage() {
       setExpandedRule(ruleId);
       fetchSourceCode(ruleId);
     }
+  };
+
+  const startEditing = (rule: AccountRule) => {
+    setEditingRule(rule.ruleId);
+    setEditName(rule.name);
+    setEditDescription(rule.description || '');
+    setEditTargetFields(rule.targetFields.join(', '));
+    setEditObjectTypes(getObjectTypes(rule));
+  };
+
+  const cancelEditing = () => {
+    setEditingRule(null);
+  };
+
+  const toggleEditObjectType = (type: HubSpotObjectType) => {
+    setEditObjectTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+
+  const handleSave = async (rule: AccountRule) => {
+    setSaving(rule.ruleId);
+
+    const targetFields = editTargetFields
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+
+    const updatedConfig = {
+      ...rule.config,
+      objectTypes: editObjectTypes.length > 0 ? editObjectTypes : undefined,
+    };
+    // Clean up undefined keys
+    if (!updatedConfig.objectTypes) delete updatedConfig.objectTypes;
+
+    const success = await updateRuleConfig(accountId, rule.ruleId, {
+      name: editName.trim() || rule.name,
+      description: editDescription.trim() || null,
+      targetFields,
+      config: updatedConfig,
+    });
+
+    if (success) {
+      setRules((prev) =>
+        prev.map((r) =>
+          r.ruleId === rule.ruleId
+            ? {
+                ...r,
+                name: editName.trim() || r.name,
+                description: editDescription.trim() || null,
+                targetFields,
+                config: updatedConfig,
+              }
+            : r
+        )
+      );
+      setEditingRule(null);
+    }
+
+    setSaving(null);
   };
 
   const enableAll = async () => {
@@ -150,8 +228,11 @@ export default function RulesPage() {
           ) : (
             rules.map((rule) => {
               const isExpanded = expandedRule === rule.ruleId;
+              const isEditing = editingRule === rule.ruleId;
               const source = sourceCode[rule.ruleId];
               const isLoadingThisSource = loadingSource === rule.ruleId;
+              const isSaving = saving === rule.ruleId;
+              const objectTypes = getObjectTypes(rule);
 
               return (
                 <div
@@ -160,12 +241,13 @@ export default function RulesPage() {
                     rule.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
                   }`}
                 >
+                  {/* Rule header */}
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 flex-1">
                       {/* Toggle */}
                       <button
                         onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                        className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
                           rule.enabled ? 'bg-green-500' : 'bg-gray-300'
                         }`}
                       >
@@ -176,8 +258,8 @@ export default function RulesPage() {
                         />
                       </button>
 
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900">{rule.name}</span>
                           <span
                             className={`px-2 py-0.5 text-xs rounded-full ${
@@ -188,13 +270,18 @@ export default function RulesPage() {
                           >
                             {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
                           </span>
+                          {objectTypes.length > 0 && objectTypes.map((ot) => (
+                            <span key={ot} className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">
+                              {ot}
+                            </span>
+                          ))}
                         </div>
                         {rule.description && (
                           <p className="text-sm text-gray-500 mt-0.5">{rule.description}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-gray-400">
-                            Target fields: {rule.targetFields.join(', ')}
+                            Target fields: {rule.targetFields.join(', ') || 'all'}
                           </span>
                           <span className="text-xs text-gray-400">
                             Order: {rule.displayOrder}
@@ -203,13 +290,105 @@ export default function RulesPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleExpandRule(rule.ruleId)}
-                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                    >
-                      {isExpanded ? 'Hide Code' : 'View Code'}
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        onClick={() => isEditing ? cancelEditing() : startEditing(rule)}
+                        className={`px-3 py-1.5 text-sm rounded ${
+                          isEditing
+                            ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        {isEditing ? 'Cancel' : 'Edit'}
+                      </button>
+                      <button
+                        onClick={() => handleExpandRule(rule.ruleId)}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                      >
+                        {isExpanded ? 'Hide Code' : 'View Code'}
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Edit panel */}
+                  {isEditing && (
+                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 space-y-4">
+                      {/* Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Rule Name</label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-none"
+                        />
+                      </div>
+
+                      {/* Object Types */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Applies to Object Types</label>
+                        <div className="flex gap-3">
+                          {OBJECT_TYPES.map((ot) => (
+                            <label key={ot.value} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editObjectTypes.includes(ot.value)}
+                                onChange={() => toggleEditObjectType(ot.value)}
+                                className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
+                              />
+                              <span className="text-sm text-gray-700">{ot.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Leave all unchecked to apply to all object types.
+                        </p>
+                      </div>
+
+                      {/* Target Fields */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Target Fields</label>
+                        <input
+                          type="text"
+                          value={editTargetFields}
+                          onChange={(e) => setEditTargetFields(e.target.value)}
+                          placeholder="e.g. email, phone, firstname"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Comma-separated list of field names this rule targets.
+                        </p>
+                      </div>
+
+                      {/* Save / Cancel */}
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          onClick={cancelEditing}
+                          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleSave(rule)}
+                          disabled={isSaving}
+                          className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                        >
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Code view */}
                   {isExpanded && (
