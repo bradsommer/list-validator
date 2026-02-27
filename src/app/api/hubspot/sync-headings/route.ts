@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
+import { getServerSupabase } from '@/lib/supabase';
 
 const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -12,8 +13,9 @@ export async function POST(request: NextRequest) {
     // First refresh HubSpot properties from the API
     await fetchAndStoreProperties(accountId);
 
-    // Then sync those properties into column_headings
-    const result = await syncHubSpotPropertiesAsHeadings(accountId);
+    // Then sync those properties into column_headings (using service role to bypass RLS)
+    const serverDb = getServerSupabase();
+    const result = await syncHubSpotPropertiesAsHeadings(accountId, serverDb);
 
     return NextResponse.json({
       success: true,

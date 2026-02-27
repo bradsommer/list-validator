@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'hubspot_column_headings';
 const MAPPING_HISTORY_KEY = 'column_mapping_history';
@@ -137,26 +138,32 @@ export async function updateColumnHeadingAsync(id: string, name: string, account
 // ============================================================================
 
 /** Sync HubSpot properties into column_headings with source='hubspot' */
-export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promise<{
+export async function syncHubSpotPropertiesAsHeadings(
+  accountId: string,
+  dbClient?: SupabaseClient
+): Promise<{
   added: number;
   updated: number;
   removed: number;
   total: number;
 }> {
+  const db = dbClient || supabase;
+
   // 1. Fetch all HubSpot properties stored in the hubspot_properties table
-  const { data: hubspotProps, error: fetchError } = await supabase
+  const { data: hubspotProps, error: fetchError } = await db
     .from('hubspot_properties')
     .select('field_name, field_label, object_type')
     .eq('account_id', accountId);
 
   if (fetchError) {
     console.error('[columnHeadings] Failed to fetch HubSpot properties:', fetchError);
-    throw new Error('Failed to fetch HubSpot properties');
+    throw new Error(`Failed to fetch HubSpot properties: ${fetchError.message}`);
   }
 
   if (!hubspotProps || hubspotProps.length === 0) {
+    console.warn('[columnHeadings] No HubSpot properties found in hubspot_properties table for account:', accountId);
     // No HubSpot properties — remove all hubspot-sourced headings
-    const { data: existing } = await supabase
+    const { data: existing } = await db
       .from('column_headings')
       .select('id')
       .eq('account_id', accountId)
@@ -164,7 +171,7 @@ export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promis
 
     const removedCount = existing?.length || 0;
     if (removedCount > 0) {
-      await supabase
+      await db
         .from('column_headings')
         .delete()
         .eq('account_id', accountId)
@@ -174,8 +181,10 @@ export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promis
     return { added: 0, updated: 0, removed: removedCount, total: 0 };
   }
 
+  console.log(`[columnHeadings] Found ${hubspotProps.length} HubSpot properties to sync for account: ${accountId}`);
+
   // 2. Fetch existing hubspot-sourced headings for this account
-  const { data: existingHeadings } = await supabase
+  const { data: existingHeadings } = await db
     .from('column_headings')
     .select('id, name, hubspot_object_type, hubspot_field_name')
     .eq('account_id', accountId)
@@ -231,22 +240,26 @@ export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promis
   let updated = 0;
 
   if (toInsert.length > 0) {
-    // Insert in batches of 500
+    // Insert in batches of 500, using ignoreDuplicates to handle name conflicts
+    // with manually-created headings (UNIQUE constraint on account_id, name)
     for (let i = 0; i < toInsert.length; i += 500) {
       const batch = toInsert.slice(i, i + 500);
-      const { error } = await supabase.from('column_headings').insert(batch);
+      const { data: insertedData, error } = await db
+        .from('column_headings')
+        .upsert(batch, { onConflict: 'account_id,name', ignoreDuplicates: true })
+        .select('id');
       if (error) {
         console.error('[columnHeadings] Insert batch error:', error);
         // Surface the error so the user knows why sync failed
         throw new Error(`Failed to insert HubSpot headings: ${error.message}. You may need to run the database migration (007_add_source_to_column_headings.sql).`);
       } else {
-        added += batch.length;
+        added += insertedData?.length || batch.length;
       }
     }
   }
 
   for (const item of toUpdate) {
-    const { error } = await supabase
+    const { error } = await db
       .from('column_headings')
       .update({ name: item.name })
       .eq('id', item.id);
@@ -254,7 +267,7 @@ export async function syncHubSpotPropertiesAsHeadings(accountId: string): Promis
   }
 
   if (toRemoveIds.length > 0) {
-    await supabase
+    await db
       .from('column_headings')
       .delete()
       .in('id', toRemoveIds);
