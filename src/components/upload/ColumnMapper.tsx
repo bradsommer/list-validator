@@ -346,7 +346,7 @@ export function ColumnMapper() {
                 &rarr;
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 w-1/2">
-                HubSpot Column Heading
+                HubSpot Output Heading
               </th>
             </tr>
           </thead>
