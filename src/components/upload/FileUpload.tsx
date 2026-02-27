@@ -135,7 +135,7 @@ export function FileUpload() {
       </div>
 
       {/* File upload */}
-      <div className="w-full max-w-2xl mx-auto">
+      <div>
         <div
           {...getRootProps()}
           className={`
