@@ -429,6 +429,126 @@ const header = findColumnHeader('state', headerMatches, rows);`}</CodeBlock>
       </div>
     ),
   },
+  {
+    id: 'error-handling',
+    title: 'Error Handling & Isolation',
+    content: (
+      <div className="space-y-3">
+        <p>
+          Each script runs inside an isolated try/catch boundary. If a script throws an error or crashes,
+          the remaining scripts <strong>continue to run</strong> on the last known good data.
+        </p>
+        <ul className="list-disc pl-6 space-y-1">
+          <li>A failing script is reported as an error in the validation results with the script name and error message.</li>
+          <li>The next script in the chain receives the same rows the failed script received &mdash; no data is lost.</li>
+          <li>All other scripts run to completion regardless of individual failures.</li>
+        </ul>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-3">
+          <p className="text-sm">
+            <strong>Bottom line:</strong> A broken rule will never prevent your import from completing.
+            You&apos;ll see the error in the validation results and can fix the rule separately.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'security',
+    title: 'Security',
+    content: (
+      <div className="space-y-3">
+        <p>
+          Validation scripts are <strong>pre-compiled TypeScript classes</strong> that run in your browser.
+          They are bundled at build time and cannot be modified at runtime. This architecture provides
+          several security guarantees:
+        </p>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>
+            <strong>No dynamic code execution.</strong> Scripts do not use <code className="bg-gray-100 px-1 rounded text-sm">eval()</code>,{' '}
+            <code className="bg-gray-100 px-1 rounded text-sm">new Function()</code>, or any form of dynamic code evaluation.
+            All script logic is statically compiled.
+          </li>
+          <li>
+            <strong>No network access.</strong> Scripts receive only a <code className="bg-gray-100 px-1 rounded text-sm">ScriptContext</code> object
+            containing row data and header information. They cannot make HTTP requests, access APIs, or communicate with external servers.
+          </li>
+          <li>
+            <strong>No DOM access.</strong> Scripts operate purely on data objects. They cannot access the document,
+            cookies, localStorage, or any browser APIs.
+          </li>
+          <li>
+            <strong>Sandboxed input/output.</strong> Scripts receive an array of rows and return a modified array.
+            They cannot access other users&apos; data, modify application state, or affect other scripts beyond
+            the row data they return.
+          </li>
+          <li>
+            <strong>Configuration only.</strong> The Rules UI lets you toggle rules on/off, change target fields,
+            and assign object types. It does not allow injecting or modifying the actual script logic.
+          </li>
+        </ul>
+      </div>
+    ),
+  },
+  {
+    id: 'data-handling',
+    title: 'Data Handling & Storage',
+    content: (
+      <div className="space-y-3">
+        <p>
+          Understanding how your data flows through the application is important. Here is exactly what happens
+          at each stage:
+        </p>
+
+        <h4 className="font-medium text-gray-900 mt-4">Spreadsheet data</h4>
+        <ul className="list-disc pl-6 space-y-1">
+          <li>
+            <strong>Processed in your browser.</strong> When you upload a spreadsheet, it is parsed entirely
+            in your browser using client-side JavaScript. The raw file is <strong>not uploaded to any server</strong>.
+          </li>
+          <li>
+            <strong>Not stored permanently.</strong> Your spreadsheet data lives in browser memory only for the
+            duration of your import session. When you navigate away from the import page or close your browser,
+            the data is gone.
+          </li>
+          <li>
+            <strong>Not sent to third parties.</strong> Your spreadsheet contents are never sent to analytics services,
+            AI models, or any external APIs. Validation and transformation happen entirely in-browser.
+          </li>
+        </ul>
+
+        <h4 className="font-medium text-gray-900 mt-4">What IS stored in the database</h4>
+        <ul className="list-disc pl-6 space-y-1">
+          <li><strong>Account settings</strong> &mdash; your account ID, username, and preferences.</li>
+          <li><strong>Rule configuration</strong> &mdash; which rules are enabled, their target fields, object type assignments, and display order.</li>
+          <li><strong>Column headings</strong> &mdash; the output heading names you configure for column mapping.</li>
+          <li><strong>Import questions</strong> &mdash; the questions and their configuration (not your answers to them).</li>
+          <li><strong>HubSpot integration tokens</strong> &mdash; encrypted OAuth tokens if you connect your HubSpot account.</li>
+        </ul>
+
+        <h4 className="font-medium text-gray-900 mt-4">What is NOT stored</h4>
+        <ul className="list-disc pl-6 space-y-1">
+          <li>Your spreadsheet files or their contents</li>
+          <li>Individual row data from your imports</li>
+          <li>Validation results or error details</li>
+          <li>Your import question answers (used only during the session)</li>
+          <li>The transformed/exported data</li>
+        </ul>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+          <p className="text-sm">
+            <strong>In short:</strong> Your spreadsheet data never leaves your browser. The application stores only
+            configuration (rules, headings, questions) and account settings &mdash; never your actual import data.
+          </p>
+        </div>
+
+        <p className="text-sm text-gray-500 mt-4">
+          For full details, see our{' '}
+          <Link href="/legal/privacy" className="text-primary-600 hover:underline">Privacy Policy</Link> and{' '}
+          <Link href="/legal/terms" className="text-primary-600 hover:underline">Terms of Use</Link>.
+        </p>
+      </div>
+    ),
+  },
 ];
 
 export default function RulesDocsPage() {
