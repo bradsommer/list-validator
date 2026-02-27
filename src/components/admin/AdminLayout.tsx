@@ -162,7 +162,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-6 overflow-auto">
+          {children}
+
+          {/* Footer */}
+          <footer className="mt-12 pt-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+              <p>&copy; {new Date().getFullYear()} List Validator. All rights reserved.</p>
+              <div className="flex items-center gap-3">
+                <Link href="/legal/privacy" className="hover:text-gray-600 transition-colors">
+                  Privacy Policy
+                </Link>
+                <span>|</span>
+                <Link href="/legal/terms" className="hover:text-gray-600 transition-colors">
+                  Terms of Use
+                </Link>
+              </div>
+            </div>
+          </footer>
+        </main>
       </div>
     </div>
   );
