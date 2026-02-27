@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error syncing HubSpot headings:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to sync HubSpot properties as column headings.' },
+      { success: false, error: `Failed to sync HubSpot properties as column headings: ${message}` },
       { status: 500 }
     );
   }
