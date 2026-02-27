@@ -334,7 +334,6 @@ export default function RulesPage() {
                 >
                   Disable All
                 </button>
-                <span className="text-gray-400 ml-1">Actions</span>
               </div>
             </div>
           )}
