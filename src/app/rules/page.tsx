@@ -298,33 +298,17 @@ export default function RulesPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-600">
-              Validation rules that clean and format your uploaded data. Toggle rules on or off to control which validations run during import.
-              {' '}
-              <Link href="/docs/rules" className="text-primary-600 hover:text-primary-700 hover:underline inline-flex items-center gap-1">
-                View documentation
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={enableAll}
-              className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
-            >
-              Enable All
-            </button>
-            <button
-              onClick={disableAll}
-              className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100"
-            >
-              Disable All
-            </button>
-          </div>
+        <div>
+          <p className="text-gray-600">
+            Validation rules that clean and format your uploaded data. Toggle rules on or off to control which validations run during import.
+            {' '}
+            <Link href="/docs/rules" className="text-primary-600 hover:text-primary-700 hover:underline inline-flex items-center gap-1">
+              View documentation
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </p>
         </div>
 
         <div className="text-sm text-gray-500">
@@ -332,10 +316,24 @@ export default function RulesPage() {
         </div>
 
         <div className="space-y-3">
-          {/* Column header */}
+          {/* Column header with Enable/Disable All */}
           {!isLoading && rules.length > 0 && (
             <div className="flex items-center px-4 py-1 text-xs font-medium text-gray-400 uppercase tracking-wider">
-              <div className="w-10 shrink-0 text-center mr-3">Enabled</div>
+              <div className="shrink-0 mr-3">Enabled</div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={enableAll}
+                  className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 normal-case tracking-normal"
+                >
+                  Enable All
+                </button>
+                <button
+                  onClick={disableAll}
+                  className="px-2 py-0.5 text-xs font-medium bg-gray-50 text-gray-700 rounded hover:bg-gray-100 normal-case tracking-normal"
+                >
+                  Disable All
+                </button>
+              </div>
               <div className="flex-1"></div>
               <div className="shrink-0 ml-2">Actions</div>
             </div>
