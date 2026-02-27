@@ -132,11 +132,13 @@ export async function toggleRuleEnabled(
 export async function updateRuleConfig(
   accountId: string,
   ruleId: string,
-  updates: Partial<Pick<AccountRule, 'description' | 'config' | 'displayOrder'>>
+  updates: Partial<Pick<AccountRule, 'name' | 'description' | 'targetFields' | 'config' | 'displayOrder'>>
 ): Promise<boolean> {
   try {
     const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.targetFields !== undefined) dbUpdates.target_fields = updates.targetFields;
     if (updates.config !== undefined) dbUpdates.config = updates.config;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
 
