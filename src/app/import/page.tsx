@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
-import { LogViewer } from '@/components/layout/LogViewer';
+
 import { FileUpload } from '@/components/upload/FileUpload';
 import { ColumnMapper } from '@/components/upload/ColumnMapper';
 import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
@@ -59,8 +59,6 @@ export default function ImportPage() {
         {renderStep()}
       </div>
 
-      {/* Log viewer */}
-      <LogViewer />
     </AdminLayout>
   );
 }

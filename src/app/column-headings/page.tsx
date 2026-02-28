@@ -317,7 +317,7 @@ export default function ColumnHeadingsPage() {
 
                   return (
                     <tr key={heading.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ maxWidth: 450 }}>
                         {editingId === heading.id ? (
                           <input
                             type="text"
@@ -328,7 +328,7 @@ export default function ColumnHeadingsPage() {
                             className="px-3 py-1 border border-primary-300 rounded focus:ring-2 focus:ring-primary-500 outline-none w-full max-w-sm"
                           />
                         ) : (
-                          <span className="font-medium text-gray-900">{heading.name}</span>
+                          <span className="font-medium text-gray-900 block truncate">{heading.name}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
