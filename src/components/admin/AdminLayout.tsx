@@ -166,7 +166,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <SidebarNavItem
                   key={item.href}
                   {...item}
-                  isActive={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)}
+                  isActive={item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(item.href + '/')}
                 />
               ))}
             </ul>

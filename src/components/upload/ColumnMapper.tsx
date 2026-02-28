@@ -105,12 +105,15 @@ function HeadingDropdown({
         <span className={`flex items-center gap-2 ${value ? 'text-gray-900' : 'text-gray-400'}`}>
           <span className="truncate">{displayValue}</span>
           {(() => {
-            const matched = value && value !== DO_NOT_USE ? headings.find((h) => h.name === value) : null;
-            return matched && (matched.source === 'hubspot' || matched.hubspotFieldName) ? (
+            if (!value || value === DO_NOT_USE) return null;
+            const match = headings.find((h) => h.name === value && (h.source !== 'manual' || h.hubspotFieldName));
+            if (!match) return null;
+            const label = match.source === 'hubspot' || match.hubspotFieldName ? 'HubSpot' : match.source;
+            return (
               <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                HubSpot
+                {label}
               </span>
-            ) : null;
+            );
           })()}
         </span>
         <svg
@@ -172,9 +175,9 @@ function HeadingDropdown({
                   }`}
                 >
                   <span className="truncate">{h.name}</span>
-                  {(h.source === 'hubspot' || h.hubspotFieldName) && (
+                  {(h.source !== 'manual' || h.hubspotFieldName) && (
                     <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                      HubSpot
+                      {h.source === 'hubspot' || h.hubspotFieldName ? 'HubSpot' : h.source}
                     </span>
                   )}
                 </button>
