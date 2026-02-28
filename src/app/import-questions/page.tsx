@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -94,6 +94,54 @@ export default function ImportQuestionsPage() {
     }
   };
 
+  // Drag-to-reorder questions
+  const dragQuestionRef = useRef<number | null>(null);
+  const dragOverQuestionRef = useRef<number | null>(null);
+  const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
+
+  const handleQuestionDragStart = (e: React.DragEvent, index: number) => {
+    dragQuestionRef.current = index;
+    setDraggedQuestionIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleQuestionDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverQuestionRef.current = index;
+  };
+
+  const handleQuestionDrop = async () => {
+    const from = dragQuestionRef.current;
+    const to = dragOverQuestionRef.current;
+    if (from !== null && to !== null && from !== to) {
+      const reordered = [...questions];
+      const [moved] = reordered.splice(from, 1);
+      reordered.splice(to, 0, moved);
+      setQuestions(reordered);
+
+      // Persist new order via API
+      await Promise.all(
+        reordered.map((q, i) =>
+          fetch('/api/import-questions', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: q.id, displayOrder: i * 10 }),
+          })
+        )
+      );
+    }
+    dragQuestionRef.current = null;
+    dragOverQuestionRef.current = null;
+    setDraggedQuestionIndex(null);
+  };
+
+  const handleQuestionDragEnd = () => {
+    dragQuestionRef.current = null;
+    dragOverQuestionRef.current = null;
+    setDraggedQuestionIndex(null);
+  };
+
   const enabledCount = questions.filter((q) => q.enabled).length;
 
   return (
@@ -137,19 +185,40 @@ export default function ImportQuestionsPage() {
               </p>
             </div>
           ) : (
-            questions.map((question) => (
+            questions.map((question, index) => (
               <div
                 key={question.id}
-                className={`border rounded-lg overflow-hidden ${
+                draggable
+                onDragStart={(e) => {
+                  const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
+                  if (!handle) { e.preventDefault(); return; }
+                  handleQuestionDragStart(e, index);
+                }}
+                onDragOver={(e) => handleQuestionDragOver(e, index)}
+                onDrop={handleQuestionDrop}
+                onDragEnd={handleQuestionDragEnd}
+                className={`border rounded-lg overflow-hidden transition-opacity ${
                   question.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
-                }`}
+                } ${draggedQuestionIndex === index ? 'opacity-50' : ''}`}
               >
                 <div className="flex items-start justify-between px-4 py-3">
                   <div className="flex items-start gap-3 flex-1">
+                    {/* Drag handle */}
+                    <div
+                      data-drag-handle
+                      className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1 shrink-0"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                        <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                      </svg>
+                    </div>
+
                     {/* Toggle */}
                     <button
                       onClick={() => handleToggleEnabled(question)}
-                      className={`relative w-10 h-5 rounded-full transition-colors mt-1 ${
+                      className={`relative w-10 h-5 rounded-full transition-colors mt-1 shrink-0 ${
                         question.enabled ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
@@ -179,11 +248,6 @@ export default function ImportQuestionsPage() {
                           {getQuestionTypeLabel(question.questionType)}
                         </span>
                       </div>
-                      {question.options.length > 0 && (
-                        <div className="mt-1 text-xs text-gray-400">
-                          Options: {question.options.join(', ')}
-                        </div>
-                      )}
                     </div>
                   </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -152,14 +152,42 @@ export default function EditImportQuestionPage() {
     }));
   };
 
-  const moveOption = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= formData.options.length) return;
-    setFormData((prev) => {
-      const newOptions = [...prev.options];
-      [newOptions[index], newOptions[newIndex]] = [newOptions[newIndex], newOptions[index]];
-      return { ...prev, options: newOptions };
-    });
+  const dragOptionRef = useRef<number | null>(null);
+  const dragOverOptionRef = useRef<number | null>(null);
+  const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
+
+  const handleOptionDragStart = (e: React.DragEvent, index: number) => {
+    dragOptionRef.current = index;
+    setDraggedOptionIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleOptionDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverOptionRef.current = index;
+  };
+
+  const handleOptionDrop = () => {
+    const from = dragOptionRef.current;
+    const to = dragOverOptionRef.current;
+    if (from !== null && to !== null && from !== to) {
+      setFormData((prev) => {
+        const newOptions = [...prev.options];
+        const [moved] = newOptions.splice(from, 1);
+        newOptions.splice(to, 0, moved);
+        return { ...prev, options: newOptions };
+      });
+    }
+    dragOptionRef.current = null;
+    dragOverOptionRef.current = null;
+    setDraggedOptionIndex(null);
+  };
+
+  const handleOptionDragEnd = () => {
+    dragOptionRef.current = null;
+    dragOverOptionRef.current = null;
+    setDraggedOptionIndex(null);
   };
 
   const sortOptionsAlphabetically = () => {
@@ -357,37 +385,37 @@ export default function EditImportQuestionPage() {
                 <div className="space-y-3">
                   {/* Header row - hidden on mobile since layout stacks */}
                   <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 font-medium">
+                    <div className="w-6"></div>
                     <div className="flex-1">Option (what user sees)</div>
                     <div className="w-8"></div>
                     <div className="flex-1">Output Value</div>
-                    <div className="w-[100px]"></div>
+                    <div className="w-9"></div>
                   </div>
                   {formData.options.map((option, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-3 md:border-0 md:p-0">
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={(e) => {
+                        const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
+                        if (!handle) { e.preventDefault(); return; }
+                        handleOptionDragStart(e, index);
+                      }}
+                      onDragOver={(e) => handleOptionDragOver(e, index)}
+                      onDrop={handleOptionDrop}
+                      onDragEnd={handleOptionDragEnd}
+                      className={`border border-gray-200 rounded-lg p-3 md:border-0 md:p-0 transition-opacity ${draggedOptionIndex === index ? 'opacity-50' : ''}`}
+                    >
                       <div className="flex flex-col md:flex-row md:items-center gap-2">
-                        {/* Mobile reorder buttons */}
-                        <div className="flex md:hidden items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveOption(index, 'up')}
-                            disabled={index === 0}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-25"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveOption(index, 'down')}
-                            disabled={index === formData.options.length - 1}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-25"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <span className="text-xs text-gray-400 ml-1">Reorder</span>
+                        {/* Drag handle */}
+                        <div
+                          data-drag-handle
+                          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 flex items-center"
+                        >
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                            <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                            <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                          </svg>
                         </div>
                         <div className="md:hidden text-xs text-gray-500 font-medium">Option (what user sees)</div>
                         <input
@@ -412,50 +440,14 @@ export default function EditImportQuestionPage() {
                           placeholder="Output value"
                           className="w-full md:flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50"
                         />
-                        {/* Desktop action buttons: reorder + remove */}
-                        <div className="hidden md:flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => moveOption(index, 'up')}
-                            disabled={index === 0}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-25 disabled:cursor-default"
-                            title="Move up"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveOption(index, 'down')}
-                            disabled={index === formData.options.length - 1}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-25 disabled:cursor-default"
-                            title="Move down"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          {formData.options.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeOption(index)}
-                              className="p-1.5 text-gray-400 hover:text-red-500"
-                              title="Remove"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                        {/* Mobile remove button */}
                         {formData.options.length > 1 && (
                           <button
+                            type="button"
                             onClick={() => removeOption(index)}
-                            className="self-end md:hidden p-2 text-gray-400 hover:text-red-500"
+                            className="self-end md:self-auto p-1.5 text-gray-400 hover:text-red-500"
+                            title="Remove"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
