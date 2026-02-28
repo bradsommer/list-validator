@@ -156,6 +156,7 @@ export default function EditImportQuestionPage() {
   const dragOverOptionRef = useRef<number | null>(null);
   const dragOptionHandleActiveRef = useRef(false);
   const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
+  const [dragOverOptionIndex, setDragOverOptionIndex] = useState<number | null>(null);
 
   const handleOptionDragStart = (e: React.DragEvent, index: number) => {
     dragOptionRef.current = index;
@@ -167,6 +168,7 @@ export default function EditImportQuestionPage() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     dragOverOptionRef.current = index;
+    setDragOverOptionIndex(index);
   };
 
   const handleOptionDrop = () => {
@@ -183,6 +185,7 @@ export default function EditImportQuestionPage() {
     dragOptionRef.current = null;
     dragOverOptionRef.current = null;
     setDraggedOptionIndex(null);
+    setDragOverOptionIndex(null);
   };
 
   const handleOptionDragEnd = () => {
@@ -190,6 +193,7 @@ export default function EditImportQuestionPage() {
     dragOverOptionRef.current = null;
     dragOptionHandleActiveRef.current = false;
     setDraggedOptionIndex(null);
+    setDragOverOptionIndex(null);
   };
 
   const sortOptionsAlphabetically = () => {
@@ -394,8 +398,14 @@ export default function EditImportQuestionPage() {
                     <div className="w-9"></div>
                   </div>
                   {formData.options.map((option, index) => (
+                    <div key={index} className="relative">
+                      {/* Drop indicator line */}
+                      {dragOverOptionIndex === index && draggedOptionIndex !== null && draggedOptionIndex !== index && (
+                        <div className={`absolute left-0 right-0 h-0.5 bg-primary-500 rounded-full z-10 ${
+                          draggedOptionIndex > index ? '-top-[6px]' : '-bottom-[6px]'
+                        }`} />
+                      )}
                     <div
-                      key={index}
                       draggable
                       onDragStart={(e) => {
                         if (!dragOptionHandleActiveRef.current) { e.preventDefault(); return; }
@@ -455,6 +465,7 @@ export default function EditImportQuestionPage() {
                           </button>
                         )}
                       </div>
+                    </div>
                     </div>
                   ))}
                   <div className="flex items-center gap-3">
