@@ -212,6 +212,19 @@ export function ValidationResults() {
     }
   }, [validationResult, processedData.length, headerMatches, auditResult, setAuditResult]);
 
+  const logImportToHistory = (rowCount: number) => {
+    const rulesApplied = enabledScripts?.length || 0;
+    fetch('/api/import-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: parsedFile?.fileName || 'unknown',
+        totalRows: rowCount,
+        rulesApplied,
+      }),
+    }).catch(() => { /* non-critical */ });
+  };
+
   const handleExportAll = () => {
     const exportData = remapRows(processedData, columnMapping);
     const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_cleaned`;
@@ -223,6 +236,7 @@ export function ValidationResults() {
     }
 
     logSuccess('export', `Exported all ${processedData.length} rows`, sessionId);
+    logImportToHistory(processedData.length);
   };
 
   const handleExportClean = () => {
@@ -238,6 +252,7 @@ export function ValidationResults() {
     }
 
     logSuccess('export', `Exported ${cleanData.length} clean rows`, sessionId);
+    logImportToHistory(cleanData.length);
   };
 
   const handleExportFlagged = () => {
@@ -257,6 +272,7 @@ export function ValidationResults() {
     }
 
     logSuccess('export', `Exported ${flaggedData.length} flagged rows for review`, sessionId);
+    logImportToHistory(flaggedData.length);
   };
 
   if (isValidating) {

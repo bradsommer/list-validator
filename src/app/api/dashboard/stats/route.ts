@@ -7,19 +7,16 @@ export async function GET(request: NextRequest) {
   try {
     const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
 
-    // Fetch all sessions for this account
-    const { data: sessions, error: sessionsError } = await supabase
-      .from('upload_sessions')
-      .select('id, total_rows, created_at')
+    // Fetch all completed imports for this account
+    const { data: imports, error: importsError } = await supabase
+      .from('import_history')
+      .select('id, total_rows, rules_applied, created_at')
       .eq('account_id', accountId)
       .order('created_at', { ascending: true });
 
-    if (sessionsError) {
-      console.error('Failed to fetch sessions:', sessionsError.message);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch dashboard stats' },
-        { status: 500 }
-      );
+    if (importsError) {
+      // Table may not exist yet — treat as empty
+      console.error('Failed to fetch imports:', importsError.message);
     }
 
     // Fetch enabled rule count
@@ -33,16 +30,16 @@ export async function GET(request: NextRequest) {
       console.error('Failed to fetch rules:', rulesError.message);
     }
 
-    // Group sessions by month
+    // Group imports by month
     const monthlyData: Record<string, { count: number; totalRows: number }> = {};
-    for (const session of sessions || []) {
-      const date = new Date(session.created_at);
+    for (const imp of imports || []) {
+      const date = new Date(imp.created_at);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (!monthlyData[key]) {
         monthlyData[key] = { count: 0, totalRows: 0 };
       }
       monthlyData[key].count += 1;
-      monthlyData[key].totalRows += session.total_rows || 0;
+      monthlyData[key].totalRows += imp.total_rows || 0;
     }
 
     // Build last 6 months array (including current month)
@@ -56,7 +53,7 @@ export async function GET(request: NextRequest) {
       months.push({ month: key, label, imports: data.count, rows: data.totalRows });
     }
 
-    const totalImports = (sessions || []).length;
+    const totalImports = (imports || []).length;
     const rulesPerImport = enabledRuleCount || 0;
     const timeSavedMinutes = totalImports * rulesPerImport * 5;
 
