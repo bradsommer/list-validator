@@ -293,6 +293,8 @@ function LandingPage() {
 }
 
 function Dashboard() {
+  const { isAdmin } = useAuth();
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -348,11 +350,43 @@ function Dashboard() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-green-900">Output Headings</p>
-                <p className="text-sm text-green-700">Manage HubSpot column heading names</p>
+                <p className="text-sm font-semibold text-green-900">Column Headings</p>
+                <p className="text-sm text-green-700">Manage output column heading names</p>
               </div>
             </div>
           </Link>
+
+          {isAdmin && (
+            <>
+              <Link href="/admin/integrations" className="bg-orange-50 rounded-lg p-5 border border-orange-200 hover:bg-orange-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-orange-900">Integrations</p>
+                    <p className="text-sm text-orange-700">Connect with HubSpot and other services</p>
+                  </div>
+                </div>
+              </Link>
+
+              <Link href="/admin/users" className="bg-indigo-50 rounded-lg p-5 border border-indigo-200 hover:bg-indigo-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-indigo-900">Manage Users</p>
+                    <p className="text-sm text-indigo-700">Add, edit, and manage user accounts</p>
+                  </div>
+                </div>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </AdminLayout>
