@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 
@@ -292,8 +292,49 @@ function LandingPage() {
   );
 }
 
+interface MonthData {
+  month: string;
+  label: string;
+  imports: number;
+  rows: number;
+}
+
+interface DashboardStats {
+  months: MonthData[];
+  totalImports: number;
+  enabledRuleCount: number;
+  timeSavedMinutes: number;
+}
+
+function formatTimeSaved(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+}
+
 function Dashboard() {
   const { isAdmin } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/stats');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) setStats(data);
+      }
+    } catch {
+      // Stats are non-critical, fail silently
+    }
+    setStatsLoading(false);
+  }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const maxImports = stats ? Math.max(...stats.months.map((m) => m.imports), 1) : 1;
 
   return (
     <AdminLayout>
@@ -311,6 +352,76 @@ function Dashboard() {
             </svg>
             New Import
           </Link>
+        </div>
+
+        {/* Analytics Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Monthly Imports Chart */}
+          <div className="md:col-span-2 bg-white border border-gray-200 rounded-lg p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Imports Per Month</h3>
+            {statsLoading ? (
+              <div className="flex items-center justify-center h-40 text-sm text-gray-400">
+                <div className="animate-spin w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full mr-2" />
+                Loading...
+              </div>
+            ) : stats && stats.months.length > 0 ? (
+              <div className="flex items-end gap-3 h-40">
+                {stats.months.map((m) => (
+                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs font-medium text-gray-700">{m.imports}</span>
+                    <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '120px' }}>
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-primary-500 rounded-t-md transition-all"
+                        style={{ height: `${Math.max((m.imports / maxImports) * 100, m.imports > 0 ? 8 : 0)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-40 text-sm text-gray-400">
+                No import data yet
+              </div>
+            )}
+          </div>
+
+          {/* Time Savings */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Estimated Time Saved</h3>
+            {statsLoading ? (
+              <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+                <div className="animate-spin w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full mr-2" />
+                Loading...
+              </div>
+            ) : stats ? (
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-primary-600">
+                    {formatTimeSaved(stats.timeSavedMinutes)}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">total time saved</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-5">
+                  <div className="text-center bg-gray-50 rounded-lg py-2">
+                    <p className="text-lg font-semibold text-gray-900">{stats.totalImports}</p>
+                    <p className="text-xs text-gray-500">imports</p>
+                  </div>
+                  <div className="text-center bg-gray-50 rounded-lg py-2">
+                    <p className="text-lg font-semibold text-gray-900">{stats.enabledRuleCount}</p>
+                    <p className="text-xs text-gray-500">active rules</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-4 text-center">
+                  *Based on 5 minutes saved per rule per import
+                </p>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+                Unable to load stats
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
