@@ -97,6 +97,7 @@ export default function ImportQuestionsPage() {
   // Drag-to-reorder questions
   const dragQuestionRef = useRef<number | null>(null);
   const dragOverQuestionRef = useRef<number | null>(null);
+  const dragHandleActiveRef = useRef(false);
   const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
 
   const handleQuestionDragStart = (e: React.DragEvent, index: number) => {
@@ -126,7 +127,7 @@ export default function ImportQuestionsPage() {
           fetch('/api/import-questions', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: q.id, displayOrder: i * 10 }),
+            body: JSON.stringify({ id: q.id, displayOrder: i + 1 }),
           })
         )
       );
@@ -139,6 +140,7 @@ export default function ImportQuestionsPage() {
   const handleQuestionDragEnd = () => {
     dragQuestionRef.current = null;
     dragOverQuestionRef.current = null;
+    dragHandleActiveRef.current = false;
     setDraggedQuestionIndex(null);
   };
 
@@ -190,8 +192,7 @@ export default function ImportQuestionsPage() {
                 key={question.id}
                 draggable
                 onDragStart={(e) => {
-                  const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
-                  if (!handle) { e.preventDefault(); return; }
+                  if (!dragHandleActiveRef.current) { e.preventDefault(); return; }
                   handleQuestionDragStart(e, index);
                 }}
                 onDragOver={(e) => handleQuestionDragOver(e, index)}
@@ -205,7 +206,8 @@ export default function ImportQuestionsPage() {
                   <div className="flex items-start gap-3 flex-1">
                     {/* Drag handle */}
                     <div
-                      data-drag-handle
+                      onMouseDown={() => { dragHandleActiveRef.current = true; }}
+                      onMouseUp={() => { dragHandleActiveRef.current = false; }}
                       className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1 shrink-0"
                     >
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">

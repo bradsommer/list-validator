@@ -154,6 +154,7 @@ export default function EditImportQuestionPage() {
 
   const dragOptionRef = useRef<number | null>(null);
   const dragOverOptionRef = useRef<number | null>(null);
+  const dragOptionHandleActiveRef = useRef(false);
   const [draggedOptionIndex, setDraggedOptionIndex] = useState<number | null>(null);
 
   const handleOptionDragStart = (e: React.DragEvent, index: number) => {
@@ -187,6 +188,7 @@ export default function EditImportQuestionPage() {
   const handleOptionDragEnd = () => {
     dragOptionRef.current = null;
     dragOverOptionRef.current = null;
+    dragOptionHandleActiveRef.current = false;
     setDraggedOptionIndex(null);
   };
 
@@ -396,8 +398,7 @@ export default function EditImportQuestionPage() {
                       key={index}
                       draggable
                       onDragStart={(e) => {
-                        const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
-                        if (!handle) { e.preventDefault(); return; }
+                        if (!dragOptionHandleActiveRef.current) { e.preventDefault(); return; }
                         handleOptionDragStart(e, index);
                       }}
                       onDragOver={(e) => handleOptionDragOver(e, index)}
@@ -408,7 +409,8 @@ export default function EditImportQuestionPage() {
                       <div className="flex flex-col md:flex-row md:items-center gap-2">
                         {/* Drag handle */}
                         <div
-                          data-drag-handle
+                          onMouseDown={() => { dragOptionHandleActiveRef.current = true; }}
+                          onMouseUp={() => { dragOptionHandleActiveRef.current = false; }}
                           className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 flex items-center"
                         >
                           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
