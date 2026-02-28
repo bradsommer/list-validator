@@ -10,7 +10,6 @@ import { ColumnMapper } from '@/components/upload/ColumnMapper';
 import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
 import { RulesStep } from '@/components/upload/RulesStep';
 import { ValidationResults } from '@/components/validation/ValidationResults';
-import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
   const { currentStep, reset } = useAppStore();
@@ -40,8 +39,6 @@ export default function ImportPage() {
         return <ColumnMapper />;
       case 4:
         return <ValidationResults />;
-      case 5:
-        return <AuditReview />;
       default:
         return <FileUpload />;
     }

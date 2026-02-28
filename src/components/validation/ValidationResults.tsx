@@ -6,7 +6,27 @@ import { validateAndTransform, getValidationSummary, getScriptSummary, getAvaila
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
-import type { ScriptResult, HubSpotObjectType } from '@/types';
+import { runAudit, getAuditSummary, getCleanData, getFlaggedData } from '@/lib/audit';
+import { exportToCSV, exportToExcel } from '@/lib/fileParser';
+import type { ScriptResult, HubSpotObjectType, ParsedRow } from '@/types';
+
+const DO_NOT_USE = '__do_not_use__';
+
+/** Remap row keys using the column mapping. Excludes "Do not use" columns. */
+function remapRows(rows: ParsedRow[], mapping: Record<string, string>): ParsedRow[] {
+  const hasMapping = Object.values(mapping).some((v) => v);
+  if (!hasMapping) return rows;
+
+  return rows.map((row) => {
+    const newRow: ParsedRow = {};
+    for (const [key, value] of Object.entries(row)) {
+      const mapped = mapping[key];
+      if (mapped === DO_NOT_USE) continue;
+      newRow[mapped || key] = value;
+    }
+    return newRow;
+  });
+}
 
 export function ValidationResults() {
   const { user } = useAuth();
@@ -26,11 +46,14 @@ export function ValidationResults() {
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
+    columnMapping,
+    auditResult,
+    setAuditResult,
     setAvailableScripts,
     setEnabledScripts,
     toggleScript,
-    nextStep,
     prevStep,
+    reset,
   } = useAppStore();
 
   const [isValidating, setIsValidating] = useState(false);
@@ -41,6 +64,7 @@ export function ValidationResults() {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
   const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv');
 
   const accountId = user?.accountId || 'default';
 
@@ -180,41 +204,59 @@ export function ValidationResults() {
     runValidation();
   };
 
-  const handleExportCSV = () => {
-    if (processedData.length === 0) return;
+  // Run audit when validation completes
+  useEffect(() => {
+    if (validationResult && processedData.length > 0 && !auditResult) {
+      const result = runAudit(processedData, headerMatches);
+      setAuditResult(result);
+    }
+  }, [validationResult, processedData.length, headerMatches, auditResult, setAuditResult]);
 
-    // Use all headers from the data (original column names + question columns)
-    const originalHeaders = headerMatches.map((m) => m.originalHeader);
-    const questionHeaders = Object.keys(questionColumnValues).filter(
-      (h) => !originalHeaders.includes(h)
-    );
-    const allHeaders = [...originalHeaders, ...questionHeaders];
+  const handleExportAll = () => {
+    const exportData = remapRows(processedData, columnMapping);
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_cleaned`;
 
-    // Build CSV with original headers
-    const csvHeaders = allHeaders.map((h) => {
-      if (h.includes(',') || h.includes('"')) return `"${h.replace(/"/g, '""')}"`;
-      return h;
-    }).join(',');
-    const csvRows = processedData.map((row) =>
-      allHeaders
-        .map((h) => {
-          const val = String(row[h] || '');
-          if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-            return `"${val.replace(/"/g, '""')}"`;
-          }
-          return val;
-        })
-        .join(',')
-    );
+    if (exportFormat === 'csv') {
+      exportToCSV(exportData, `${fileName}.csv`);
+    } else {
+      exportToExcel(exportData, `${fileName}.xlsx`);
+    }
 
-    const csv = [csvHeaders, ...csvRows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    logSuccess('export', `Exported all ${processedData.length} rows`, sessionId);
+  };
+
+  const handleExportClean = () => {
+    if (!auditResult) return;
+    const cleanData = getCleanData(processedData, auditResult);
+    const exportData = remapRows(cleanData, columnMapping);
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_clean`;
+
+    if (exportFormat === 'csv') {
+      exportToCSV(exportData, `${fileName}.csv`);
+    } else {
+      exportToExcel(exportData, `${fileName}.xlsx`);
+    }
+
+    logSuccess('export', `Exported ${cleanData.length} clean rows`, sessionId);
+  };
+
+  const handleExportFlagged = () => {
+    if (!auditResult) return;
+    const flaggedData = getFlaggedData(processedData, auditResult);
+    const flaggedExport = flaggedData.map(({ row, flags }) => ({
+      ...row,
+      _audit_flags: flags.map((f) => f.reason).join('; '),
+    }));
+    const exportData = remapRows(flaggedExport, columnMapping);
+    const fileName = `${parsedFile?.fileName.replace(/\.[^/.]+$/, '') || 'export'}_flagged_review`;
+
+    if (exportFormat === 'csv') {
+      exportToCSV(exportData, `${fileName}.csv`);
+    } else {
+      exportToExcel(exportData, `${fileName}.xlsx`);
+    }
+
+    logSuccess('export', `Exported ${flaggedData.length} flagged rows for review`, sessionId);
   };
 
   if (isValidating) {
@@ -251,7 +293,7 @@ export function ValidationResults() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Validation Results</h2>
+        <h2 className="text-xl font-semibold">Results</h2>
         <button
           onClick={handleRerunValidation}
           className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
@@ -304,6 +346,64 @@ export function ValidationResults() {
           </span>
         </div>
       )}
+
+      {/* Export section */}
+      <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+        <h3 className="font-medium text-gray-900">Export Data</h3>
+
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">Format:</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setExportFormat('csv')}
+              className={`px-3 py-1 text-sm rounded ${
+                exportFormat === 'csv'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              CSV
+            </button>
+            <button
+              onClick={() => setExportFormat('xlsx')}
+              className={`px-3 py-1 text-sm rounded ${
+                exportFormat === 'xlsx'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Excel
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={handleExportAll}
+          className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex flex-col items-center"
+        >
+          <span className="font-medium">Export Data</span>
+          <span className="text-sm opacity-80">{processedData.length} rows — cleaned and formatted</span>
+        </button>
+
+        {auditResult && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleExportClean}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex flex-col items-center text-sm"
+            >
+              <span className="font-medium">Export Clean Only</span>
+              <span className="text-xs text-gray-500">{getAuditSummary(auditResult).cleanRows} rows</span>
+            </button>
+            <button
+              onClick={handleExportFlagged}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex flex-col items-center text-sm"
+            >
+              <span className="font-medium">Export Flagged Only</span>
+              <span className="text-xs text-gray-500">{getAuditSummary(auditResult).flaggedRows} rows</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Script-by-script results */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -494,25 +594,12 @@ export function ValidationResults() {
         >
           Back
         </button>
-        <div className="flex gap-3">
-          <button
-            onClick={handleExportCSV}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Export Cleaned CSV
-          </button>
-          <button
-            onClick={nextStep}
-            disabled={!validationResult.isValid}
-            className={`px-6 py-2 rounded-lg ${
-              validationResult.isValid
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Continue to Export
-          </button>
-        </div>
+        <button
+          onClick={reset}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        >
+          Start New Upload
+        </button>
       </div>
     </div>
   );
