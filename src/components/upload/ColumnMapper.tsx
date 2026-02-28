@@ -102,11 +102,19 @@ function HeadingDropdown({
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {displayValue}
+        <span className={`flex items-center gap-2 ${value ? 'text-gray-900' : 'text-gray-400'}`}>
+          <span className="truncate">{displayValue}</span>
+          {(() => {
+            const matched = value && value !== DO_NOT_USE ? headings.find((h) => h.name === value) : null;
+            return matched && (matched.source === 'hubspot' || matched.hubspotFieldName) ? (
+              <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                HubSpot
+              </span>
+            ) : null;
+          })()}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
