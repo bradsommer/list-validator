@@ -194,30 +194,40 @@ export default function EditRulePage() {
     <AdminLayout>
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/rules')}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span
-                className={`px-2 py-0.5 text-xs rounded-full ${
-                  rule.ruleType === 'transform'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-purple-100 text-purple-700'
-                }`}
-              >
-                {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
-              </span>
-              <span className="text-xs text-gray-400">Order: {rule.displayOrder}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/rules')}
+              className="flex items-center gap-1 px-2 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm">Back</span>
+            </button>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span
+                  className={`px-2 py-0.5 text-xs rounded-full ${
+                    rule.ruleType === 'transform'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-purple-100 text-purple-700'
+                  }`}
+                >
+                  {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
+                </span>
+                <span className="text-xs text-gray-400">Order: {rule.displayOrder}</span>
+              </div>
             </div>
           </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving || savingCode}
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+          >
+            {isSaving || savingCode ? 'Saving...' : 'Save'}
+          </button>
         </div>
 
         {/* Form */}

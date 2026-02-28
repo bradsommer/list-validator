@@ -190,11 +190,12 @@ export default function EditImportQuestionPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/import-questions')}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            className="flex items-center gap-1 px-2 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
+            <span className="text-sm">Back</span>
           </button>
           <h2 className="text-lg font-semibold text-gray-900">
             {isNew ? 'New Question' : 'Edit Question'}
@@ -275,41 +276,51 @@ export default function EditImportQuestionPage() {
               <p className="text-xs text-gray-500 mb-2">
                 Configure what users see vs what gets written to the spreadsheet.
               </p>
-              <div className="space-y-2">
-                {/* Header row */}
-                <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+              <div className="space-y-3">
+                {/* Header row - hidden on mobile since layout stacks */}
+                <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 font-medium">
                   <div className="flex-1">Option (what user sees)</div>
                   <div className="w-8"></div>
                   <div className="flex-1">Output Value (leave empty = same as option)</div>
                   <div className="w-9"></div>
                 </div>
                 {formData.options.map((option, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`Option ${index + 1}`}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                    <span className="text-gray-400 w-8 text-center">&rarr;</span>
-                    <input
-                      type="text"
-                      value={formData.optionValues[option] || ''}
-                      onChange={(e) => updateOptionValue(option, e.target.value)}
-                      placeholder={option || 'Output value'}
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50"
-                    />
-                    {formData.options.length > 1 && (
-                      <button
-                        onClick={() => removeOption(index)}
-                        className="p-2 text-gray-400 hover:text-red-500"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <div key={index} className="border border-gray-200 rounded-lg p-3 md:border-0 md:p-0">
+                    <div className="flex flex-col md:flex-row md:items-center gap-2">
+                      <div className="md:hidden text-xs text-gray-500 font-medium">Option (what user sees)</div>
+                      <input
+                        type="text"
+                        value={option}
+                        onChange={(e) => updateOption(index, e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                        className="w-full md:flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                      {/* Right arrow on desktop, down arrow on mobile */}
+                      <span className="hidden md:block text-gray-400 w-8 text-center">&rarr;</span>
+                      <div className="flex justify-center md:hidden">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                         </svg>
-                      </button>
-                    )}
+                      </div>
+                      <div className="md:hidden text-xs text-gray-500 font-medium">Output Value (leave empty = same as option)</div>
+                      <input
+                        type="text"
+                        value={formData.optionValues[option] || ''}
+                        onChange={(e) => updateOptionValue(option, e.target.value)}
+                        placeholder={option || 'Output value'}
+                        className="w-full md:flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50"
+                      />
+                      {formData.options.length > 1 && (
+                        <button
+                          onClick={() => removeOption(index)}
+                          className="self-end md:self-auto p-2 text-gray-400 hover:text-red-500"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 <button
