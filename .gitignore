@@ -6,3 +6,4 @@ node_modules/
 .env.local
 .hubspot-tokens.json
 .hubspot-properties.json
+supabase/.temp/
