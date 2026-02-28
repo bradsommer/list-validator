@@ -132,7 +132,7 @@ export async function toggleRuleEnabled(
 export async function updateRuleConfig(
   accountId: string,
   ruleId: string,
-  updates: Partial<Pick<AccountRule, 'name' | 'description' | 'targetFields' | 'config' | 'displayOrder'>>
+  updates: Partial<Pick<AccountRule, 'name' | 'description' | 'targetFields' | 'config' | 'displayOrder' | 'ruleType'>>
 ): Promise<boolean> {
   try {
     const dbUpdates: Record<string, unknown> = {};
@@ -141,6 +141,7 @@ export async function updateRuleConfig(
     if (updates.targetFields !== undefined) dbUpdates.target_fields = updates.targetFields;
     if (updates.config !== undefined) dbUpdates.config = updates.config;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
+    if (updates.ruleType !== undefined) dbUpdates.rule_type = updates.ruleType;
 
     const { error } = await supabase
       .from('account_rules')

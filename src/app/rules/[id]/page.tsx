@@ -34,6 +34,7 @@ export default function EditRulePage() {
   // Form state
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editRuleType, setEditRuleType] = useState<'transform' | 'validate'>('transform');
   const [editTargetFields, setEditTargetFields] = useState('');
   const [editObjectTypes, setEditObjectTypes] = useState<HubSpotObjectType[]>([]);
   const [editCode, setEditCode] = useState('');
@@ -55,6 +56,7 @@ export default function EditRulePage() {
         setRule(found);
         setEditName(found.name);
         setEditDescription(found.description || '');
+        setEditRuleType(found.ruleType);
         setEditTargetFields(found.targetFields.join(', '));
         setEditObjectTypes(getObjectTypes(found));
       } else {
@@ -142,6 +144,7 @@ export default function EditRulePage() {
     const success = await updateRuleConfig(accountId, rule.ruleId, {
       name: editName.trim() || rule.name,
       description: editDescription.trim() || null,
+      ruleType: editRuleType,
       targetFields,
       config: updatedConfig,
     });
@@ -205,21 +208,7 @@ export default function EditRulePage() {
               </svg>
               <span className="text-sm">Back</span>
             </button>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span
-                  className={`px-2 py-0.5 text-xs rounded-full ${
-                    rule.ruleType === 'transform'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-purple-100 text-purple-700'
-                  }`}
-                >
-                  {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
-                </span>
-                <span className="text-xs text-gray-400">Order: {rule.displayOrder}</span>
-              </div>
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
           </div>
           <button
             onClick={handleSave}
@@ -241,6 +230,27 @@ export default function EditRulePage() {
               onChange={(e) => setEditName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
             />
+          </div>
+
+          {/* Rule Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rule Type</label>
+            <select
+              value={editRuleType}
+              onChange={(e) => setEditRuleType(e.target.value as 'transform' | 'validate')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none bg-white"
+            >
+              <option value="transform">Transform</option>
+              <option value="validate">Validate</option>
+            </select>
+          </div>
+
+          {/* Order */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <div className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50">
+              {rule.displayOrder}
+            </div>
           </div>
 
           {/* Description */}
