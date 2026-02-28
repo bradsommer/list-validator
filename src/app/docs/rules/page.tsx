@@ -100,6 +100,37 @@ const sections: DocSection[] = [
         </ol>
 
         <h4 className="font-medium text-gray-900 mt-4">Examples</h4>
+        <p>
+          Here is how a rule uses <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">findColumnHeader</code> to
+          locate a column in the spreadsheet:
+        </p>
+        <CodeBlock>{`import { findColumnHeader } from './findColumn';
+
+execute(context: ScriptContext): ScriptExecutionResult {
+  const { rows, headerMatches } = context;
+
+  // Get the target field from the Rules UI config (falls back to 'state')
+  const targetField = context.targetFields?.[0] || 'state';
+
+  // findColumnHeader resolves the target field to an actual column header
+  // in the uploaded spreadsheet. It checks in order:
+  //   1. Auto-detected column matches (headerMatches)
+  //   2. Direct / case-insensitive column name match
+  //   3. Known alias patterns (e.g. 'state' → 'State/Province')
+  const stateHeader = findColumnHeader(targetField, headerMatches, rows);
+
+  if (!stateHeader) {
+    // Column not found — skip this rule, return rows unchanged
+    return { success: true, changes: [], errors: [], warnings: [], modifiedRows: [...rows] };
+  }
+
+  // Now use stateHeader to read/write values in each row
+  rows.forEach((row, index) => {
+    const value = row[stateHeader];  // e.g. "CA"
+    // ... transform logic ...
+    row[stateHeader] = 'California';
+  });
+}`}</CodeBlock>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
           <p className="text-sm"><strong>Default value:</strong> <code className="bg-white px-1.5 py-0.5 rounded text-sm">state</code></p>
           <p className="text-sm">Matches columns named &ldquo;State&rdquo;, &ldquo;State/Province&rdquo;, &ldquo;State Region&rdquo;, &ldquo;Province&rdquo;, etc.</p>
