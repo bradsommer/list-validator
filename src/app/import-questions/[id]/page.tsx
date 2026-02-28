@@ -388,7 +388,7 @@ export default function EditImportQuestionPage() {
                   {/* Header row - hidden on mobile since layout stacks */}
                   <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 font-medium">
                     <div className="w-6"></div>
-                    <div className="flex-1">Option (what user sees)</div>
+                    <div className="flex-1">Label</div>
                     <div className="w-8"></div>
                     <div className="flex-1">Output Value</div>
                     <div className="w-9"></div>
@@ -419,7 +419,7 @@ export default function EditImportQuestionPage() {
                             <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
                           </svg>
                         </div>
-                        <div className="md:hidden text-xs text-gray-500 font-medium">Option (what user sees)</div>
+                        <div className="md:hidden text-xs text-gray-500 font-medium">Label</div>
                         <input
                           type="text"
                           value={option}

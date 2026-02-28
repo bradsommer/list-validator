@@ -99,6 +99,7 @@ export default function ImportQuestionsPage() {
   const dragOverQuestionRef = useRef<number | null>(null);
   const dragHandleActiveRef = useRef(false);
   const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
+  const [dragOverQuestionIndex, setDragOverQuestionIndex] = useState<number | null>(null);
 
   const handleQuestionDragStart = (e: React.DragEvent, index: number) => {
     dragQuestionRef.current = index;
@@ -110,6 +111,7 @@ export default function ImportQuestionsPage() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     dragOverQuestionRef.current = index;
+    setDragOverQuestionIndex(index);
   };
 
   const handleQuestionDrop = async () => {
@@ -135,6 +137,7 @@ export default function ImportQuestionsPage() {
     dragQuestionRef.current = null;
     dragOverQuestionRef.current = null;
     setDraggedQuestionIndex(null);
+    setDragOverQuestionIndex(null);
   };
 
   const handleQuestionDragEnd = () => {
@@ -142,6 +145,7 @@ export default function ImportQuestionsPage() {
     dragOverQuestionRef.current = null;
     dragHandleActiveRef.current = false;
     setDraggedQuestionIndex(null);
+    setDragOverQuestionIndex(null);
   };
 
   const enabledCount = questions.filter((q) => q.enabled).length;
@@ -188,90 +192,99 @@ export default function ImportQuestionsPage() {
             </div>
           ) : (
             questions.map((question, index) => (
-              <div
-                key={question.id}
-                draggable
-                onDragStart={(e) => {
-                  if (!dragHandleActiveRef.current) { e.preventDefault(); return; }
-                  handleQuestionDragStart(e, index);
-                }}
-                onDragOver={(e) => handleQuestionDragOver(e, index)}
-                onDrop={handleQuestionDrop}
-                onDragEnd={handleQuestionDragEnd}
-                className={`border rounded-lg overflow-hidden transition-opacity ${
-                  question.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
-                } ${draggedQuestionIndex === index ? 'opacity-50' : ''}`}
-              >
-                <div className="flex items-start justify-between px-4 py-3">
-                  <div className="flex items-start gap-3 flex-1">
-                    {/* Drag handle */}
-                    <div
-                      onMouseDown={() => { dragHandleActiveRef.current = true; }}
-                      onMouseUp={() => { dragHandleActiveRef.current = false; }}
-                      className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1 shrink-0"
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
-                        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-                        <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
-                      </svg>
-                    </div>
+              <div key={question.id} className="relative">
+                {/* Drop indicator line */}
+                {dragOverQuestionIndex === index && draggedQuestionIndex !== null && draggedQuestionIndex !== index && (
+                  <div className={`absolute left-0 right-0 h-0.5 bg-primary-500 rounded-full z-10 ${
+                    draggedQuestionIndex > index ? '-top-[6px]' : '-bottom-[6px]'
+                  }`} />
+                )}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    if (!dragHandleActiveRef.current) { e.preventDefault(); return; }
+                    handleQuestionDragStart(e, index);
+                  }}
+                  onDragOver={(e) => handleQuestionDragOver(e, index)}
+                  onDrop={handleQuestionDrop}
+                  onDragEnd={handleQuestionDragEnd}
+                  className={`border rounded-lg overflow-hidden transition-opacity ${
+                    question.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
+                  } ${draggedQuestionIndex === index ? 'opacity-50' : ''}`}
+                >
+                  <div className="flex items-start justify-between px-4 py-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      {/* Drag handle */}
+                      <div
+                        onMouseDown={() => { dragHandleActiveRef.current = true; }}
+                        onMouseUp={() => { dragHandleActiveRef.current = false; }}
+                        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1 shrink-0"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                          <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                        </svg>
+                      </div>
 
-                    {/* Toggle */}
-                    <button
-                      onClick={() => handleToggleEnabled(question)}
-                      className={`relative w-10 h-5 rounded-full transition-colors mt-1 shrink-0 ${
-                        question.enabled ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                          question.enabled ? 'left-5' : 'left-0.5'
+                      {/* Toggle */}
+                      <button
+                        onClick={() => handleToggleEnabled(question)}
+                        className={`relative w-10 h-5 rounded-full transition-colors mt-1 shrink-0 ${
+                          question.enabled ? 'bg-green-500' : 'bg-gray-300'
                         }`}
-                      />
-                    </button>
-
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{question.questionText}</span>
-                        {question.isRequired && (
-                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
-                            Required
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-gray-500">
-                          Column: <strong>{question.columnHeader}</strong>
-                        </span>
+                      >
                         <span
-                          className={`px-2 py-0.5 text-xs rounded-full ${getQuestionTypeBadgeClass(question.questionType)}`}
-                        >
-                          {getQuestionTypeLabel(question.questionType)}
-                        </span>
+                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            question.enabled ? 'left-5' : 'left-0.5'
+                          }`}
+                        />
+                      </button>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/import-questions/${question.id}`} className="font-medium text-gray-900 hover:text-primary-600">
+                            {question.questionText}
+                          </Link>
+                          {question.isRequired && (
+                            <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
+                              Required
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-gray-500">
+                            Column: <strong>{question.columnHeader}</strong>
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 text-xs rounded-full ${getQuestionTypeBadgeClass(question.questionType)}`}
+                          >
+                            {getQuestionTypeLabel(question.questionType)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-1">
-                    <Link
-                      href={`/import-questions/${question.id}`}
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                      title="Edit"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(question)}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                      title="Delete"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/import-questions/${question.id}`}
+                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                        title="Edit"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(question)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

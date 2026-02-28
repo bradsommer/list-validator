@@ -171,7 +171,7 @@ export default function RulesPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900">{rule.name}</span>
+                          <Link href={`/rules/${rule.ruleId}`} className="font-medium text-gray-900 hover:text-primary-600">{rule.name}</Link>
                           <span
                             className={`px-2 py-0.5 text-xs rounded-full ${
                               rule.ruleType === 'transform'
@@ -190,23 +190,18 @@ export default function RulesPage() {
                         {rule.description && (
                           <p className="text-sm text-gray-500 mt-0.5">{rule.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-400">
-                            Target fields: {rule.targetFields.join(', ') || 'all'}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            Order: {rule.displayOrder}
-                          </span>
-                        </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <Link
                         href={`/rules/${rule.ruleId}`}
-                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                        title="Edit"
                       >
-                        Edit
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </Link>
                     </div>
                   </div>
