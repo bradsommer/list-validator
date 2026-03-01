@@ -420,6 +420,71 @@ export function saveMappingHistory(mapping: Record<string, string>): void {
   saveMappingHistoryToLocalStorage(merged);
 }
 
+/** Delete a single entry from mapping history (localStorage only) */
+export function deleteMappingHistoryEntry(header: string): void {
+  const existing = getMappingHistoryFromLocalStorage();
+  delete existing[header];
+  saveMappingHistoryToLocalStorage(existing);
+}
+
+/** Delete a single entry from mapping history (Supabase + localStorage) */
+export async function deleteMappingHistoryEntryAsync(header: string, accountId: string): Promise<void> {
+  deleteMappingHistoryEntry(header);
+  try {
+    await supabase
+      .from('column_mapping_history')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('spreadsheet_header', header);
+  } catch (err) {
+    console.error('[columnHeadings] Failed to delete mapping history entry from Supabase:', err);
+  }
+}
+
+/** Clear all mapping history (localStorage only) */
+export function clearMappingHistory(): void {
+  saveMappingHistoryToLocalStorage({});
+}
+
+/** Clear all mapping history (Supabase + localStorage) */
+export async function clearMappingHistoryAsync(accountId: string): Promise<void> {
+  clearMappingHistory();
+  try {
+    await supabase
+      .from('column_mapping_history')
+      .delete()
+      .eq('account_id', accountId);
+  } catch (err) {
+    console.error('[columnHeadings] Failed to clear mapping history from Supabase:', err);
+  }
+}
+
+/** Update a single mapping history entry (localStorage only) */
+export function updateMappingHistoryEntry(header: string, newValue: string): void {
+  const existing = getMappingHistoryFromLocalStorage();
+  existing[header] = newValue;
+  saveMappingHistoryToLocalStorage(existing);
+}
+
+/** Update a single mapping history entry (Supabase + localStorage) */
+export async function updateMappingHistoryEntryAsync(
+  header: string,
+  newValue: string,
+  accountId: string
+): Promise<void> {
+  updateMappingHistoryEntry(header, newValue);
+  try {
+    await supabase
+      .from('column_mapping_history')
+      .upsert(
+        { account_id: accountId, spreadsheet_header: header, hubspot_heading: newValue },
+        { onConflict: 'account_id,spreadsheet_header' }
+      );
+  } catch (err) {
+    console.error('[columnHeadings] Failed to update mapping history entry in Supabase:', err);
+  }
+}
+
 // ============================================================================
 // LOCALSTORAGE HELPERS
 // ============================================================================

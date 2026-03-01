@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  fetchMappingHistory,
+  getMappingHistory,
+  deleteMappingHistoryEntry,
+  deleteMappingHistoryEntryAsync,
+  clearMappingHistory,
+  clearMappingHistoryAsync,
+  updateMappingHistoryEntry,
+  updateMappingHistoryEntryAsync,
+} from '@/lib/columnHeadings';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';
 
@@ -37,6 +48,9 @@ const OBJECT_TYPE_COLORS: Record<ObjectType, string> = {
 };
 
 export default function MappingsPage() {
+  const { user } = useAuth();
+  const accountId = user?.accountId || '';
+
   const [allProperties, setAllProperties] = useState<HubSpotProperty[]>([]);
   const [mappings, setMappings] = useState<HeaderMapping[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,10 +68,60 @@ export default function MappingsPage() {
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hubspotConnected, setHubspotConnected] = useState<boolean | null>(null);
 
+  // Saved mapping history state
+  const [savedHistory, setSavedHistory] = useState<Record<string, string>>({});
+  const [historySearch, setHistorySearch] = useState('');
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const loadSavedHistory = async () => {
+    if (accountId) {
+      const history = await fetchMappingHistory(accountId);
+      setSavedHistory(history);
+    } else {
+      setSavedHistory(getMappingHistory());
+    }
+  };
+
+  const handleDeleteHistoryEntry = async (header: string) => {
+    if (accountId) {
+      await deleteMappingHistoryEntryAsync(header, accountId);
+    } else {
+      deleteMappingHistoryEntry(header);
+    }
+    setSavedHistory((prev) => {
+      const next = { ...prev };
+      delete next[header];
+      return next;
+    });
+  };
+
+  const handleClearAllHistory = async () => {
+    if (!confirm('Clear all saved mapping history? Future imports will no longer auto-fill based on past choices.')) return;
+    if (accountId) {
+      await clearMappingHistoryAsync(accountId);
+    } else {
+      clearMappingHistory();
+    }
+    setSavedHistory({});
+  };
+
+  const handleUpdateHistoryEntry = async (header: string, newValue: string) => {
+    if (accountId) {
+      await updateMappingHistoryEntryAsync(header, newValue, accountId);
+    } else {
+      updateMappingHistoryEntry(header, newValue);
+    }
+    setSavedHistory((prev) => ({ ...prev, [header]: newValue }));
+    setEditingEntry(null);
+    setEditValue('');
+  };
+
   useEffect(() => {
     fetchProperties();
     loadMappings();
     checkHubSpotConnection();
+    loadSavedHistory();
   }, []);
 
   const fetchProperties = async () => {
@@ -394,6 +458,131 @@ export default function MappingsPage() {
                 : 'No mappings found. Add mappings above to teach the system how to match spreadsheet headers to HubSpot properties.'}
             </div>
           )}
+        </div>
+
+        {/* Saved Mapping History */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Saved Mapping History</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                These are auto-learned from past imports. When a spreadsheet header matches an entry here, it will be pre-filled automatically.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {Object.keys(savedHistory).length} saved
+              </span>
+              {Object.keys(savedHistory).length > 0 && (
+                <button
+                  onClick={handleClearAllHistory}
+                  className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+          </div>
+
+          {Object.keys(savedHistory).length > 0 && (
+            <div className="mb-3">
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder="Search saved mappings..."
+                className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+            </div>
+          )}
+
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Spreadsheet Header</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-400 w-10">&rarr;</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Maps To</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-600 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {Object.entries(savedHistory)
+                  .filter(([header, value]) => {
+                    if (!historySearch) return true;
+                    const q = historySearch.toLowerCase();
+                    return header.toLowerCase().includes(q) || value.toLowerCase().includes(q);
+                  })
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([header, value]) => (
+                    <tr key={header} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                          {header}
+                        </code>
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-400">&rarr;</td>
+                      <td className="px-4 py-3">
+                        {editingEntry === header ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleUpdateHistoryEntry(header, editValue);
+                                if (e.key === 'Escape') { setEditingEntry(null); setEditValue(''); }
+                              }}
+                              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleUpdateHistoryEntry(header, editValue)}
+                              disabled={!editValue.trim()}
+                              className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => { setEditingEntry(null); setEditValue(''); }}
+                              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <span className={value === '__do_not_use__' ? 'text-red-500 text-sm' : 'text-gray-700 text-sm'}>
+                            {value === '__do_not_use__' ? 'Do not use' : value}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => { setEditingEntry(header); setEditValue(value === '__do_not_use__' ? '' : value); }}
+                            className="text-primary-600 hover:text-primary-700 text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHistoryEntry(header)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            {Object.keys(savedHistory).length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No saved mapping history yet. Mappings are automatically saved when you complete an import.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </AdminLayout>
