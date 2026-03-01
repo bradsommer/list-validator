@@ -110,7 +110,7 @@ interface AppState {
 const initialState = {
   sessionId: generateSessionId(),
   currentStep: 0,
-  steps: ['Upload', 'Object Type', 'Questions', 'Rules', 'Map Columns', 'Validate', 'Export'],
+  steps: ['Upload', 'Questions', 'Rules', 'Map Columns', 'Validate & Export'],
   objectType: null as HubSpotObjectType | null,
   columnMapping: {} as ColumnMapping,
   questionAnswers: {} as QuestionAnswers,

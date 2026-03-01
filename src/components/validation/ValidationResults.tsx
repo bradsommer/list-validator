@@ -29,7 +29,6 @@ export function ValidationResults() {
     setAvailableScripts,
     setEnabledScripts,
     toggleScript,
-    nextStep,
     prevStep,
   } = useAppStore();
 
@@ -496,25 +495,12 @@ export function ValidationResults() {
         >
           Back
         </button>
-        <div className="flex gap-3">
-          <button
-            onClick={handleExportCSV}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Export Cleaned CSV
-          </button>
-          <button
-            onClick={nextStep}
-            disabled={!validationResult.isValid}
-            className={`px-6 py-2 rounded-lg ${
-              validationResult.isValid
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Continue to Export
-          </button>
-        </div>
+        <button
+          onClick={handleExportCSV}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        >
+          Export Cleaned CSV
+        </button>
       </div>
     </div>
   );
