@@ -5,10 +5,11 @@ import type {
   ValidationResult,
   ScriptRunnerResult,
 } from '@/types';
-import { runAllScripts, getAvailableScripts } from './scripts';
+import { runAllScripts, getAvailableScripts, type ScriptProgressCallback } from './scripts';
 
 // Re-export script utilities
 export { runAllScripts, getAvailableScripts, runScript } from './scripts';
+export type { ScriptProgressCallback } from './scripts';
 
 // Legacy validation function (now uses script system internally)
 export function validateData(
@@ -65,13 +66,14 @@ export function validateAndTransform(
   headerMatches: HeaderMatch[],
   requiredFields: string[],
   enabledScriptIds?: string[],
-  targetFieldsOverrides?: Record<string, string[]>
+  targetFieldsOverrides?: Record<string, string[]>,
+  onProgress?: ScriptProgressCallback
 ): {
   validationResult: ValidationResult;
   scriptRunnerResult: ScriptRunnerResult;
   transformedData: ParsedRow[];
 } {
-  const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds, targetFieldsOverrides);
+  const scriptRunnerResult = runAllScripts(rows, headerMatches, requiredFields, enabledScriptIds, targetFieldsOverrides, onProgress);
 
   // Convert to legacy format
   const errors: ValidationError[] = [];

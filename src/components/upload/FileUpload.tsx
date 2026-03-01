@@ -7,9 +7,15 @@ import { autoDetectColumns } from '@/lib/columnDetector';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAppStore } from '@/store/useAppStore';
 
+// Maximum rows for free-tier client-side processing.
+// No data is stored on our servers for free-tier users — all
+// processing happens locally in the browser.
+const CLIENT_ROW_LIMIT = 5_000;
+
 export function FileUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rowLimitWarning, setRowLimitWarning] = useState<string | null>(null);
 
   const {
     sessionId,
@@ -28,6 +34,7 @@ export function FileUpload() {
       const file = acceptedFiles[0];
       setIsProcessing(true);
       setError(null);
+      setRowLimitWarning(null);
 
       await logInfo('upload', `Starting file upload: ${file.name}`, sessionId, {
         fileName: file.name,
@@ -42,6 +49,15 @@ export function FileUpload() {
           headers: parsed.headers,
           totalRows: parsed.totalRows,
         });
+
+        // Enforce client-side row limit for free-tier users
+        if (parsed.totalRows > CLIENT_ROW_LIMIT) {
+          setRowLimitWarning(
+            `Your file contains ${parsed.totalRows.toLocaleString()} rows.`
+          );
+          setIsProcessing(false);
+          return;
+        }
 
         // Clear previous validation results so validation runs fresh
         setValidationResult(null);
@@ -139,6 +155,30 @@ export function FileUpload() {
       {error && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {rowLimitWarning && (
+        <div className="mt-4 p-5 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex gap-3">
+            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div className="space-y-2">
+              <p className="text-yellow-800 text-sm font-medium">File exceeds free plan limit</p>
+              <p className="text-yellow-700 text-sm">
+                {rowLimitWarning} Due to the limitations of in-browser processing, the free plan supports up to {CLIENT_ROW_LIMIT.toLocaleString()} rows.
+              </p>
+              <p className="text-yellow-700 text-sm">
+                To process larger files, upgrade to our <strong>Premium plan</strong> which includes:
+              </p>
+              <ul className="text-yellow-700 text-sm list-disc list-inside space-y-1 ml-1">
+                <li>Process hundreds of thousands of rows</li>
+                <li>Secure server-side data processing</li>
+                <li>Sync cleaned data directly to HubSpot</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

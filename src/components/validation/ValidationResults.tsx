@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { validateAndTransform, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
+import { getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
+import { useValidationWorker } from '@/hooks/useValidationWorker';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
@@ -32,7 +33,7 @@ export function ValidationResults() {
     prevStep,
   } = useAppStore();
 
-  const [isValidating, setIsValidating] = useState(false);
+  const { runValidation: runWorkerValidation, isRunning: isValidating, progress: workerProgress, error: workerError } = useValidationWorker();
   const [showScripts, setShowScripts] = useState(true);
   const [showErrors, setShowErrors] = useState(true);
   const [showWarnings, setShowWarnings] = useState(true);
@@ -99,7 +100,6 @@ export function ValidationResults() {
     // This prevents issues when re-running validation on already-transformed data
     const sourceData = parsedFile?.rows || processedData;
 
-    setIsValidating(true);
     logInfo('validate', 'Starting data validation with scripts', sessionId, {
       totalRows: sourceData.length,
       requiredFields,
@@ -107,7 +107,7 @@ export function ValidationResults() {
     });
 
     try {
-      const result = validateAndTransform(
+      const result = await runWorkerValidation(
         sourceData,
         headerMatches,
         requiredFields,
@@ -142,8 +142,6 @@ export function ValidationResults() {
       }
     } catch (error) {
       logError('validate', 'Validation failed', sessionId, { error });
-    } finally {
-      setIsValidating(false);
     }
   };
 
@@ -211,13 +209,25 @@ export function ValidationResults() {
 
   if (isValidating) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 max-w-md mx-auto">
         <div className="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
-        <p className="text-gray-600">Running validation scripts...</p>
-        {scriptRunnerResult && (
-          <p className="text-sm text-gray-500 mt-2">
-            Processing script {scriptRunnerResult.scriptsRun} of {scriptRunnerResult.totalScripts}
-          </p>
+        <p className="text-gray-600 font-medium">Running validation scripts...</p>
+        {workerProgress && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-500">
+              Script {workerProgress.currentScript} of {workerProgress.totalScripts}: {workerProgress.scriptName}
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-primary-500 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${workerProgress.percent}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400">{workerProgress.percent}%</p>
+          </div>
+        )}
+        {workerError && (
+          <p className="text-sm text-red-500 mt-2">{workerError}</p>
         )}
       </div>
     );
