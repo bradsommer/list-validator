@@ -132,6 +132,9 @@ export function runScript(
   }
 }
 
+// Progress callback for reporting script execution progress
+export type ScriptProgressCallback = (current: number, total: number, scriptName: string) => void;
+
 // Run all enabled scripts in order
 // targetFieldsOverrides: optional map of scriptId → targetFields from database
 export function runAllScripts(
@@ -139,7 +142,8 @@ export function runAllScripts(
   headerMatches: HeaderMatch[],
   requiredFields: string[],
   enabledScriptIds?: string[],
-  targetFieldsOverrides?: Record<string, string[]>
+  targetFieldsOverrides?: Record<string, string[]>,
+  onProgress?: ScriptProgressCallback
 ): ScriptRunnerResult {
   const scriptsToRun = enabledScriptIds
     ? ALL_SCRIPTS.filter((s) => enabledScriptIds.includes(s.id))
@@ -151,7 +155,9 @@ export function runAllScripts(
   let totalErrors = 0;
   let totalWarnings = 0;
 
-  for (const script of scriptsToRun) {
+  for (let i = 0; i < scriptsToRun.length; i++) {
+    const script = scriptsToRun[i];
+    onProgress?.(i + 1, scriptsToRun.length, script.name);
     const startTime = performance.now();
 
     // Use DB target fields if available, otherwise fall back to script defaults
