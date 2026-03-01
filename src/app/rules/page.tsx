@@ -681,7 +681,7 @@ export default function RulesPage() {
                         </pre>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })

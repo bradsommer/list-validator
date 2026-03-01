@@ -475,9 +475,13 @@ export default function ImportQuestionsPage() {
                   </div>
                 </div>
               </div>
+            ))
+          )}
 
-              <div className="space-y-4">
-                {/* Question Text */}
+          {/* Inline create/edit form */}
+          {(isCreating || editingQuestion) && (
+            <div className="border rounded-lg p-6 bg-white space-y-4">
+              {/* Question Text */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Question Text *
@@ -702,7 +706,6 @@ export default function ImportQuestionsPage() {
                   </button>
                 </div>
               </div>
-            </div>
           )}
 
           {/* Help Text when no form is open */}
