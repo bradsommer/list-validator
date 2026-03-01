@@ -10,7 +10,7 @@ import { useAppStore } from '@/store/useAppStore';
 // Maximum rows for free-tier client-side processing.
 // No data is stored on our servers for free-tier users — all
 // processing happens locally in the browser.
-const CLIENT_ROW_LIMIT = 7_000;
+const CLIENT_ROW_LIMIT = 5_000;
 
 export function FileUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
