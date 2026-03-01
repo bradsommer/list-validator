@@ -33,7 +33,8 @@ const FIELD_PATTERNS: Record<string, string[]> = {
  * Returns HeaderMatch objects that validation scripts can consume.
  */
 export function autoDetectColumns(headers: string[]): HeaderMatch[] {
-  return headers.map((header) => {
+  // First pass: find the best match candidate for each header
+  const candidates = headers.map((header) => {
     const normalized = header.toLowerCase().trim().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ');
 
     let bestMatch: { field: string; confidence: number; patternLength: number } | null = null;
@@ -58,6 +59,35 @@ export function autoDetectColumns(headers: string[]): HeaderMatch[] {
       if (bestMatch?.confidence === 1.0) break;
     }
 
+    return { header, bestMatch };
+  });
+
+  // Second pass: deduplicate — when multiple headers match the same field,
+  // keep only the one with the highest confidence (then longest pattern).
+  // This prevents e.g. both "State" and "Region" mapping to "state".
+  const claimedFields = new Map<string, { index: number; confidence: number; patternLength: number }>();
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { bestMatch } = candidates[i];
+    if (!bestMatch) continue;
+
+    const existing = claimedFields.get(bestMatch.field);
+    if (!existing) {
+      claimedFields.set(bestMatch.field, { index: i, confidence: bestMatch.confidence, patternLength: bestMatch.patternLength });
+    } else if (
+      bestMatch.confidence > existing.confidence ||
+      (bestMatch.confidence === existing.confidence && bestMatch.patternLength > existing.patternLength)
+    ) {
+      // New candidate is better — evict the previous one
+      candidates[existing.index].bestMatch = null;
+      claimedFields.set(bestMatch.field, { index: i, confidence: bestMatch.confidence, patternLength: bestMatch.patternLength });
+    } else {
+      // Existing claim is better — discard this candidate
+      candidates[i].bestMatch = null;
+    }
+  }
+
+  return candidates.map(({ header, bestMatch }) => {
     if (bestMatch) {
       return {
         originalHeader: header,

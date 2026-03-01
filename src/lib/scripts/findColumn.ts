@@ -6,8 +6,8 @@ import type { ParsedRow } from '@/types';
  * Used as a fallback when headerMatches detection misses a column.
  */
 const HEADER_PATTERNS: Record<string, string[]> = {
-  // State patterns - ordered from most specific to least specific
-  state: ['state/province', 'state province', 'state/region', 'state region', 'state_province', 'state_region', 'province', 'region', 'state'],
+  // State patterns — only compound forms; standalone "region" and "province" are too broad
+  state: ['state/province', 'state province', 'state/region', 'state region', 'state_province', 'state_region', 'state'],
   solution: ['solution type', 'solution_type', 'solutiontype', 'solution'],
   email: ['email', 'e-mail', 'email address', 'email_address'],
   phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'mobile', 'cell', 'cell phone', 'mobile phone'],
