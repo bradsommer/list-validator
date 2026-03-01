@@ -1,14 +1,18 @@
 import { supabase } from './supabase';
 import { cookies } from 'next/headers';
 
+export type UserRole = 'super_admin' | 'admin' | 'user' | 'view_only';
+
 export interface User {
   id: string;
   username: string;
   displayName: string | null;
-  role: 'admin' | 'user';
+  role: UserRole;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
+  stripeCustomerId: string | null;
+  subscriptionStatus: string | null;
 }
 
 export interface AuthResult {
@@ -82,6 +86,8 @@ export async function loginUser(username: string, password: string): Promise<Aut
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
+        stripeCustomerId: user.stripe_customer_id,
+        subscriptionStatus: user.subscription_status,
       },
     };
   } catch (error) {
@@ -123,6 +129,8 @@ export async function validateSession(token: string): Promise<User | null> {
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,
+      stripeCustomerId: user.stripe_customer_id,
+      subscriptionStatus: user.subscription_status,
     };
   } catch {
     return null;
@@ -134,7 +142,7 @@ export async function createUser(
   username: string,
   password: string,
   displayName: string,
-  role: 'admin' | 'user',
+  role: UserRole = 'user',
   createdById?: string
 ): Promise<AuthResult> {
   try {
@@ -177,6 +185,8 @@ export async function createUser(
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
+        stripeCustomerId: user.stripe_customer_id,
+        subscriptionStatus: user.subscription_status,
       },
     };
   } catch (error) {
@@ -223,6 +233,8 @@ export async function getAllUsers(): Promise<User[]> {
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,
+      stripeCustomerId: user.stripe_customer_id,
+      subscriptionStatus: user.subscription_status,
     }));
   } catch {
     return [];

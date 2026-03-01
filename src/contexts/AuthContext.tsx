@@ -2,23 +2,32 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
+export type UserRole = 'super_admin' | 'admin' | 'user' | 'view_only';
+
 export interface User {
   id: string;
   username: string;
   displayName: string | null;
-  role: 'admin' | 'user';
+  role: UserRole;
   accountId: string | null;
   accountName: string | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
+  stripeCustomerId: string | null;
+  subscriptionStatus: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  isAdmin: boolean;
+  // Role check helpers
+  isSuperAdmin: boolean;
+  isAdmin: boolean;  // super_admin or admin
+  canEditRules: boolean;  // super_admin or admin
+  canViewBilling: boolean;  // super_admin or admin
+  canEdit: boolean;  // anyone except view_only
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -80,13 +89,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Role-based permission checks
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+  const canEditRules = user?.role === 'super_admin' || user?.role === 'admin';
+  const canViewBilling = user?.role === 'super_admin' || user?.role === 'admin';
+  const canEdit = user?.role !== 'view_only';
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
+        isSuperAdmin,
+        isAdmin,
+        canEditRules,
+        canViewBilling,
+        canEdit,
         login,
         logout,
         checkSession,

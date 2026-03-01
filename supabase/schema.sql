@@ -31,11 +31,16 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name VARCHAR(255),
-  role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'admin' or 'user'
+  role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'super_admin', 'admin', 'user', or 'view_only'
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_login TIMESTAMP WITH TIME ZONE,
   created_by UUID REFERENCES users(id),
+  -- Stripe subscription fields
+  stripe_customer_id VARCHAR(255),
+  stripe_subscription_id VARCHAR(255),
+  subscription_status VARCHAR(50), -- 'active', 'trialing', 'past_due', 'cancelled', etc.
+  subscription_trial_end TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -431,7 +436,7 @@ ON CONFLICT (slug) DO NOTHING;
 
 -- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
 INSERT INTO users (username, password_hash, display_name, role, account_id) VALUES
-  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin', '00000000-0000-0000-0000-000000000001')
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Super Admin', 'super_admin', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert default HubSpot fields

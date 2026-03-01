@@ -3,17 +3,34 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
+
+// Development mode check
+const DEV_MODE = process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS !== 'false';
 
 interface User {
   id: string;
   username: string;
   display_name: string | null;
-  role: 'admin' | 'user';
+  role: UserRole;
   is_active: boolean;
   last_login: string | null;
   created_at: string;
 }
+
+const roleDisplayNames: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  user: 'Standard User',
+  view_only: 'View Only',
+};
+
+const roleStyles: Record<UserRole, string> = {
+  super_admin: 'bg-red-100 text-red-700',
+  admin: 'bg-purple-100 text-purple-700',
+  user: 'bg-blue-100 text-blue-700',
+  view_only: 'bg-gray-100 text-gray-700',
+};
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -21,13 +38,19 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isDevMode, setIsDevMode] = useState(false);
+
+  useEffect(() => {
+    // Check if we're in dev mode by trying to connect to Supabase
+    setIsDevMode(DEV_MODE);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     display_name: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as UserRole,
   });
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -199,6 +222,36 @@ export default function UsersPage() {
     });
   };
 
+  // Dev mode notice
+  if (isDevMode) {
+    return (
+      <AdminLayout>
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
+            <p className="text-gray-500 text-sm mt-1">
+              Create and manage user accounts.
+            </p>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <h3 className="font-medium text-yellow-800 mb-2">Development Mode</h3>
+            <p className="text-yellow-700 text-sm mb-4">
+              User management requires a database connection. In development mode, use the default credentials:
+            </p>
+            <div className="bg-yellow-100 rounded p-3 font-mono text-sm">
+              <div><span className="text-yellow-600">Email:</span> admin@example.com</div>
+              <div><span className="text-yellow-600">Password:</span> admin123</div>
+            </div>
+            <p className="text-yellow-700 text-sm mt-4">
+              To enable user management, connect Supabase and set <code className="bg-yellow-100 px-1 rounded">DEV_AUTH_BYPASS=false</code> in your environment.
+            </p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -266,13 +319,9 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-4">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        user.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-2 py-1 text-xs rounded-full ${roleStyles[user.role] || 'bg-gray-100 text-gray-700'}`}
                     >
-                      {user.role}
+                      {roleDisplayNames[user.role] || user.role}
                     </span>
                   </td>
                   <td className="px-4 py-4">
@@ -394,12 +443,14 @@ export default function UsersPage() {
                     <select
                       value={formData.role}
                       onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })
+                        setFormData({ ...formData, role: e.target.value as UserRole })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
-                      <option value="user">User</option>
+                      <option value="super_admin">Super Admin</option>
                       <option value="admin">Admin</option>
+                      <option value="user">Standard User</option>
+                      <option value="view_only">View Only</option>
                     </select>
                   </div>
                 </div>

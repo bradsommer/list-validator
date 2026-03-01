@@ -31,7 +31,14 @@ export async function GET(request: NextRequest) {
     questions = await fetchImportQuestions('default');
   }
 
-  return NextResponse.json({ success: true, questions });
+  return NextResponse.json(
+    { success: true, questions },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    }
+  );
 }
 
 /**
@@ -47,6 +54,8 @@ export async function POST(request: NextRequest) {
       columnHeader,
       questionType,
       options,
+      optionValues,
+      objectTypes,
       isRequired,
       displayOrder,
       enabled,
@@ -64,6 +73,8 @@ export async function POST(request: NextRequest) {
       columnHeader,
       questionType: questionType as QuestionType,
       options,
+      optionValues,
+      objectTypes,
       isRequired,
       displayOrder,
       enabled,
@@ -94,6 +105,8 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+
+    console.log('[import-questions] PUT request - id:', id, 'objectTypes:', updates.objectTypes);
 
     if (!id) {
       return NextResponse.json(

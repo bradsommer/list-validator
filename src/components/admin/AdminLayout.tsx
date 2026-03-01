@@ -9,22 +9,40 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const mainNavItems = [
+// Permission types for nav items
+type NavPermission = 'all' | 'admin_only' | 'can_edit';
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  permission?: NavPermission;  // defaults to 'all'
+}
+
+const mainNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
+  { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', permission: 'can_edit' },
 ];
 
-const outputSettingsNavItems = [
+const outputSettingsNavItems: NavItem[] = [
   { href: '/rules', label: 'Rules', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
   { href: '/import-questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { href: '/column-headings', label: 'Column Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
 ];
 
-const adminNavItems = [
-  { href: '/admin/users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-  { href: '/admin/integrations', label: 'Integrations', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+const adminNavItems: NavItem[] = [
+  { href: '/admin/users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', permission: 'admin_only' },
+  { href: '/admin/integrations', label: 'Integrations', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', permission: 'admin_only' },
 ];
 
+
+// Role display names
+const roleDisplayNames: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  user: 'Standard User',
+  view_only: 'View Only',
+};
 
 function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: string; icon: string; isActive: boolean }) {
   return (
@@ -59,7 +77,7 @@ function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isLoading, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, canEdit, isLoading, isAuthenticated } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +112,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     await logout();
     router.push('/login');
   };
+
+  // Filter nav items based on permissions
+  const canShowItem = (item: NavItem): boolean => {
+    if (!item.permission || item.permission === 'all') return true;
+    if (item.permission === 'admin_only') return isAdmin;
+    if (item.permission === 'can_edit') return canEdit;
+    return true;
+  };
+
+  const visibleMainItems = mainNavItems.filter(canShowItem);
+  const visibleOutputSettingsItems = outputSettingsNavItems.filter(canShowItem);
+  const visibleAdminItems = adminNavItems.filter(canShowItem);
+
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -139,6 +170,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   {user?.username && user?.displayName && (
                     <p className="text-xs text-gray-500 truncate">{user.username}</p>
                   )}
+                  {user?.role && (
+                    <p className="text-xs text-gray-400">{roleDisplayNames[user.role] || user.role}</p>
+                  )}
                 </div>
                 <button
                   onClick={handleLogout}
@@ -162,7 +196,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="flex-1 p-4 overflow-y-auto">
             {/* Main navigation */}
             <ul className="space-y-1">
-              {mainNavItems.map((item) => (
+              {visibleMainItems.map((item) => (
                 <SidebarNavItem
                   key={item.href}
                   {...item}
@@ -179,7 +213,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               Output Settings
             </div>
             <ul className="space-y-1">
-              {outputSettingsNavItems.map((item) => (
+              {visibleOutputSettingsItems.map((item) => (
                 <SidebarNavItem
                   key={item.href}
                   {...item}
@@ -189,13 +223,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </ul>
 
             {/* Admin section */}
-            {isAdmin && (
+            {visibleAdminItems.length > 0 && (
               <>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
                   Settings
                 </div>
                 <ul className="space-y-1">
-                  {adminNavItems.map((item) => (
+                  {visibleAdminItems.map((item) => (
                     <SidebarNavItem
                       key={item.href}
                       {...item}

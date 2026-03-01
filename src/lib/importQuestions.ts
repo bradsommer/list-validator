@@ -4,6 +4,43 @@
  */
 
 import { supabase } from './supabase';
+import type { ObjectType } from './objectTypes';
+import { ALL_OBJECT_TYPES } from './objectTypes';
+
+/**
+ * Safely parse object_types from database.
+ * Handles both proper arrays and Postgres string representations like "{contacts,companies}".
+ */
+function parseObjectTypes(value: unknown): ObjectType[] {
+  // Default: applies to all types
+  if (value === null || value === undefined) {
+    return [...ALL_OBJECT_TYPES];
+  }
+
+  // Already a proper array
+  if (Array.isArray(value)) {
+    return value as ObjectType[];
+  }
+
+  // Handle Postgres array string format: {contacts,companies,deals}
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const inner = trimmed.slice(1, -1).trim();
+      if (inner === '') {
+        return []; // Empty array explicitly means "none"
+      }
+      return inner.split(',').map(s => s.trim() as ObjectType);
+    }
+    // Single value without braces
+    if (trimmed && ['contacts', 'companies', 'deals'].includes(trimmed)) {
+      return [trimmed as ObjectType];
+    }
+  }
+
+  console.warn('[parseObjectTypes] Unexpected value, defaulting to all types:', value);
+  return [...ALL_OBJECT_TYPES];
+}
 
 /**
  * Question input types:
@@ -23,6 +60,7 @@ export interface ImportQuestion {
   questionType: QuestionType;
   options: string[];
   optionValues: Record<string, string>;
+  objectTypes: ObjectType[];
   defaultValue: string | null;
   isRequired: boolean;
   displayOrder: number;
@@ -39,6 +77,7 @@ interface DbImportQuestion {
   question_type: QuestionType;
   options: string[];
   option_values: Record<string, string>;
+  object_types: ObjectType[];
   default_value: string | null;
   is_required: boolean;
   display_order: number;
@@ -56,6 +95,7 @@ function mapDbToImportQuestion(row: DbImportQuestion): ImportQuestion {
     questionType: row.question_type,
     options: row.options || [],
     optionValues: row.option_values || {},
+    objectTypes: parseObjectTypes(row.object_types),
     defaultValue: row.default_value,
     isRequired: row.is_required,
     displayOrder: row.display_order,
@@ -123,6 +163,7 @@ export async function createImportQuestion(
     questionType: QuestionType;
     options?: string[];
     optionValues?: Record<string, string>;
+    objectTypes?: ObjectType[];
     defaultValue?: string | null;
     isRequired?: boolean;
     displayOrder?: number;
@@ -139,6 +180,7 @@ export async function createImportQuestion(
         question_type: question.questionType,
         options: question.options || [],
         option_values: question.optionValues || {},
+        object_types: question.objectTypes || ['contacts', 'companies', 'deals'],
         default_value: question.defaultValue ?? null,
         is_required: question.isRequired ?? false,
         display_order: question.displayOrder ?? 100,
@@ -170,6 +212,7 @@ export async function updateImportQuestion(
     questionType: QuestionType;
     options: string[];
     optionValues: Record<string, string>;
+    objectTypes: ObjectType[];
     defaultValue: string | null;
     isRequired: boolean;
     displayOrder: number;
@@ -183,20 +226,38 @@ export async function updateImportQuestion(
     if (updates.questionType !== undefined) dbUpdates.question_type = updates.questionType;
     if (updates.options !== undefined) dbUpdates.options = updates.options;
     if (updates.optionValues !== undefined) dbUpdates.option_values = updates.optionValues;
+    // Handle objectTypes explicitly - ensure array is spread to avoid reference issues
+    // and handle the case where it's passed as a value that needs to be stored
+    if (updates.objectTypes !== undefined) {
+      // Ensure we're saving an array, even if empty
+      dbUpdates.object_types = Array.isArray(updates.objectTypes)
+        ? [...updates.objectTypes]
+        : updates.objectTypes;
+    }
     if (updates.defaultValue !== undefined) dbUpdates.default_value = updates.defaultValue;
     if (updates.isRequired !== undefined) dbUpdates.is_required = updates.isRequired;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
 
-    const { error } = await supabase
+    console.log('[importQuestions] Updating question:', questionId, 'with object_types:', dbUpdates.object_types);
+
+    const { data, error, count } = await supabase
       .from('import_questions')
       .update(dbUpdates)
-      .eq('id', questionId);
+      .eq('id', questionId)
+      .select('id, object_types');
 
     if (error) {
       console.error('[importQuestions] Update error:', error);
       return false;
     }
+
+    if (!data || data.length === 0) {
+      console.error('[importQuestions] Update returned no rows - question ID may not exist:', questionId);
+      return false;
+    }
+
+    console.log('[importQuestions] Update result - object_types saved as:', data[0]?.object_types);
 
     return true;
   } catch (err) {
@@ -264,6 +325,7 @@ export async function initializeAccountQuestions(
       question_type: q.question_type,
       options: q.options,
       option_values: q.option_values || {},
+      object_types: parseObjectTypes(q.object_types),
       default_value: q.default_value,
       is_required: q.is_required,
       display_order: q.display_order,

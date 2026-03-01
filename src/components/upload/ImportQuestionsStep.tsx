@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAppStore, type QuestionAnswer } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ImportQuestion } from '@/lib/importQuestions';
+import { appliesToObjectType, getObjectTypeLabel } from '@/lib/objectTypes';
 
 interface QuestionInputProps {
   question: ImportQuestion;
@@ -233,6 +234,7 @@ export function ImportQuestionsStep() {
     setQuestionColumnValues,
     processedData,
     setProcessedData,
+    selectedObjectType,
     nextStep,
     prevStep,
   } = useAppStore();
@@ -245,22 +247,26 @@ export function ImportQuestionsStep() {
   const loadQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Add cache-busting parameter to ensure fresh data
       const response = await fetch(
-        `/api/import-questions?accountId=${encodeURIComponent(accountId)}`
+        `/api/import-questions?accountId=${encodeURIComponent(accountId)}&_t=${Date.now()}`
       );
       const data = await response.json();
       if (data.success) {
-        // Show all enabled questions
-        const activeQuestions = data.questions.filter(
-          (q: ImportQuestion) => q.enabled
-        );
+        // Filter to enabled questions that apply to the selected object type
+        const activeQuestions = selectedObjectType
+          ? data.questions.filter(
+              (q: ImportQuestion) =>
+                q.enabled && appliesToObjectType(q.objectTypes, selectedObjectType)
+            )
+          : data.questions.filter((q: ImportQuestion) => q.enabled);
         setQuestions(activeQuestions);
       }
     } catch (error) {
       console.error('Failed to load questions:', error);
     }
     setIsLoading(false);
-  }, [accountId]);
+  }, [accountId, selectedObjectType]);
 
   useEffect(() => {
     loadQuestions();
@@ -357,7 +363,8 @@ export function ImportQuestionsStep() {
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Import Questions</h2>
         <p className="text-gray-600 mt-1">
-          Answer the following questions to add data to your import.
+          Answer the following questions to add data to your{' '}
+          {selectedObjectType ? getObjectTypeLabel(selectedObjectType).toLowerCase() : ''} import.
         </p>
       </div>
 

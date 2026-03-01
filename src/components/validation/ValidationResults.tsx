@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
+import { validateAndTransformWithCustomRules, getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import { runAudit, getAuditSummary, getCleanData, getFlaggedData } from '@/lib/audit';
 import { exportToCSV, exportToExcel } from '@/lib/fileParser';
-import { useValidationWorker } from '@/hooks/useValidationWorker';
 import type { ScriptResult, HubSpotObjectType, ParsedRow } from '@/types';
 
 const DO_NOT_USE = '__do_not_use__';
@@ -66,6 +65,9 @@ export function ValidationResults() {
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
   const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
   const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv');
+  const [rulesLoaded, setRulesLoaded] = useState(false);
+  const rulesLoadedRef = useRef(false);
+  const [rulesWithoutCode, setRulesWithoutCode] = useState<string[]>([]);
 
   const accountId = user?.accountId || 'default';
 
@@ -85,22 +87,34 @@ export function ValidationResults() {
     }
   }
 
-  // Load available scripts and rules, applying import-level overrides
+  // Load available scripts and rules from database
   useEffect(() => {
     const loadScriptsAndRules = async () => {
-      setScriptsLoaded(false);
+      if (rulesLoadedRef.current) return;
+      rulesLoadedRef.current = true;
 
+      // Get built-in scripts for display
       if (availableScripts.length === 0) {
         const scripts = getAvailableScripts();
         setAvailableScripts(scripts);
       }
 
-      // Fetch all rules from database (per-account) with full config
+      // Fetch all rules from database (per-account) - includes custom code
       try {
-        const allRules = await fetchAccountRules(accountId);
+        let rules = await fetchAccountRules(accountId);
+
+        // If no rules found for this account, also try 'default'
+        if (rules.length === 0 && accountId !== 'default') {
+          rules = await fetchAccountRules('default');
+        }
+
+        console.log('[ValidationResults] Fetched rules:', rules.length, 'rules, custom code count:', rules.filter(r => r.config?.code).length);
+        rules.forEach(r => {
+          console.log(`  - ${r.ruleId}: enabled=${r.enabled}, hasCode=${!!r.config?.code}, targetFields=${r.targetFields.join(',')}`);
+        });
 
         // Filter by object type — rules with no objectTypes apply to all
-        const applicableRules = allRules.filter((r) => {
+        const applicableRules = rules.filter((r) => {
           const types = (r.config?.objectTypes as HubSpotObjectType[]) || [];
           if (types.length === 0) return true;
           if (!objectType) return true;
@@ -109,15 +123,36 @@ export function ValidationResults() {
 
         // Apply import-level overrides if the user configured them in the Rules step
         const hasOverrides = Object.keys(importRuleOverrides).length > 0;
-        const enabledRules = applicableRules.filter((r) =>
-          hasOverrides ? importRuleOverrides[r.ruleId] : r.enabled
-        );
+        const enabledRules = hasOverrides
+          ? applicableRules.filter((r) => importRuleOverrides[r.ruleId])
+          : applicableRules;
+
+        // Track which enabled rules are missing code
+        const missingCode = enabledRules
+          .filter((r) => r.enabled && !r.config?.code)
+          .map((r) => r.name);
+        setRulesWithoutCode(missingCode);
 
         setAccountRules(enabledRules);
-        setEnabledScripts(enabledRules.map((r) => r.ruleId));
-      } catch {
-        // On error, run no scripts rather than silently ignoring user overrides
-        setEnabledScripts([]);
+
+        // Get IDs of enabled rules
+        const enabledIds = enabledRules.filter((r) => r.enabled).map((r) => r.ruleId);
+        if (enabledIds.length > 0) {
+          setEnabledScripts(enabledIds);
+        } else {
+          // Fallback: if no rules in database, enable all built-in scripts
+          const scripts = getAvailableScripts();
+          setEnabledScripts(scripts.map((s) => s.id));
+        }
+
+        // Mark rules as loaded so validation can proceed
+        setRulesLoaded(true);
+      } catch (err) {
+        console.error('[ValidationResults] Error fetching rules:', err);
+        // On error, enable all built-in scripts as fallback
+        const scripts = getAvailableScripts();
+        setEnabledScripts(scripts.map((s) => s.id));
+        setRulesLoaded(true); // Still mark as loaded so validation can proceed
       }
 
       setScriptsLoaded(true);
@@ -135,15 +170,17 @@ export function ValidationResults() {
       totalRows: sourceData.length,
       requiredFields,
       enabledScripts,
+      customRulesCount: accountRules.filter((r) => r.config?.code).length,
     });
 
     try {
-      const result = await runWorkerValidation(
+      // Use the new validation function that supports custom rules from database
+      const result = validateAndTransformWithCustomRules(
         sourceData,
         headerMatches,
         requiredFields,
-        enabledScripts,
-        targetFieldsOverrides
+        accountRules,
+        enabledScripts.length > 0 ? enabledScripts : undefined
       );
 
       setValidationResult(result.validationResult);
@@ -176,15 +213,16 @@ export function ValidationResults() {
     }
   };
 
-  // Run validation on mount or when scripts change
+  // Run validation on mount or when scripts/rules change
   // Use parsedFile to determine if we have data, since processedData gets transformed
   // Wait until scriptsLoaded is true so import-level overrides have been applied
   useEffect(() => {
     const hasData = parsedFile?.rows?.length || processedData.length > 0;
-    if (hasData && scriptsLoaded && !validationResult) {
+    // Wait until rules are fully loaded from database before running validation
+    if (hasData && rulesLoaded && !validationResult) {
       runValidation();
     }
-  }, [parsedFile?.rows?.length, processedData.length, scriptsLoaded]);
+  }, [parsedFile?.rows?.length, processedData.length, rulesLoaded, accountRules.length]);
 
   const toggleScriptExpanded = (scriptId: string) => {
     const newExpanded = new Set(expandedScripts);
@@ -278,23 +316,6 @@ export function ValidationResults() {
       <div className="text-center py-12 max-w-md mx-auto">
         <div className="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4" />
         <p className="text-gray-600 font-medium">Running validation scripts...</p>
-        {workerProgress && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-gray-500">
-              Script {workerProgress.currentScript} of {workerProgress.totalScripts}: {workerProgress.scriptName}
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-primary-500 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${workerProgress.percent}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-400">{workerProgress.percent}%</p>
-          </div>
-        )}
-        {workerError && (
-          <p className="text-sm text-red-500 mt-2">{workerError}</p>
-        )}
       </div>
     );
   }
@@ -351,6 +372,26 @@ export function ValidationResults() {
           <div className="text-sm text-yellow-600">Warnings</div>
         </div>
       </div>
+
+      {/* Warning for rules missing code */}
+      {rulesWithoutCode.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <span className="text-amber-800 font-medium">
+              {rulesWithoutCode.length} rule(s) skipped due to missing code:
+            </span>
+            <span className="text-amber-700 ml-1">
+              {rulesWithoutCode.join(', ')}
+            </span>
+            <div className="text-sm text-amber-600 mt-1">
+              Go to <a href="/rules" className="underline hover:text-amber-800">Rules page</a> and click &quot;Sync from Default&quot; to fix this.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status banner */}
       {validationResult.isValid ? (

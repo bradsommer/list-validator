@@ -1,7 +1,9 @@
 import type { ParsedRow, HeaderMatch, ScriptResult, ScriptRunnerResult, ValidationScript } from '@/types';
-import type { IValidationScript, ScriptContext } from './types';
+import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptError, ScriptWarning } from './types';
+import type { AccountRule } from '@/lib/accountRules';
 
 // Import all scripts
+import { encodingDetectionScript } from './encoding-detection';
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
@@ -242,6 +244,7 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
+  encodingDetectionScript,
   encodingNormalizationScript,
   stateNormalizationScript,
   whitespaceValidationScript,
@@ -257,6 +260,256 @@ export {
   nameCapitalizationScript,
   companyNormalizationScript,
 };
+
+// Create a dynamic script from a database rule with custom code
+export function createDynamicScript(rule: AccountRule): IValidationScript | null {
+  const code = rule.config?.code as string;
+  if (!code) {
+    console.log(`[createDynamicScript] Rule "${rule.name}" has no code`);
+    return null;
+  }
+
+  console.log(`[createDynamicScript] Creating script for "${rule.name}", targetFields:`, rule.targetFields);
+
+  return {
+    id: rule.ruleId,
+    name: rule.name,
+    description: rule.description || '',
+    type: rule.ruleType,
+    targetFields: rule.targetFields,
+    order: rule.displayOrder,
+    execute(context: ScriptContext): ScriptExecutionResult {
+      const { rows, headerMatches } = context;
+      const changes: ScriptChange[] = [];
+      const errors: ScriptError[] = [];
+      const warnings: ScriptWarning[] = [];
+      const modifiedRows = rows.map((row) => ({ ...row }));
+
+      // Find which columns match the target fields
+      // Special case: '*' means all fields
+      // Match by: 1) matchedField.hubspotField, 2) original header name (case-insensitive)
+      const isAllFields = rule.targetFields.includes('*');
+      const targetMatches = isAllFields
+        ? headerMatches // All columns when '*' is in targetFields
+        : headerMatches.filter((match) => {
+            const hubspotField = match.matchedField?.hubspotField?.toLowerCase();
+            const originalHeader = match.originalHeader.toLowerCase();
+
+            return rule.targetFields.some((targetField) => {
+              const target = targetField.toLowerCase();
+              return hubspotField === target || originalHeader === target;
+            });
+          });
+
+      console.log(`[${rule.name}] Found ${targetMatches.length} target matches:`, targetMatches.map(m => m.originalHeader));
+
+      if (targetMatches.length === 0) {
+        return { success: true, changes, errors, warnings, modifiedRows };
+      }
+
+      try {
+        // Parse the user's code to extract the function
+        let userFunction: ((value: unknown, fieldName: string, row: Record<string, unknown>) => unknown) | null = null;
+
+        // Try to extract and create the function from the code
+        // The code should define either a 'transform' or 'validate' function
+        const functionMatch = code.match(/function\s+(transform|validate)\s*\([^)]*\)\s*\{/);
+        if (functionMatch) {
+          // Wrap the code and extract the function
+          const wrappedCode = `
+            ${code}
+            return typeof transform !== 'undefined' ? transform : (typeof validate !== 'undefined' ? validate : null);
+          `;
+          userFunction = new Function(wrappedCode)();
+        }
+
+        if (!userFunction) {
+          console.error(`[${rule.name}] Failed to parse function from code`);
+          errors.push({
+            rowIndex: -1,
+            field: '',
+            value: null,
+            errorType: 'invalid_code',
+            message: `Rule "${rule.name}" has invalid code - no transform or validate function found`,
+          });
+          return { success: false, changes, errors, warnings, modifiedRows };
+        }
+
+        console.log(`[${rule.name}] Successfully parsed function, processing ${rows.length} rows`);
+
+        // Apply the function to each row and target field
+        for (let rowIndex = 0; rowIndex < modifiedRows.length; rowIndex++) {
+          const row = modifiedRows[rowIndex];
+
+          for (const match of targetMatches) {
+            const fieldName = match.matchedField?.hubspotField || match.originalHeader;
+            const originalHeader = match.originalHeader;
+            const originalValue = row[originalHeader];
+
+            try {
+              // Create a simple row object for the user function
+              const rowData: Record<string, unknown> = {};
+              for (const hm of headerMatches) {
+                const key = hm.matchedField?.hubspotField || hm.originalHeader;
+                rowData[key] = row[hm.originalHeader];
+              }
+
+              const result = userFunction(originalValue, fieldName, rowData);
+
+              if (rule.ruleType === 'transform') {
+                // Transform: update the value if changed
+                if (result !== originalValue) {
+                  changes.push({
+                    rowIndex,
+                    field: fieldName,
+                    originalValue: originalValue as string | number | boolean | null,
+                    newValue: result as string | number | boolean | null,
+                    reason: rule.description || `Applied ${rule.name}`,
+                  });
+                  modifiedRows[rowIndex][originalHeader] = result;
+                }
+              } else {
+                // Validate: check the result
+                const validationResult = result as { valid: boolean; message?: string } | boolean;
+                const isValid = typeof validationResult === 'boolean'
+                  ? validationResult
+                  : validationResult?.valid !== false;
+
+                if (!isValid) {
+                  const message = typeof validationResult === 'object' && validationResult?.message
+                    ? validationResult.message
+                    : `Validation failed for ${fieldName}`;
+
+                  errors.push({
+                    rowIndex,
+                    field: fieldName,
+                    value: originalValue as string | number | boolean | null,
+                    errorType: rule.ruleId,
+                    message,
+                  });
+                }
+              }
+            } catch (err) {
+              errors.push({
+                rowIndex,
+                field: fieldName,
+                value: originalValue as string | number | boolean | null,
+                errorType: 'execution_error',
+                message: `Error executing rule "${rule.name}": ${err instanceof Error ? err.message : 'Unknown error'}`,
+              });
+            }
+          }
+        }
+
+        return {
+          success: errors.length === 0,
+          changes,
+          errors,
+          warnings,
+          modifiedRows,
+        };
+      } catch (err) {
+        console.error(`[${rule.name}] Code execution error:`, err);
+        errors.push({
+          rowIndex: -1,
+          field: '',
+          value: null,
+          errorType: 'code_error',
+          message: `Failed to parse rule "${rule.name}" code: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        });
+        return { success: false, changes, errors, warnings, modifiedRows };
+      }
+    },
+  };
+}
+
+// Run all enabled scripts in order, using database rules (with custom code)
+export function runAllScriptsWithCustomRules(
+  rows: ParsedRow[],
+  headerMatches: HeaderMatch[],
+  requiredFields: string[],
+  customRules: AccountRule[],
+  enabledScriptIds?: string[]
+): ScriptRunnerResult {
+  console.log(`[runAllScriptsWithCustomRules] Processing ${customRules.length} rules`);
+
+  // Build scripts from database rules - ALL rules use custom code from database
+  const scriptsToRun: IValidationScript[] = [];
+
+  for (const rule of customRules) {
+    if (!rule.enabled) {
+      console.log(`[runAllScriptsWithCustomRules] Skipping disabled rule: ${rule.ruleId}`);
+      continue;
+    }
+
+    if (rule.config?.code) {
+      // Use custom code from database
+      const script = createDynamicScript(rule);
+      if (script) {
+        scriptsToRun.push(script);
+        console.log(`[runAllScriptsWithCustomRules] Added custom rule: ${rule.ruleId}`);
+      }
+    } else {
+      console.log(`[runAllScriptsWithCustomRules] Rule has no code: ${rule.ruleId}`);
+    }
+  }
+
+  // Sort by display order
+  const allScriptsToRun = scriptsToRun.sort((a, b) => a.order - b.order);
+  console.log(`[runAllScriptsWithCustomRules] Running ${allScriptsToRun.length} scripts in order:`, allScriptsToRun.map(s => s.id));
+
+  const scriptResults: ScriptResult[] = [];
+  let currentRows = [...rows];
+  let totalChanges = 0;
+  let totalErrors = 0;
+  let totalWarnings = 0;
+
+  for (const script of allScriptsToRun) {
+    const startTime = performance.now();
+
+    const context: ScriptContext = {
+      rows: currentRows,
+      headerMatches,
+      requiredFields,
+    };
+
+    const result = script.execute(context);
+    const executionTimeMs = performance.now() - startTime;
+
+    const scriptResult: ScriptResult = {
+      scriptId: script.id,
+      scriptName: script.name,
+      scriptType: script.type,
+      success: result.success,
+      changes: result.changes,
+      errors: result.errors,
+      warnings: result.warnings,
+      rowsProcessed: currentRows.length,
+      rowsModified: result.changes.length > 0 ? new Set(result.changes.map((c) => c.rowIndex)).size : 0,
+      executionTimeMs,
+    };
+
+    scriptResults.push(scriptResult);
+    totalChanges += result.changes.length;
+    totalErrors += result.errors.length;
+    totalWarnings += result.warnings.length;
+
+    // Use modified rows for next script (transform scripts modify data)
+    if (script.type === 'transform') {
+      currentRows = result.modifiedRows;
+    }
+  }
+
+  return {
+    totalScripts: allScriptsToRun.length,
+    scriptsRun: allScriptsToRun.length,
+    scriptResults,
+    totalChanges,
+    totalErrors,
+    totalWarnings,
+    processedData: currentRows,
+  };
+}
 
 // Export types
 export type { IValidationScript, ScriptContext, ScriptExecutionResult } from './types';

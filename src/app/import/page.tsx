@@ -6,10 +6,11 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
 
 import { FileUpload } from '@/components/upload/FileUpload';
+import { ObjectTypeStep } from '@/components/upload/ObjectTypeStep';
 import { ColumnMapper } from '@/components/upload/ColumnMapper';
 import { ImportQuestionsStep } from '@/components/upload/ImportQuestionsStep';
-import { RulesStep } from '@/components/upload/RulesStep';
 import { ValidationResults } from '@/components/validation/ValidationResults';
+import { AuditReview } from '@/components/audit/AuditReview';
 
 export default function ImportPage() {
   const { currentStep, reset } = useAppStore();
@@ -32,13 +33,15 @@ export default function ImportPage() {
       case 0:
         return <FileUpload />;
       case 1:
-        return <ImportQuestionsStep />;
+        return <ObjectTypeStep />;
       case 2:
-        return <RulesStep />;
+        return <ImportQuestionsStep />;
       case 3:
         return <ColumnMapper />;
       case 4:
         return <ValidationResults />;
+      case 5:
+        return <AuditReview />;
       default:
         return <FileUpload />;
     }
