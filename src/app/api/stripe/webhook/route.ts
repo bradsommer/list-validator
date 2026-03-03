@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
         const customerEmail = session.customer_details?.email;
 
         if (customerEmail) {
-          // Update or create user subscription status
+          // Update user subscription status if account already exists
+          // (account is created via /setup-account page after checkout)
           await supabase
             .from('users')
             .update({
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
                 ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
                 : null,
             })
-            .eq('email', customerEmail);
+            .eq('username', customerEmail.toLowerCase().trim());
         }
         break;
       }
