@@ -189,7 +189,7 @@ export default function CompanyAdminPage() {
         ) : (
           <>
             {/* Summary cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-white rounded-lg border border-gray-200 p-5">
                 <p className="text-sm text-gray-500">Total Accounts</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{accountStats.length}</p>
@@ -199,13 +199,17 @@ export default function CompanyAdminPage() {
                 <p className="text-2xl font-bold text-gray-900 mt-1">{totalUsers}</p>
               </div>
               <div className="bg-white rounded-lg border border-gray-200 p-5">
-                <p className="text-sm text-gray-500">Active Rules (all accounts)</p>
+                <p className="text-sm text-gray-500">Total Imports</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalImports}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{totalRowsProcessed.toLocaleString()} rows</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-5">
+                <p className="text-sm text-gray-500">Active Rules</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{totalActiveRules}</p>
               </div>
               <div className="bg-white rounded-lg border border-gray-200 p-5">
                 <p className="text-sm text-gray-500">Est. Time Saved</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{timeSavedLabel}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{totalRowsProcessed.toLocaleString()} rows processed</p>
               </div>
             </div>
 
