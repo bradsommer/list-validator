@@ -38,21 +38,26 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
+        const userId = session.metadata?.user_id;
         const customerEmail = session.customer_details?.email;
 
-        if (customerEmail) {
-          // Update user subscription status if account already exists
-          // (account is created via /setup-account page after checkout)
+        const updateData = {
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          subscription_status: 'active',
+          subscription_trial_end: session.subscription
+            ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+            : null,
+        };
+
+        if (userId) {
+          // Preferred: match by user ID from metadata
+          await supabase.from('users').update(updateData).eq('id', userId);
+        } else if (customerEmail) {
+          // Fallback: match by email
           await supabase
             .from('users')
-            .update({
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId,
-              subscription_status: 'active',
-              subscription_trial_end: session.subscription
-                ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-                : null,
-            })
+            .update(updateData)
             .eq('username', customerEmail.toLowerCase().trim());
         }
         break;
