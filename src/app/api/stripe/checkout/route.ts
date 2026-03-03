@@ -23,7 +23,7 @@ export async function POST() {
       subscription_data: {
         trial_period_days: 14, // 14-day free trial
       },
-      success_url: `${baseUrl}/setup-account?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/?welcome=true`,
       cancel_url: `${baseUrl}?checkout=cancelled`,
       allow_promotion_codes: true,
     });
