@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    // Check subscription status for non-company-admin users
-    if (user.role !== 'company_admin') {
+    // Check subscription status for non-admin users
+    if (user.role !== 'company_admin' && user.role !== 'admin') {
       const { data: dbUser } = await supabase
         .from('users')
         .select('subscription_status')
