@@ -446,7 +446,7 @@ ON CONFLICT (slug) DO NOTHING;
 
 -- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
 INSERT INTO users (username, password_hash, display_name, role, account_id) VALUES
-  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'admin', '00000000-0000-0000-0000-000000000001')
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'company_admin', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert default HubSpot fields
