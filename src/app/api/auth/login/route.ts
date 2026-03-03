@@ -1,50 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginUser } from '@/lib/auth';
 
-// Development mode bypass - enabled by default in dev, set DEV_AUTH_BYPASS=false to disable
-const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.DEV_AUTH_BYPASS !== 'false';
-const DEV_USER = {
-  id: 'dev-user-id',
-  username: 'admin@example.com',
-  displayName: 'Administrator',
-  role: 'company_admin' as const,
-  accountId: '00000000-0000-0000-0000-000000000001',
-  accountName: 'Default Account',
-  isActive: true,
-  lastLogin: null,
-  createdAt: new Date().toISOString(),
-};
-
 export async function POST(request: NextRequest) {
   try {
     const { username, password } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json(
-        { success: false, error: 'Username and password are required' },
+        { success: false, error: 'Email and password are required' },
         { status: 400 }
-      );
-    }
-
-    // Development bypass for testing without Supabase
-    if (DEV_AUTH_BYPASS) {
-      if (username === 'admin@example.com' && password === 'admin123') {
-        const response = NextResponse.json({
-          success: true,
-          user: DEV_USER,
-        });
-        response.cookies.set('auth_token', 'dev-token-12345', {
-          httpOnly: true,
-          secure: false,
-          sameSite: 'lax',
-          maxAge: 24 * 60 * 60,
-          path: '/',
-        });
-        return response;
-      }
-      return NextResponse.json(
-        { success: false, error: 'Invalid credentials (dev mode: admin@example.com / admin123)' },
-        { status: 401 }
       );
     }
 
