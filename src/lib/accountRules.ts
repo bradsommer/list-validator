@@ -161,29 +161,49 @@ export async function updateRuleConfig(
 }
 
 /**
- * Copy default rules to a new account
+ * Default example rules seeded into new accounts (all disabled by default).
+ */
+const DEFAULT_RULES = [
+  {
+    rule_id: 'state-normalization',
+    name: 'State Normalization',
+    description: 'Normalize US state names to two-letter abbreviations (e.g. California → CA).',
+    rule_type: 'transform' as const,
+    target_fields: ['state'],
+    config: {},
+    display_order: 10,
+  },
+  {
+    rule_id: 'email-validation',
+    name: 'Email Validation',
+    description: 'Validate email format and flag invalid addresses.',
+    rule_type: 'validate' as const,
+    target_fields: ['email'],
+    config: {},
+    display_order: 20,
+  },
+  {
+    rule_id: 'duplicate-detection',
+    name: 'Email Duplicate Detection',
+    description: 'Flag duplicate rows based on email address.',
+    rule_type: 'validate' as const,
+    target_fields: ['email'],
+    config: {},
+    display_order: 100,
+  },
+];
+
+/**
+ * Initialize a new account with example rules (all disabled by default).
  */
 export async function initializeAccountRules(
   accountId: string,
-  sourceAccountId: string = 'default'
 ): Promise<boolean> {
   try {
-    // Fetch source account's rules
-    const { data: sourceRules, error: fetchError } = await supabase
-      .from('account_rules')
-      .select('*')
-      .eq('account_id', sourceAccountId);
-
-    if (fetchError || !sourceRules?.length) {
-      console.error('[accountRules] Failed to fetch source rules:', fetchError);
-      return false;
-    }
-
-    // Insert copies for the new account
-    const newRules = sourceRules.map((rule: DbAccountRule) => ({
+    const newRules = DEFAULT_RULES.map((rule) => ({
       account_id: accountId,
       rule_id: rule.rule_id,
-      enabled: rule.enabled,
+      enabled: false,
       name: rule.name,
       description: rule.description,
       rule_type: rule.rule_type,

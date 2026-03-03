@@ -4,7 +4,6 @@ import {
   createImportQuestion,
   updateImportQuestion,
   deleteImportQuestion,
-  initializeAccountQuestions,
   type QuestionType,
 } from '@/lib/importQuestions';
 
@@ -16,20 +15,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const accountId = searchParams.get('accountId') || 'default';
 
-  let questions = await fetchImportQuestions(accountId);
-
-  // If no questions for this account and it's not 'default', try to initialize
-  if (questions.length === 0 && accountId !== 'default') {
-    const initialized = await initializeAccountQuestions(accountId, 'default');
-    if (initialized) {
-      questions = await fetchImportQuestions(accountId);
-    }
-  }
-
-  // If still no questions, fetch from 'default'
-  if (questions.length === 0) {
-    questions = await fetchImportQuestions('default');
-  }
+  const questions = await fetchImportQuestions(accountId);
 
   return NextResponse.json({ success: true, questions });
 }

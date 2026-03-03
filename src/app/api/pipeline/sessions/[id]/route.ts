@@ -9,11 +9,15 @@ export async function GET(
   try {
     const { id: sessionId } = await params;
 
-    const { data: session, error: sessionError } = await supabase
+    const accountId = request.headers.get('x-account-id');
+
+    let sessionQuery = supabase
       .from('upload_sessions')
       .select('*')
-      .eq('id', sessionId)
-      .single();
+      .eq('id', sessionId);
+    if (accountId) sessionQuery = sessionQuery.eq('account_id', accountId);
+
+    const { data: session, error: sessionError } = await sessionQuery.single();
 
     if (sessionError || !session) {
       return NextResponse.json(
@@ -86,6 +90,7 @@ export async function DELETE(
 ) {
   try {
     const { id: sessionId } = await params;
+    const accountId = request.headers.get('x-account-id');
 
     // Delete rows first (cascade should handle this, but be explicit)
     await supabase
@@ -93,11 +98,14 @@ export async function DELETE(
       .delete()
       .eq('session_id', sessionId);
 
-    // Delete the session
-    const { error } = await supabase
+    // Delete the session (scoped to account if provided)
+    let deleteQuery = supabase
       .from('upload_sessions')
       .delete()
       .eq('id', sessionId);
+    if (accountId) deleteQuery = deleteQuery.eq('account_id', accountId);
+
+    const { error } = await deleteQuery;
 
     if (error) {
       return NextResponse.json(

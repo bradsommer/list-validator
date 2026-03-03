@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
           sessionId: string;
         };
 
+        const accountId = request.headers.get('x-account-id') || '';
+
         await logInfo('hubspot', `Starting sync for ${rows.length} rows`, sessionId);
 
         // Force a fresh token check before starting the sync batch.
@@ -103,10 +105,10 @@ export async function POST(request: NextRequest) {
             // Store in local CRM records (non-blocking — don't fail sync on CRM error)
             try {
               if (rows[i].contactProperties && Object.keys(rows[i].contactProperties).length > 0) {
-                await upsertCrmRecord('contacts', rows[i].contactProperties, result.contact?.id, sessionId);
+                await upsertCrmRecord(accountId, 'contacts', rows[i].contactProperties, result.contact?.id, sessionId);
               }
               if (rows[i].companyProperties && Object.keys(rows[i].companyProperties).length > 0) {
-                await upsertCrmRecord('companies', rows[i].companyProperties, result.matchedCompany?.id, sessionId);
+                await upsertCrmRecord(accountId, 'companies', rows[i].companyProperties, result.matchedCompany?.id, sessionId);
               }
             } catch (crmErr) {
               console.error(`CRM storage error for row ${i}:`, crmErr);

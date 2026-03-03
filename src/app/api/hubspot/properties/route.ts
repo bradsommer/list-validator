@@ -3,7 +3,6 @@ import { getValidAccessToken } from '@/lib/hubspot';
 import { getServerSupabase } from '@/lib/supabase';
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';
 const OBJECT_TYPES: ObjectType[] = ['contacts', 'companies', 'deals'];
@@ -126,7 +125,7 @@ export async function fetchAndStoreProperties(accountId: string): Promise<{
 // GET - return properties from DB
 export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') as ObjectType | null;
-  const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+  const accountId = request.headers.get('x-account-id') || '';
 
   const db = getServerSupabase();
 
@@ -194,7 +193,7 @@ export async function GET(request: NextRequest) {
 // POST - manually sync/refresh properties from HubSpot
 export async function POST(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+    const accountId = request.headers.get('x-account-id') || '';
 
     // Get existing count for comparison
     const db = getServerSupabase();

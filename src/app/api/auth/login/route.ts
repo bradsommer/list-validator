@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginUser } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,22 @@ export async function POST(request: NextRequest) {
         { success: false, error: result.error },
         { status: 401 }
       );
+    }
+
+    // Company admins can always log in. For other users, check subscription status.
+    if (result.user && result.user.role !== 'company_admin') {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('subscription_status')
+        .eq('id', result.user.id)
+        .single();
+
+      if (dbUser?.subscription_status === 'canceled' || dbUser?.subscription_status === 'cancelled') {
+        return NextResponse.json(
+          { success: false, error: 'Your subscription has been cancelled. Please contact support or resubscribe.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Create response with token in cookie

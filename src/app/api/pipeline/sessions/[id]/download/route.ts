@@ -3,17 +3,20 @@ import { supabase } from '@/lib/supabase';
 
 // GET - Download the original uploaded file for a session
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const sessionId = params.id;
+    const accountId = request.headers.get('x-account-id');
 
-    const { data: session, error } = await supabase
+    let query = supabase
       .from('upload_sessions')
       .select('file_name, file_content, file_type, status, expires_at')
-      .eq('id', sessionId)
-      .single();
+      .eq('id', sessionId);
+    if (accountId) query = query.eq('account_id', accountId);
+
+    const { data: session, error } = await query.single();
 
     if (error || !session) {
       return NextResponse.json(

@@ -182,7 +182,6 @@ import * as path from 'path';
 import { supabase } from '@/lib/supabase';
 
 const TOKEN_FILE = path.join(process.cwd(), '.hubspot-tokens.json');
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 // --- File-based fallback ---
 
@@ -280,7 +279,7 @@ export async function getPortalId(accountId?: string): Promise<string | null> {
     const { data, error } = await supabase
       .from('account_integrations')
       .select('portal_id')
-      .eq('account_id', accountId || DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId || '')
       .eq('provider', 'hubspot')
       .eq('is_active', true)
       .single();
@@ -311,14 +310,14 @@ let storedTokens: HubSpotTokens | null = null;
 export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
   storedTokens = tokens;
   saveTokensToFile(tokens);
-  await saveTokensToDb(tokens, accountId || DEFAULT_ACCOUNT_ID, portalId);
+  await saveTokensToDb(tokens, accountId || '', portalId);
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
   if (storedTokens) return storedTokens;
 
   // Try database first
-  const dbTokens = await loadTokensFromDb(accountId || DEFAULT_ACCOUNT_ID);
+  const dbTokens = await loadTokensFromDb(accountId || '');
   if (dbTokens) {
     storedTokens = dbTokens;
     return dbTokens;
@@ -339,7 +338,7 @@ export async function clearTokens(accountId?: string) {
   hubspotClient = null;
   hubspotClientToken = null;
   saveTokensToFile(null);
-  await clearTokensFromDb(accountId || DEFAULT_ACCOUNT_ID);
+  await clearTokensFromDb(accountId || '');
 }
 
 export async function getValidAccessToken(): Promise<string | null> {
@@ -350,7 +349,7 @@ export async function getValidAccessToken(): Promise<string | null> {
 
   // Always check DB for the latest tokens — the in-memory cache may be stale
   // if the user re-authenticated in another request or the token was refreshed.
-  const dbTokens = await loadTokensFromDb(DEFAULT_ACCOUNT_ID);
+  const dbTokens = await loadTokensFromDb('');
   if (dbTokens) {
     storedTokens = dbTokens;
   }
@@ -383,7 +382,7 @@ export async function getValidAccessToken(): Promise<string | null> {
       console.error('[HubSpot Auth] Token refresh failed:', refreshErr);
       // Don't clear tokens — the user may have re-authenticated and the DB
       // has fresh tokens. Re-read from DB as a last resort.
-      const freshDbTokens = await loadTokensFromDb(DEFAULT_ACCOUNT_ID);
+      const freshDbTokens = await loadTokensFromDb('');
       if (freshDbTokens && freshDbTokens.access_token !== tokens.access_token) {
         const freshExpiry = Number(freshDbTokens.expires_at) || 0;
         // Only use the DB tokens if they're actually newer/valid

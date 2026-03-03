@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-    const accountId = state || '00000000-0000-0000-0000-000000000001';
+    const accountId = state || '';
 
     // Fetch the portal ID (hub_id) from HubSpot token info
     let portalId: string | undefined;

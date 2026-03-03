@@ -12,7 +12,7 @@ interface ConnectionStatus {
 // GET - returns connection status or redirect URL
 export async function GET(request: NextRequest) {
   const clientId = await getHubSpotClientIdAsync();
-  const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
+  const accountId = request.headers.get('x-account-id') || '';
 
   if (!clientId) {
     return NextResponse.json({
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 // DELETE - disconnect HubSpot (invalidates cache and removes HubSpot headings)
 export async function DELETE(request: NextRequest) {
-  const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
+  const accountId = request.headers.get('x-account-id') || '';
   await clearTokens(accountId);
   const removedHeadings = await removeAllHubSpotHeadingsAsync(accountId);
   cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);

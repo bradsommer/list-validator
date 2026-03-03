@@ -16,12 +16,15 @@ export async function GET(
     const { id: sessionId } = await params;
     const filter = request.nextUrl.searchParams.get('filter') || 'all';
 
-    // Get session info
-    const { data: session, error: sessionError } = await supabase
+    // Get session info (scoped to account if provided)
+    const accountId = request.headers.get('x-account-id');
+    let sessionQuery = supabase
       .from('upload_sessions')
       .select('file_name, status, expires_at')
-      .eq('id', sessionId)
-      .single();
+      .eq('id', sessionId);
+    if (accountId) sessionQuery = sessionQuery.eq('account_id', accountId);
+
+    const { data: session, error: sessionError } = await sessionQuery.single();
 
     if (sessionError || !session) {
       return NextResponse.json(

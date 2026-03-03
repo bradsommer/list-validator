@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 const RETENTION_DAYS = 15;
 
 interface UpsertResult {
@@ -18,6 +17,7 @@ interface UpsertResult {
  * If no match, creates a new record.
  */
 export async function upsertCrmRecord(
+  accountId: string,
   objectType: 'contacts' | 'companies' | 'deals',
   properties: Record<string, string>,
   hubspotRecordId?: string,
@@ -42,7 +42,7 @@ export async function upsertCrmRecord(
       const { data: existing } = await supabase
         .from('crm_records')
         .select('id, properties')
-        .eq('account_id', DEFAULT_ACCOUNT_ID)
+        .eq('account_id', accountId)
         .eq('object_type', objectType)
         .eq('dedup_key', dedupKey)
         .single();
@@ -75,7 +75,7 @@ export async function upsertCrmRecord(
 
     // Create new
     const insertData: Record<string, unknown> = {
-      account_id: DEFAULT_ACCOUNT_ID,
+      account_id: accountId,
       object_type: objectType,
       properties,
       dedup_key: dedupKey,
@@ -109,6 +109,7 @@ export async function upsertCrmRecord(
  * Stores both contact and company records from each row.
  */
 export async function storeSyncResults(
+  accountId: string,
   rows: { contactProperties: Record<string, string>; companyProperties: Record<string, string> }[],
   results: { rowIndex: number; contactId?: string; companyId?: string; error?: string }[],
   uploadSessionId?: string
@@ -125,6 +126,7 @@ export async function storeSyncResults(
     // Store contact
     if (row.contactProperties && Object.keys(row.contactProperties).length > 0) {
       const cr = await upsertCrmRecord(
+        accountId,
         'contacts',
         row.contactProperties,
         result.contactId,
@@ -136,6 +138,7 @@ export async function storeSyncResults(
     // Store company
     if (row.companyProperties && Object.keys(row.companyProperties).length > 0) {
       const cr = await upsertCrmRecord(
+        accountId,
         'companies',
         row.companyProperties,
         result.companyId,
@@ -151,11 +154,11 @@ export async function storeSyncResults(
 /**
  * Purge expired CRM records (older than 15 days).
  */
-export async function purgeExpiredRecords(): Promise<number> {
+export async function purgeExpiredRecords(accountId: string): Promise<number> {
   const { count, error } = await supabase
     .from('crm_records')
     .delete({ count: 'exact' })
-    .eq('account_id', DEFAULT_ACCOUNT_ID)
+    .eq('account_id', accountId)
     .lt('expires_at', new Date().toISOString());
 
   if (error) {

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
-
 // DELETE - Clear all import history (upload_sessions and their rows)
 export async function DELETE(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
 
     // Delete all rows first (cascade should handle this but be explicit)
     const { data: sessions } = await supabase
@@ -51,7 +52,10 @@ export async function DELETE(request: NextRequest) {
 // GET - List upload sessions for the account
 export async function GET(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
     const statusFilter = request.nextUrl.searchParams.get('status');
 
     let query = supabase

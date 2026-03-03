@@ -30,9 +30,10 @@ interface Props {
   objectType: CrmObjectType;
   title: string;
   dedupLabel: string;
+  accountId: string | null;
 }
 
-export function CrmRecordList({ objectType, title, dedupLabel }: Props) {
+export function CrmRecordList({ objectType, title, dedupLabel, accountId }: Props) {
   const [records, setRecords] = useState<CrmRecord[]>([]);
   const [properties, setProperties] = useState<CrmProperty[]>([]);
   const [total, setTotal] = useState(0);
@@ -47,11 +48,15 @@ export function CrmRecordList({ objectType, title, dedupLabel }: Props) {
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const accountHeaders = accountId ? { 'x-account-id': accountId } : {};
+
   const fetchProperties = useCallback(async () => {
-    const res = await fetch(`/api/crm/properties?objectType=${objectType}`);
+    const res = await fetch(`/api/crm/properties?objectType=${objectType}`, {
+      headers: accountHeaders,
+    });
     const data = await res.json();
     if (data.success) setProperties(data.properties || []);
-  }, [objectType]);
+  }, [objectType, accountId]);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -60,7 +65,9 @@ export function CrmRecordList({ objectType, title, dedupLabel }: Props) {
       page: String(page),
       ...(search ? { search } : {}),
     });
-    const res = await fetch(`/api/crm/records?${params}`);
+    const res = await fetch(`/api/crm/records?${params}`, {
+      headers: accountHeaders,
+    });
     const data = await res.json();
     if (data.success) {
       setRecords(data.records || []);
@@ -68,7 +75,7 @@ export function CrmRecordList({ objectType, title, dedupLabel }: Props) {
       setTotalPages(data.totalPages || 1);
     }
     setLoading(false);
-  }, [objectType, page, search]);
+  }, [objectType, page, search, accountId]);
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
@@ -122,7 +129,7 @@ export function CrmRecordList({ objectType, title, dedupLabel }: Props) {
     try {
       const res = await fetch('/api/crm/records', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...accountHeaders },
         body: JSON.stringify({ objectType, properties: props }),
       });
       const data = await res.json();
