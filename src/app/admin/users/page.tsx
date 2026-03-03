@@ -43,7 +43,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isCompanyAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -72,7 +72,7 @@ export default function UsersPage() {
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
-      setUsers((data || []) as User[]);
+      setUsers(((data || []) as User[]).filter((u) => isCompanyAdmin || u.role !== 'company_admin'));
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
@@ -419,11 +419,13 @@ export default function UsersPage() {
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
-                      {ROLE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
+                      {ROLE_OPTIONS
+                        .filter((opt) => isCompanyAdmin || opt.value !== 'company_admin')
+                        .map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
                     </select>
                     <p className="text-xs text-gray-400 mt-1">
                       {ROLE_OPTIONS.find((o) => o.value === formData.role)?.description}
