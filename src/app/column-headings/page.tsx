@@ -36,7 +36,7 @@ export default function ColumnHeadingsPage() {
       try {
         const response = await fetch('/api/hubspot/oauth', {
           headers: {
-            'x-account-id': accountId || '00000000-0000-0000-0000-000000000001',
+            'x-account-id': accountId,
           },
         });
         const data = await response.json();
@@ -142,7 +142,7 @@ export default function ColumnHeadingsPage() {
       const response = await fetch('/api/hubspot/sync-headings', {
         method: 'POST',
         headers: {
-          'x-account-id': accountId || '00000000-0000-0000-0000-000000000001',
+          'x-account-id': accountId,
         },
       });
       const data = await response.json();

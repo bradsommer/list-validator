@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
     try {
       const response = await fetch('/api/integrations', {
         headers: {
-          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+          'x-account-id': user?.accountId || '',
         },
       });
       const data = await response.json();
@@ -75,7 +75,7 @@ export default function IntegrationsPage() {
     try {
       const response = await fetch('/api/hubspot/oauth', {
         headers: {
-          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+          'x-account-id': user?.accountId || '',
         },
       });
       const data = await response.json();
@@ -95,7 +95,7 @@ export default function IntegrationsPage() {
         await fetch('/api/hubspot/oauth', {
           method: 'DELETE',
           headers: {
-            'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+            'x-account-id': user?.accountId || '',
           },
         });
       }
@@ -116,7 +116,7 @@ export default function IntegrationsPage() {
       const propsResponse = await fetch('/api/hubspot/properties', {
         method: 'POST',
         headers: {
-          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+          'x-account-id': user?.accountId || '',
         },
       });
       const propsData = await propsResponse.json();
@@ -124,7 +124,7 @@ export default function IntegrationsPage() {
       const headingsResponse = await fetch('/api/hubspot/sync-headings', {
         method: 'POST',
         headers: {
-          'x-account-id': user?.accountId || '00000000-0000-0000-0000-000000000001',
+          'x-account-id': user?.accountId || '',
         },
       });
       const headingsData = await headingsResponse.json();

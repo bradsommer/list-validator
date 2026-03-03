@@ -23,11 +23,31 @@ export async function POST(request: NextRequest) {
     // Look up stripe_customer_id for the authenticated user
     const { data: dbUser } = await supabase
       .from('users')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, username')
       .eq('id', sessionUser.id)
       .single();
 
-    if (!dbUser?.stripe_customer_id) {
+    let stripeCustomerId = dbUser?.stripe_customer_id;
+
+    // If no stripe_customer_id saved (webhook may not have fired), look up by email in Stripe
+    if (!stripeCustomerId && dbUser?.username) {
+      const customers = await stripe.customers.list({
+        email: dbUser.username,
+        limit: 1,
+      });
+
+      if (customers.data.length > 0) {
+        stripeCustomerId = customers.data[0].id;
+
+        // Save it for next time so we don't need to look it up again
+        await supabase
+          .from('users')
+          .update({ stripe_customer_id: stripeCustomerId })
+          .eq('id', sessionUser.id);
+      }
+    }
+
+    if (!stripeCustomerId) {
       return NextResponse.json(
         { error: 'No billing account found. Please set up a subscription first.' },
         { status: 404 }
@@ -37,7 +57,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: dbUser.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: `${baseUrl}/billing`,
     });
 

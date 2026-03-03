@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
-
 // GET - List properties for an object type
 export async function GET(request: NextRequest) {
+  const accountId = request.headers.get('x-account-id');
+  if (!accountId) {
+    return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+  }
+
   const objectType = request.nextUrl.searchParams.get('objectType') || 'contacts';
 
   try {
     const { data, error } = await supabase
       .from('crm_properties')
       .select('*')
-      .eq('account_id', DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId)
       .eq('object_type', objectType)
       .order('sort_order', { ascending: true });
 
@@ -28,6 +31,11 @@ export async function GET(request: NextRequest) {
 // POST - Create a custom property
 export async function POST(request: NextRequest) {
   try {
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { objectType, name, label, fieldType, options, isRequired } = body as {
       objectType: string;
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { data: maxOrder } = await supabase
       .from('crm_properties')
       .select('sort_order')
-      .eq('account_id', DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId)
       .eq('object_type', objectType)
       .order('sort_order', { ascending: false })
       .limit(1)
@@ -63,7 +71,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('crm_properties')
       .insert({
-        account_id: DEFAULT_ACCOUNT_ID,
+        account_id: accountId,
         object_type: objectType,
         name: sanitizedName,
         label,
@@ -95,6 +103,11 @@ export async function POST(request: NextRequest) {
 // PATCH - Update a property
 export async function PATCH(request: NextRequest) {
   try {
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { id, label, fieldType, options, isRequired } = body as {
       id: string;
@@ -118,7 +131,7 @@ export async function PATCH(request: NextRequest) {
       .from('crm_properties')
       .update(updateData)
       .eq('id', id)
-      .eq('account_id', DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId)
       .select()
       .single();
 
@@ -134,6 +147,11 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE - Delete a custom property (not system properties)
 export async function DELETE(request: NextRequest) {
+  const accountId = request.headers.get('x-account-id');
+  if (!accountId) {
+    return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+  }
+
   const id = request.nextUrl.searchParams.get('id');
   if (!id) {
     return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
@@ -145,6 +163,7 @@ export async function DELETE(request: NextRequest) {
       .from('crm_properties')
       .select('is_system')
       .eq('id', id)
+      .eq('account_id', accountId)
       .single();
 
     if (prop?.is_system) {
@@ -158,7 +177,7 @@ export async function DELETE(request: NextRequest) {
       .from('crm_properties')
       .delete()
       .eq('id', id)
-      .eq('account_id', DEFAULT_ACCOUNT_ID);
+      .eq('account_id', accountId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });

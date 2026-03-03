@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 const BATCH_INSERT_SIZE = 500;
 
 // POST - Create upload session and store rows in DB
@@ -26,7 +25,10 @@ export async function POST(request: NextRequest) {
       fileSize?: number;
     };
 
-    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
 
     if (!fileName || !rows || !Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json(

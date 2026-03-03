@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 const PAGE_SIZE = 50;
 
 // GET - List CRM records with search, filter, pagination
 export async function GET(request: NextRequest) {
+  const accountId = request.headers.get('x-account-id');
+  if (!accountId) {
+    return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+  }
+
   const params = request.nextUrl.searchParams;
   const objectType = params.get('objectType') || 'contacts';
   const page = parseInt(params.get('page') || '1', 10);
@@ -17,7 +21,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('crm_records')
       .select('*', { count: 'exact' })
-      .eq('account_id', DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId)
       .eq('object_type', objectType)
       .gt('expires_at', new Date().toISOString())
       .order(sortField, { ascending: sortDir })
@@ -65,6 +69,11 @@ export async function GET(request: NextRequest) {
 // POST - Create or upsert a CRM record (with dedup)
 export async function POST(request: NextRequest) {
   try {
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { objectType, properties, hubspotRecordId, uploadSessionId } = body as {
       objectType: string;
@@ -98,7 +107,7 @@ export async function POST(request: NextRequest) {
       const { data: existing } = await supabase
         .from('crm_records')
         .select('id, properties')
-        .eq('account_id', DEFAULT_ACCOUNT_ID)
+        .eq('account_id', accountId)
         .eq('object_type', objectType)
         .eq('dedup_key', dedupKey)
         .single();
@@ -132,7 +141,7 @@ export async function POST(request: NextRequest) {
     const { data: created, error } = await supabase
       .from('crm_records')
       .insert({
-        account_id: DEFAULT_ACCOUNT_ID,
+        account_id: accountId,
         object_type: objectType,
         properties,
         dedup_key: dedupKey,
@@ -154,12 +163,17 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE - Bulk delete expired records (cleanup endpoint)
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const accountId = request.headers.get('x-account-id');
+  if (!accountId) {
+    return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+  }
+
   try {
     const { count, error } = await supabase
       .from('crm_records')
       .delete({ count: 'exact' })
-      .eq('account_id', DEFAULT_ACCOUNT_ID)
+      .eq('account_id', accountId)
       .lt('expires_at', new Date().toISOString());
 
     if (error) {

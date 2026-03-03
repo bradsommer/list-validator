@@ -3,12 +3,10 @@ import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { getServerSupabase } from '@/lib/supabase';
 
-const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
-
 // POST - sync HubSpot properties into column_headings
 export async function POST(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || DEFAULT_ACCOUNT_ID;
+    const accountId = request.headers.get('x-account-id') || '';
 
     // First refresh HubSpot properties from the API
     await fetchAndStoreProperties(accountId);

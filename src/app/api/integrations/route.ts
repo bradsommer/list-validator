@@ -4,7 +4,10 @@ import { supabase } from '@/lib/supabase';
 // GET - list integrations for the current user's account
 export async function GET(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || '00000000-0000-0000-0000-000000000001';
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: true, integrations: [] });
+    }
 
     // In dev mode, return from supabase or mock
     const { data, error } = await supabase

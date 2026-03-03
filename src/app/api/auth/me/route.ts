@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +22,24 @@ export async function GET(request: NextRequest) {
       );
       response.cookies.delete('auth_token');
       return response;
+    }
+
+    // Check subscription status for non-company-admin users
+    if (user.role !== 'company_admin') {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('subscription_status')
+        .eq('id', user.id)
+        .single();
+
+      if (dbUser?.subscription_status === 'canceled' || dbUser?.subscription_status === 'cancelled') {
+        const response = NextResponse.json(
+          { success: false, error: 'Your subscription has been cancelled.' },
+          { status: 403 }
+        );
+        response.cookies.delete('auth_token');
+        return response;
+      }
     }
 
     return NextResponse.json({ success: true, user });
