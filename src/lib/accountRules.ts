@@ -209,6 +209,32 @@ export async function initializeAccountRules(
 }
 
 /**
+ * Delete a rule from an account
+ */
+export async function deleteAccountRule(
+  accountId: string,
+  ruleId: string
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('account_rules')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('rule_id', ruleId);
+
+    if (error) {
+      console.error('[accountRules] Delete error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[accountRules] Delete error:', err);
+    return false;
+  }
+}
+
+/**
  * Get the list of enabled rule IDs for an account (for use with validation scripts)
  */
 export async function getEnabledRuleIds(accountId: string): Promise<string[]> {

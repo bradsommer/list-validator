@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ImportsChart } from '@/components/dashboard/ImportsChart';
 
 function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -354,6 +355,8 @@ function Dashboard() {
             </div>
           </Link>
         </div>
+
+        <ImportsChart />
       </div>
     </AdminLayout>
   );

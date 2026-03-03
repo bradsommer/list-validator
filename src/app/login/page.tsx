@@ -98,6 +98,15 @@ export default function LoginPage() {
             >
               {isSubmitting ? 'Signing in...' : 'Sign In'}
             </button>
+
+            <div className="text-center">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
+              >
+                Forgot password or username?
+              </Link>
+            </div>
           </form>
         </div>
         <div className="mt-6 text-center text-sm text-gray-500">
