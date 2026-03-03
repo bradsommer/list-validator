@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "npm install --prefer-offline --no-audit --no-fund 2>/dev/null || true",
     "dev": "next dev",
+    "prebuild": "npm install --prefer-offline --no-audit --no-fund 2>/dev/null || true",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

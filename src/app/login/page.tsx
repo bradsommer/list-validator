@@ -45,81 +45,111 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <FreshSegmentsLogo className="h-8 mx-auto" />
-            <p className="text-gray-500 mt-3">Sign in to your account</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                placeholder="Enter your username"
-                required
-                autoComplete="username"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                placeholder="Enter your password"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed transition-colors font-medium"
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
+      {/* Navigation */}
+      <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/">
+              <FreshSegmentsLogo className="h-7" />
+            </Link>
+            <Link
+              href="/"
+              className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700"
             >
-              {isSubmitting ? 'Signing in...' : 'Sign In'}
-            </button>
-
-            <div className="text-center">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
-              >
-                Forgot password or username?
-              </Link>
-            </div>
-          </form>
+              Back to Home
+            </Link>
+          </div>
         </div>
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
-            Privacy Policy
-          </Link>
-          <span className="mx-2">|</span>
-          <Link href="/legal/terms" className="hover:text-gray-700 transition-colors">
-            Terms of Use
-          </Link>
+      </nav>
+
+      {/* Login Form */}
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold text-gray-900">Sign In</h1>
+              <p className="text-gray-500 mt-2">Sign in to your account</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <input
+                  id="username"
+                  type="email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="Enter your email address"
+                  required
+                  autoComplete="username"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="Enter your password"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                {isSubmitting ? 'Signing in...' : 'Sign In'}
+              </button>
+
+              <div className="text-center">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
+                >
+                  Forgot password or username?
+                </Link>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <FreshSegmentsLogo className="h-6" dark />
+            <div className="flex items-center gap-4 text-sm">
+              <Link href="/legal/privacy" className="hover:text-white transition-colors">
+                Privacy Policy
+              </Link>
+              <span className="text-gray-500">|</span>
+              <Link href="/legal/terms" className="hover:text-white transition-colors">
+                Terms of Use
+              </Link>
+            </div>
+            <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

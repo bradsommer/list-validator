@@ -115,7 +115,14 @@ export default function UsersPage() {
 
   const handleSave = async () => {
     if (!formData.username) {
-      setFormError('Username is required');
+      setFormError('Email address is required');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.username)) {
+      setFormError('Please enter a valid email address');
       return;
     }
 
@@ -363,11 +370,12 @@ export default function UsersPage() {
                     </div>
                   )}
 
-                  {/* Username (email) */}
+                  {/* Email Address */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                     <input
-                      type="text"
+                      type="email"
+                      required
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                       disabled={!!editingUser}
@@ -383,6 +391,7 @@ export default function UsersPage() {
                     </label>
                     <input
                       type="password"
+                      required={!editingUser}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
