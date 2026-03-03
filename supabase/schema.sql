@@ -57,6 +57,17 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+
 -- ============================================================================
 -- AI MODELS CONFIGURATION (Secure key storage)
 -- ============================================================================
@@ -621,6 +632,8 @@ ALTER TABLE upload_rows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crm_properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crm_records ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
 -- Policies for authenticated users
 CREATE POLICY "Allow all for authenticated" ON accounts FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON users FOR ALL TO authenticated USING (true);
@@ -638,6 +651,8 @@ CREATE POLICY "Allow all for authenticated" ON upload_rows FOR ALL TO authentica
 CREATE POLICY "Allow all for authenticated" ON crm_properties FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated" ON crm_records FOR ALL TO authenticated USING (true);
 
+CREATE POLICY "Allow all for authenticated" ON password_reset_tokens FOR ALL TO authenticated USING (true);
+
 -- Development policies (remove in production)
 CREATE POLICY "Allow all for anon" ON accounts FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON users FOR ALL TO anon USING (true);
@@ -654,3 +669,4 @@ CREATE POLICY "Allow all for anon" ON upload_sessions FOR ALL TO anon USING (tru
 CREATE POLICY "Allow all for anon" ON upload_rows FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON crm_properties FOR ALL TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON crm_records FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON password_reset_tokens FOR ALL TO anon USING (true);

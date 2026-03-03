@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { ReactNode, useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,25 +9,32 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const mainNavItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+}
+
+const baseNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
   { href: '/import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
-  { href: '/rules', label: 'Rules', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-  { href: '/import-questions', label: 'Import Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { href: '/column-headings', label: 'Output Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
 ];
 
-const adminNavItems = [
+// Permission-gated items
+const rulesItem: NavItem = { href: '/rules', label: 'Rules', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' };
+const questionsItem: NavItem = { href: '/import-questions', label: 'Import Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' };
+const headingsItem: NavItem = { href: '/column-headings', label: 'Output Headings', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' };
+const billingItem: NavItem = { href: '/billing', label: 'Billing', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' };
+
+const settingsNavItems: NavItem[] = [
   { href: '/admin/users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
   { href: '/admin/integrations', label: 'Integrations', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
 ];
 
-const companyAdminNavItems = [
+const companyAdminNavItems: NavItem[] = [
   { href: '/company-admin', label: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { href: '/company-admin/accounts', label: 'Accounts', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
 ];
-
-const allNavItems = [...mainNavItems, ...adminNavItems, ...companyAdminNavItems];
 
 function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: string; icon: string; isActive: boolean }) {
   return (
@@ -62,7 +69,12 @@ function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isCompanyAdmin, impersonating, stopImpersonating, isLoading, isAuthenticated } = useAuth();
+  const {
+    user, logout, isAdmin, isCompanyAdmin,
+    impersonating, stopImpersonating,
+    isLoading, isAuthenticated,
+    canView: userCanView,
+  } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +88,36 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Build main nav items based on permissions
+  const mainNavItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (isAdmin || userCanView('rules')) items.push(rulesItem);
+    if (isAdmin || userCanView('questions')) items.push(questionsItem);
+    if (isAdmin || userCanView('column_headings')) items.push(headingsItem);
+    return items;
+  }, [isAdmin, userCanView]);
+
+  // Build settings nav items based on permissions
+  const visibleSettingsItems = useMemo(() => {
+    const items: NavItem[] = [];
+    if (isAdmin) {
+      items.push(settingsNavItems[0]); // Users
+    }
+    if (isAdmin || userCanView('integrations')) {
+      items.push(settingsNavItems[1]); // Integrations
+    }
+    if (isAdmin || userCanView('billing')) {
+      items.push(billingItem);
+    }
+    return items;
+  }, [isAdmin, userCanView]);
+
+  // Collect all for title lookup
+  const allNavItems = useMemo(
+    () => [...mainNavItems, ...visibleSettingsItems, ...companyAdminNavItems],
+    [mainNavItems, visibleSettingsItems]
+  );
 
   // Show loading state
   if (isLoading) {
@@ -206,18 +248,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               ))}
             </ul>
 
-            {/* Admin section */}
-            {isAdmin && (
+            {/* Settings section (admin / permission-gated) */}
+            {visibleSettingsItems.length > 0 && (
               <>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
                   Settings
                 </div>
                 <ul className="space-y-1">
-                  {adminNavItems.map((item) => (
+                  {visibleSettingsItems.map((item) => (
                     <SidebarNavItem
                       key={item.href}
                       {...item}
-                      isActive={pathname === item.href}
+                      isActive={pathname === item.href || pathname.startsWith(item.href)}
                     />
                   ))}
                 </ul>

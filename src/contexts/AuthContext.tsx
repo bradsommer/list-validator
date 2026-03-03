@@ -1,17 +1,19 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { getPermissions, type PermissionMap, type PermissionArea, type UserRole, canView, canEdit } from '@/lib/permissions';
 
 export interface User {
   id: string;
   username: string;
   displayName: string | null;
-  role: 'company_admin' | 'admin' | 'user';
+  role: UserRole;
   accountId: string | null;
   accountName: string | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
+  customPermissions?: Partial<PermissionMap>;
 }
 
 interface AuthContextType {
@@ -20,6 +22,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isCompanyAdmin: boolean;
+  permissions: PermissionMap;
+  canView: (area: PermissionArea) => boolean;
+  canEdit: (area: PermissionArea) => boolean;
   impersonating: User | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -116,7 +121,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const activeRole = realUser ? realUser.role : user?.role;
+  const activeRole = (realUser ? realUser.role : user?.role) as UserRole | undefined;
+  const activeCustomPerms = realUser ? realUser.customPermissions : user?.customPermissions;
+
+  const permissions = useMemo(
+    () => getPermissions((activeRole || 'user') as UserRole, activeCustomPerms),
+    [activeRole, activeCustomPerms]
+  );
 
   return (
     <AuthContext.Provider
@@ -126,6 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isAdmin: activeRole === 'admin' || activeRole === 'company_admin',
         isCompanyAdmin: activeRole === 'company_admin',
+        permissions,
+        canView: (area: PermissionArea) => canView(permissions, area),
+        canEdit: (area: PermissionArea) => canEdit(permissions, area),
         impersonating: realUser,
         login,
         logout,
