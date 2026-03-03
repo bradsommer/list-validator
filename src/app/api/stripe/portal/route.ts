@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { validateSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -8,25 +9,25 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
-    const { accountId } = await request.json();
-
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Account ID is required' },
-        { status: 400 }
-      );
+    // Authenticate from session cookie
+    const token = request.cookies.get('auth_token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Find a user with a Stripe customer ID for this account
-    const { data: user } = await supabase
+    const sessionUser = await validateSession(token);
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
+    }
+
+    // Look up stripe_customer_id for the authenticated user
+    const { data: dbUser } = await supabase
       .from('users')
       .select('stripe_customer_id')
-      .eq('account_id', accountId)
-      .not('stripe_customer_id', 'is', null)
-      .limit(1)
+      .eq('id', sessionUser.id)
       .single();
 
-    if (!user?.stripe_customer_id) {
+    if (!dbUser?.stripe_customer_id) {
       return NextResponse.json(
         { error: 'No billing account found. Please set up a subscription first.' },
         { status: 404 }
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripe_customer_id,
+      customer: dbUser.stripe_customer_id,
       return_url: `${baseUrl}/billing`,
     });
 

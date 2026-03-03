@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function BillingPage() {
-  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,8 +14,6 @@ export default function BillingPage() {
     try {
       const res = await fetch('/api/stripe/portal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: user?.accountId }),
       });
 
       const data = await res.json();
