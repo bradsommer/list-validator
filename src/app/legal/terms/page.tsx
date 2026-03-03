@@ -25,7 +25,7 @@ export default function TermsOfUsePage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">1. Acceptance of Terms</h2>
             <p className="text-gray-700 mt-3">
-              By accessing or using List Validator (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Use.
+              By accessing or using FreshSegments (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Use.
               If you do not agree to these terms, you may not use the Service. These terms apply to all users,
               including administrators, team members, and any person who accesses the Service.
             </p>
@@ -34,7 +34,7 @@ export default function TermsOfUsePage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">2. Description of Service</h2>
             <p className="text-gray-700 mt-3">
-              List Validator is a data validation and transformation tool designed to clean, normalize, and prepare
+              FreshSegments is a data validation and transformation tool designed to clean, normalize, and prepare
               spreadsheet data for import into CRM systems such as HubSpot. The Service provides:
             </p>
             <ul className="list-disc pl-6 text-gray-700 space-y-1 mt-2">

@@ -1,4 +1,4 @@
-# List Validator
+# FreshSegments
 
 A web application to validate lists, alert users of issues, and sync data to HubSpot.
 

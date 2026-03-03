@@ -1,4 +1,4 @@
--- List Validator - Supabase Schema
+-- FreshSegments - Supabase Schema
 -- SECURITY-FOCUSED: No PII storage. All contact data processed in-memory only.
 -- This schema stores: users, configuration data, field mappings, AI models, enrichment rules.
 

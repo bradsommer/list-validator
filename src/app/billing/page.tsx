@@ -73,7 +73,7 @@ export default function BillingPage() {
         </div>
 
         <div className="text-xs text-gray-400">
-          Billing is managed securely through Stripe. List Validator does not store your payment information.
+          Billing is managed securely through Stripe. FreshSegments does not store your payment information.
         </div>
       </div>
     </AdminLayout>
