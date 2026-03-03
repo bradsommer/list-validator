@@ -48,7 +48,7 @@ export function CrmRecordList({ objectType, title, dedupLabel, accountId }: Prop
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const accountHeaders = accountId ? { 'x-account-id': accountId } : {};
+  const accountHeaders: Record<string, string> = accountId ? { 'x-account-id': accountId } : {};
 
   const fetchProperties = useCallback(async () => {
     const res = await fetch(`/api/crm/properties?objectType=${objectType}`, {
