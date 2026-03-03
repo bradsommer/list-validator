@@ -1,0 +1,284 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+
+interface Account {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface AccountUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  role: string;
+  is_active: boolean;
+  last_login: string | null;
+  account_id: string | null;
+}
+
+export default function CompanyAdminAccountsPage() {
+  const { isCompanyAdmin, impersonate, impersonating, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [users, setUsers] = useState<AccountUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isCompanyAdmin) {
+      router.push('/');
+    }
+  }, [authLoading, isCompanyAdmin, router]);
+
+  useEffect(() => {
+    if (!isCompanyAdmin) return;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [{ data: acctData }, { data: userData }] = await Promise.all([
+          supabase.from('accounts').select('*').order('name'),
+          supabase.from('users').select('id, username, display_name, role, is_active, last_login, account_id').order('created_at', { ascending: false }),
+        ]);
+
+        setAccounts(acctData || []);
+        setUsers(userData || []);
+      } catch (err) {
+        console.error('Failed to fetch accounts:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isCompanyAdmin]);
+
+  const handleImpersonate = async (user: AccountUser) => {
+    setImpersonatingId(user.id);
+    const result = await impersonate(user.id);
+    if (result.success) {
+      router.push('/');
+    }
+    setImpersonatingId(null);
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'Never';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const getUsersForAccount = (accountId: string) => {
+    return users.filter((u) => u.account_id === accountId);
+  };
+
+  const unassignedUsers = users.filter((u) => !u.account_id);
+
+  if (authLoading || (!isCompanyAdmin && !authLoading)) {
+    return null;
+  }
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <p className="text-gray-600">
+            View all accounts and their users. Click an account to see its users and log in as any user for troubleshooting.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">
+            <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
+            Loading accounts...
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {accounts.map((account) => {
+              const acctUsers = getUsersForAccount(account.id);
+              const isExpanded = expandedAccount === account.id;
+
+              return (
+                <div key={account.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  {/* Account header */}
+                  <button
+                    onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-primary-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-gray-900">{account.name}</div>
+                        <div className="text-xs text-gray-400">{account.slug}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          account.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {account.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="text-sm text-gray-500">{acctUsers.length} users</span>
+                      </div>
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {/* Users list */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-200">
+                      {acctUsers.length === 0 ? (
+                        <div className="px-5 py-6 text-center text-sm text-gray-400">
+                          No users in this account.
+                        </div>
+                      ) : (
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                              <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                              <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                              <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                              <th className="px-5 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {acctUsers.map((u) => (
+                              <tr key={u.id} className="hover:bg-gray-50">
+                                <td className="px-5 py-3">
+                                  <div className="font-medium text-gray-900 text-sm">{u.display_name || u.username}</div>
+                                  <div className="text-xs text-gray-400">{u.username}</div>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                    u.role === 'company_admin'
+                                      ? 'bg-indigo-100 text-indigo-700'
+                                      : u.role === 'admin'
+                                      ? 'bg-purple-100 text-purple-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {u.role === 'company_admin' ? 'Company Admin' : u.role}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                    u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {u.is_active ? 'Active' : 'Disabled'}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-sm text-gray-500">
+                                  {formatDate(u.last_login)}
+                                </td>
+                                <td className="px-5 py-3 text-right">
+                                  <button
+                                    onClick={() => handleImpersonate(u)}
+                                    disabled={!!impersonating || impersonatingId === u.id}
+                                    className="text-sm text-amber-600 hover:text-amber-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                                  >
+                                    {impersonatingId === u.id ? 'Switching...' : 'Login as user'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Unassigned users */}
+            {unassignedUsers.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-5 py-4 bg-yellow-50 border-b border-yellow-200">
+                  <div className="font-medium text-yellow-800">Unassigned Users ({unassignedUsers.length})</div>
+                  <div className="text-xs text-yellow-600">Users not linked to any account.</div>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                      <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                      <th className="px-5 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-5 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {unassignedUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-3">
+                          <div className="font-medium text-gray-900 text-sm">{u.display_name || u.username}</div>
+                          <div className="text-xs text-gray-400">{u.username}</div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            u.role === 'company_admin'
+                              ? 'bg-indigo-100 text-indigo-700'
+                              : u.role === 'admin'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {u.role === 'company_admin' ? 'Company Admin' : u.role}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {u.is_active ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <button
+                            onClick={() => handleImpersonate(u)}
+                            disabled={!!impersonating || impersonatingId === u.id}
+                            className="text-sm text-amber-600 hover:text-amber-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                          >
+                            {impersonatingId === u.id ? 'Switching...' : 'Login as user'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {accounts.length === 0 && (
+              <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                <p className="text-gray-600 font-medium">No accounts found</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}

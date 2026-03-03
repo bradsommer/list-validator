@@ -22,7 +22,12 @@ const adminNavItems = [
   { href: '/admin/integrations', label: 'Integrations', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
 ];
 
-const allNavItems = [...mainNavItems, ...adminNavItems];
+const companyAdminNavItems = [
+  { href: '/company-admin', label: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { href: '/company-admin/accounts', label: 'Accounts', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+];
+
+const allNavItems = [...mainNavItems, ...adminNavItems, ...companyAdminNavItems];
 
 function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: string; icon: string; isActive: boolean }) {
   return (
@@ -57,7 +62,7 @@ function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isLoading, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, isCompanyAdmin, impersonating, stopImpersonating, isLoading, isAuthenticated } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +106,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      {/* Impersonation banner */}
+      {impersonating && (
+        <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between shrink-0 z-20">
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span>
+              Viewing as <strong>{user?.displayName || user?.username}</strong>
+              {user?.accountName && <span> ({user.accountName})</span>}
+            </span>
+          </div>
+          <button
+            onClick={stopImpersonating}
+            className="px-3 py-1 text-sm bg-white text-amber-700 rounded-md hover:bg-amber-50 font-medium"
+          >
+            Back to {impersonating.displayName || impersonating.username}
+          </button>
+        </div>
+      )}
+
       {/* Top header — full width */}
       <header className="bg-white border-b border-gray-200 shrink-0 z-10">
         <div className="flex items-center justify-between h-14 px-6">
@@ -191,6 +218,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       key={item.href}
                       {...item}
                       isActive={pathname === item.href}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {/* Company Admin section */}
+            {isCompanyAdmin && (
+              <>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
+                  Company Admin
+                </div>
+                <ul className="space-y-1">
+                  {companyAdminNavItems.map((item) => (
+                    <SidebarNavItem
+                      key={item.href}
+                      {...item}
+                      isActive={item.href === '/company-admin' ? pathname === '/company-admin' : pathname.startsWith(item.href)}
                     />
                   ))}
                 </ul>

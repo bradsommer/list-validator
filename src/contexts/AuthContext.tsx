@@ -6,7 +6,7 @@ export interface User {
   id: string;
   username: string;
   displayName: string | null;
-  role: 'admin' | 'user';
+  role: 'company_admin' | 'admin' | 'user';
   accountId: string | null;
   accountName: string | null;
   isActive: boolean;
@@ -19,15 +19,20 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCompanyAdmin: boolean;
+  impersonating: User | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  impersonate: (userId: string) => Promise<{ success: boolean; error?: string }>;
+  stopImpersonating: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [realUser, setRealUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const checkSession = useCallback(async () => {
@@ -63,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user);
+        setRealUser(null);
         return { success: true };
       }
 
@@ -77,8 +83,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch('/api/auth/logout', { method: 'POST' });
     } finally {
       setUser(null);
+      setRealUser(null);
     }
   };
+
+  const impersonate = async (userId: string) => {
+    try {
+      const res = await fetch('/api/auth/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.user) {
+        setRealUser(user);
+        setUser(data.user);
+        return { success: true };
+      }
+
+      return { success: false, error: data.error || 'Impersonation failed' };
+    } catch {
+      return { success: false, error: 'An error occurred' };
+    }
+  };
+
+  const stopImpersonating = () => {
+    if (realUser) {
+      setUser(realUser);
+      setRealUser(null);
+    }
+  };
+
+  const activeRole = realUser ? realUser.role : user?.role;
 
   return (
     <AuthContext.Provider
@@ -86,10 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
+        isAdmin: activeRole === 'admin' || activeRole === 'company_admin',
+        isCompanyAdmin: activeRole === 'company_admin',
+        impersonating: realUser,
         login,
         logout,
         checkSession,
+        impersonate,
+        stopImpersonating,
       }}
     >
       {children}

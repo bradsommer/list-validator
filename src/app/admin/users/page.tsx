@@ -9,7 +9,7 @@ interface User {
   id: string;
   username: string;
   display_name: string | null;
-  role: 'admin' | 'user';
+  role: 'company_admin' | 'admin' | 'user';
   is_active: boolean;
   last_login: string | null;
   created_at: string;
@@ -27,7 +27,7 @@ export default function UsersPage() {
     username: '',
     password: '',
     display_name: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as 'company_admin' | 'admin' | 'user',
   });
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -267,12 +267,14 @@ export default function UsersPage() {
                   <td className="px-4 py-4">
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
-                        user.role === 'admin'
+                        user.role === 'company_admin'
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : user.role === 'admin'
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
-                      {user.role}
+                      {user.role === 'company_admin' ? 'Company Admin' : user.role}
                     </span>
                   </td>
                   <td className="px-4 py-4">
@@ -394,12 +396,13 @@ export default function UsersPage() {
                     <select
                       value={formData.role}
                       onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })
+                        setFormData({ ...formData, role: e.target.value as 'company_admin' | 'admin' | 'user' })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
+                      <option value="company_admin">Company Admin</option>
                     </select>
                   </div>
                 </div>
