@@ -69,7 +69,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user account
+    // Create a new account (tenant) for this signup
+    const accountName = displayName
+      ? `${displayName}'s Account`
+      : normalizedEmail.split('@')[0] + "'s Account";
+    const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .insert({
+        name: accountName,
+        slug: accountSlug,
+      })
+      .select()
+      .single();
+
+    if (accountError || !account) {
+      console.error('Account creation error:', accountError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to create account' },
+        { status: 500 }
+      );
+    }
+
+    // Create user linked to the new account
     const { data: user, error: createError } = await supabase
       .from('users')
       .insert({
@@ -77,6 +100,7 @@ export async function POST(request: NextRequest) {
         password_hash: passwordHash,
         display_name: displayName || null,
         role: 'admin',
+        account_id: account.id,
         is_active: true,
       })
       .select()
@@ -108,7 +132,7 @@ export async function POST(request: NextRequest) {
       expires_at: expiresAt.toISOString(),
     });
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session with user ID metadata for webhook linking
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -122,7 +146,9 @@ export async function POST(request: NextRequest) {
       ],
       subscription_data: {
         trial_period_days: 14,
+        metadata: { user_id: user.id },
       },
+      metadata: { user_id: user.id },
       success_url: `${baseUrl}/?welcome=true`,
       cancel_url: `${baseUrl}/?checkout=cancelled`,
       allow_promotion_codes: true,

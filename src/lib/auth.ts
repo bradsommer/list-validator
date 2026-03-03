@@ -6,6 +6,8 @@ export interface User {
   username: string;
   displayName: string | null;
   role: UserRole;
+  accountId: string | null;
+  accountName: string | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
@@ -31,7 +33,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     // Find user and verify password using Supabase
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('*')
+      .select('*, account:accounts(id, name)')
       .eq('username', username.toLowerCase().trim())
       .eq('is_active', true)
       .single();
@@ -71,6 +73,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id);
 
+    const account = user.account as { id: string; name: string } | null;
     return {
       success: true,
       token,
@@ -79,6 +82,8 @@ export async function loginUser(username: string, password: string): Promise<Aut
         username: user.username,
         displayName: user.display_name,
         role: user.role,
+        accountId: account?.id || null,
+        accountName: account?.name || null,
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
@@ -105,7 +110,7 @@ export async function validateSession(token: string): Promise<User | null> {
   try {
     const { data: session, error: sessionError } = await supabase
       .from('user_sessions')
-      .select('*, user:users(*)')
+      .select('*, user:users(*, account:accounts(id, name))')
       .eq('token', token)
       .gt('expires_at', new Date().toISOString())
       .single();
@@ -115,11 +120,14 @@ export async function validateSession(token: string): Promise<User | null> {
     }
 
     const user = session.user;
+    const account = user.account as { id: string; name: string } | null;
     return {
       id: user.id,
       username: user.username,
       displayName: user.display_name,
       role: user.role,
+      accountId: account?.id || null,
+      accountName: account?.name || null,
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,
@@ -174,6 +182,8 @@ export async function createUser(
         username: user.username,
         displayName: user.display_name,
         role: user.role,
+        accountId: user.account_id || null,
+        accountName: null,
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
@@ -220,6 +230,8 @@ export async function getAllUsers(): Promise<User[]> {
       username: user.username,
       displayName: user.display_name,
       role: user.role,
+      accountId: user.account_id || null,
+      accountName: null,
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,

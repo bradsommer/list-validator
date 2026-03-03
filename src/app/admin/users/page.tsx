@@ -68,10 +68,17 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Company admins see all users; account admins see only their account's users
+      if (!isCompanyAdmin && currentUser?.accountId) {
+        query = query.eq('account_id', currentUser.accountId);
+      }
+
+      const { data } = await query;
       setUsers(((data || []) as User[]).filter((u) => isCompanyAdmin || u.role !== 'company_admin'));
     } catch (err) {
       console.error('Error fetching users:', err);
