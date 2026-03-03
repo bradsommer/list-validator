@@ -103,7 +103,7 @@ export function getPermissions(
     return NONE_ALL;
   }
 
-  return ROLE_PERMISSIONS[role];
+  return ROLE_PERMISSIONS[role] || NONE_ALL;
 }
 
 /** Check if a user can view a specific area */
