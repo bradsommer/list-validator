@@ -4,6 +4,7 @@ import { ReactNode, useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -227,12 +228,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
           <div className="p-4 border-b border-gray-200">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-hubspot-orange rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-lg font-bold text-gray-900">List Validator</span>
+              <FreshSegmentsLogo className="h-7" />
             </Link>
           </div>
 
@@ -296,7 +292,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           {/* Footer */}
           <footer className="shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
-              <p>&copy; {new Date().getFullYear()} List Validator. All rights reserved.</p>
+              <p>&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
               <div className="flex items-center gap-3">
                 <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
                   Privacy Policy

@@ -6,8 +6,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'List Validator',
-  description: 'Validate, enrich, and sync your lists to HubSpot',
+  title: 'FreshSegments',
+  description: 'Clean, validate, and prepare your data for HubSpot',
 };
 
 export default function RootLayout({

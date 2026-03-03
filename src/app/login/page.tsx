@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -48,8 +49,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">List Validator</h1>
-            <p className="text-gray-500 mt-2">Sign in to your account</p>
+            <FreshSegmentsLogo className="h-8 mx-auto" />
+            <p className="text-gray-500 mt-3">Sign in to your account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

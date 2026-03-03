@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'List Validator <noreply@listvalidator.com>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'FreshSegments <noreply@freshsegments.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export async function sendWelcomeEmail(
@@ -14,10 +14,10 @@ export async function sendWelcomeEmail(
     await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: 'Your List Validator account has been created',
+      subject: 'Your FreshSegments account has been created',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome to List Validator${displayName ? `, ${displayName}` : ''}!</h2>
+          <h2>Welcome to FreshSegments${displayName ? `, ${displayName}` : ''}!</h2>
           <p>An account has been created for you. Here are your login credentials:</p>
           <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
             <p style="margin: 0 0 8px;"><strong>Username:</strong> ${to}</p>
@@ -49,7 +49,7 @@ export async function sendPasswordResetEmail(
     await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: 'Reset your List Validator password',
+      subject: 'Reset your FreshSegments password',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset Request</h2>
@@ -78,7 +78,7 @@ export async function sendUsernameReminderEmail(
     await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: 'Your List Validator username',
+      subject: 'Your FreshSegments username',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Username Reminder</h2>

@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">1. Overview</h2>
             <p className="text-gray-700 mt-3">
-              List Validator (&ldquo;the Service&rdquo;) is committed to protecting your privacy. This Privacy Policy
+              FreshSegments (&ldquo;the Service&rdquo;) is committed to protecting your privacy. This Privacy Policy
               explains what information we collect, how we use it, and the measures we take to keep it safe. By using
               the Service, you consent to the practices described in this policy.
             </p>

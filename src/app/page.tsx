@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ImportsChart } from '@/components/dashboard/ImportsChart';
+import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 
 function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,14 +33,7 @@ function LandingPage() {
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold text-gray-900">List Validator</span>
-            </div>
+            <FreshSegmentsLogo className="h-7" />
             <Link
               href="/login"
               className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700"
@@ -58,7 +52,7 @@ function LandingPage() {
             <span className="block text-primary-600">Before It Hits HubSpot</span>
           </h1>
           <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-            Stop importing messy data. List Validator automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
+            Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -268,14 +262,7 @@ function LandingPage() {
       <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <span className="text-lg font-bold text-white">List Validator</span>
-            </div>
+            <FreshSegmentsLogo className="h-6" dark />
             <div className="flex items-center gap-4 text-sm">
               <Link href="/legal/privacy" className="hover:text-white transition-colors">
                 Privacy Policy
@@ -285,7 +272,7 @@ function LandingPage() {
                 Terms of Use
               </Link>
             </div>
-            <p className="text-sm">&copy; {new Date().getFullYear()} List Validator. All rights reserved.</p>
+            <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>
         </div>
       </footer>
