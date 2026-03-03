@@ -114,12 +114,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return items;
   }, [isAdmin, userCanView]);
 
-  // Collect all for title lookup
-  const allNavItems = useMemo(
-    () => [...mainNavItems, ...visibleSettingsItems, ...companyAdminNavItems],
-    [mainNavItems, visibleSettingsItems]
-  );
-
   // Show loading state
   if (isLoading) {
     return (
@@ -140,12 +134,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     await logout();
     router.push('/login');
   };
-
-  // Find active page title
-  const activeItem = allNavItems.find((item) =>
-    item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-  );
-  const pageTitle = activeItem?.label || 'Dashboard';
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -174,8 +162,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Top header — full width */}
       <header className="bg-white border-b border-gray-200 shrink-0 z-10">
         <div className="flex items-center justify-between h-14 px-6">
-          {/* Left: Page title */}
-          <h1 className="text-lg font-semibold text-gray-900">{pageTitle}</h1>
+          {/* Left: Logo */}
+          <Link href="/">
+            <FreshSegmentsLogo className="h-7" />
+          </Link>
 
           {/* Right: User dropdown */}
           <div className="relative" ref={userMenuRef}>
@@ -226,12 +216,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
-          <div className="p-4 border-b border-gray-200">
-            <Link href="/" className="flex items-center gap-2">
-              <FreshSegmentsLogo className="h-7" />
-            </Link>
-          </div>
-
           <nav className="flex-1 p-4 overflow-y-auto">
             {/* Main navigation */}
             <ul className="space-y-1">
