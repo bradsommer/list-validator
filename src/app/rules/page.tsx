@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import {
   toggleRuleEnabled,
   updateRuleConfig,
   deleteAccountRule,
+  createAccountRule,
   initializeAccountRules,
   type AccountRule,
 } from '@/lib/accountRules';
@@ -221,6 +222,47 @@ export default function RulesPage() {
     setSaving(null);
   };
 
+  // --- Add new rule ---
+  const [isAdding, setIsAdding] = useState(false);
+  const [newRuleId, setNewRuleId] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newRuleType, setNewRuleType] = useState<'transform' | 'validate'>('validate');
+  const [newTargetFields, setNewTargetFields] = useState('');
+  const [newDisplayOrder, setNewDisplayOrder] = useState(100);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const resetAddForm = () => {
+    setNewRuleId('');
+    setNewName('');
+    setNewDescription('');
+    setNewRuleType('validate');
+    setNewTargetFields('');
+    setNewDisplayOrder(100);
+    setIsAdding(false);
+  };
+
+  const handleCreateRule = async () => {
+    if (!newRuleId.trim() || !newName.trim()) return;
+    setIsCreating(true);
+
+    const created = await createAccountRule(accountId, {
+      ruleId: newRuleId.trim(),
+      name: newName.trim(),
+      description: newDescription.trim() || undefined,
+      ruleType: newRuleType,
+      targetFields: newTargetFields.split(',').map((f) => f.trim()).filter(Boolean),
+      displayOrder: newDisplayOrder,
+      enabled: true,
+    });
+
+    if (created) {
+      setRules((prev) => [...prev, created]);
+      resetAddForm();
+    }
+    setIsCreating(false);
+  };
+
   const enabledCount = rules.filter((r) => r.enabled).length;
 
   // Sorting
@@ -300,8 +342,21 @@ export default function RulesPage() {
           </p>
         </div>
 
-        <div className="text-sm text-gray-500">
-          {enabledCount} of {rules.length} rules enabled
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            {enabledCount} of {rules.length} rules enabled
+          </div>
+          {!isAdding && (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Rule
+            </button>
+          )}
         </div>
 
         {isLoading ? (
@@ -331,259 +386,333 @@ export default function RulesPage() {
                   {sortedRules.map((rule) => {
                     const objectTypes = getObjectTypes(rule);
                     const isDeleting = deletingRule === rule.ruleId;
+                    const isEditing = editingRule === rule.ruleId;
+                    const isSaving = saving === rule.ruleId;
 
                     return (
-                      <tr key={rule.id} className="hover:bg-gray-50">
-                        {/* Enabled toggle */}
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
-                            className={`relative w-10 h-5 rounded-full transition-colors ${
-                              rule.enabled ? 'bg-green-500' : 'bg-gray-300'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                                rule.enabled ? 'left-5' : 'left-0.5'
+                      <React.Fragment key={rule.id}>
+                        <tr className={`hover:bg-gray-50 ${isEditing ? 'bg-primary-50' : ''}`}>
+                          {/* Enabled toggle */}
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleToggleRule(rule.ruleId, rule.enabled)}
+                              className={`relative w-10 h-5 rounded-full transition-colors ${
+                                rule.enabled ? 'bg-green-500' : 'bg-gray-300'
                               }`}
-                            />
-                          </button>
-                        </td>
+                            >
+                              <span
+                                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                  rule.enabled ? 'left-5' : 'left-0.5'
+                                }`}
+                              />
+                            </button>
+                          </td>
 
-                        {/* Name + description */}
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900 text-sm">{rule.name}</div>
-                          {rule.description && (
-                            <p className="text-xs text-gray-500 mt-0.5 max-w-xs truncate" title={rule.description}>
-                              {rule.description}
-                            </p>
-                          )}
-                        </td>
+                          {/* Name + description */}
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900 text-sm">{rule.name}</div>
+                            {rule.description && (
+                              <p className="text-xs text-gray-500 mt-0.5 max-w-xs truncate" title={rule.description}>
+                                {rule.description}
+                              </p>
+                            )}
+                          </td>
 
-                        {/* Type */}
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${
-                              rule.ruleType === 'transform'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-purple-100 text-purple-700'
-                            }`}
-                          >
-                            {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
-                          </span>
-                        </td>
+                          {/* Type */}
+                          <td className="px-4 py-3">
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${
+                                rule.ruleType === 'transform'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-purple-100 text-purple-700'
+                              }`}
+                            >
+                              {rule.ruleType === 'transform' ? 'Transform' : 'Validate'}
+                            </span>
+                          </td>
 
-                        {/* Target Fields */}
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {rule.targetFields.length > 0 ? rule.targetFields.join(', ') : <span className="text-gray-400">all</span>}
-                        </td>
+                          {/* Target Fields */}
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {rule.targetFields.length > 0 ? rule.targetFields.join(', ') : <span className="text-gray-400">all</span>}
+                          </td>
 
-                        {/* Object Types */}
-                        <td className="px-4 py-3">
-                          {objectTypes.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {objectTypes.map((ot) => (
-                                <span key={ot} className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">
-                                  {ot}
-                                </span>
-                              ))}
+                          {/* Object Types */}
+                          <td className="px-4 py-3">
+                            {objectTypes.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {objectTypes.map((ot) => (
+                                  <span key={ot} className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 whitespace-nowrap">
+                                    {ot}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">all</span>
+                            )}
+                          </td>
+
+                          {/* Display Order */}
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {rule.displayOrder}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => isEditing ? cancelEditing() : startEditing(rule)}
+                                className="text-sm text-primary-600 hover:text-primary-700 hover:underline whitespace-nowrap"
+                              >
+                                {isEditing ? 'Close' : 'Edit'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRule(rule)}
+                                disabled={isDeleting}
+                                className="text-sm text-red-500 hover:text-red-700 hover:underline whitespace-nowrap disabled:opacity-50"
+                              >
+                                {isDeleting ? 'Deleting...' : 'Delete'}
+                              </button>
                             </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">all</span>
-                          )}
-                        </td>
+                          </td>
+                        </tr>
 
-                        {/* Display Order */}
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {rule.displayOrder}
-                        </td>
+                        {/* Inline edit panel — renders directly under the rule row */}
+                        {isEditing && (
+                          <tr>
+                            <td colSpan={7} className="px-0 py-0">
+                              <div className="bg-gray-50 border-t border-b border-primary-200 px-5 py-4 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* Name */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rule Name</label>
+                                    <input
+                                      type="text"
+                                      value={editName}
+                                      onChange={(e) => setEditName(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                                    />
+                                  </div>
 
-                        {/* Actions */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => startEditing(rule)}
-                              className="text-sm text-primary-600 hover:text-primary-700 hover:underline whitespace-nowrap"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRule(rule)}
-                              disabled={isDeleting}
-                              className="text-sm text-red-500 hover:text-red-700 hover:underline whitespace-nowrap disabled:opacity-50"
-                            >
-                              {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                                  {/* Target Fields */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Target Fields</label>
+                                    <input
+                                      type="text"
+                                      value={editTargetFields}
+                                      onChange={(e) => setEditTargetFields(e.target.value)}
+                                      placeholder="e.g. email, phone, firstname"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">Comma-separated field names.</p>
+                                  </div>
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                  <textarea
+                                    value={editDescription}
+                                    onChange={(e) => setEditDescription(e.target.value)}
+                                    rows={2}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-none"
+                                  />
+                                </div>
+
+                                {/* Object Types */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Applies to Object Types</label>
+                                  <div className="flex gap-3">
+                                    {OBJECT_TYPES.map((ot) => (
+                                      <label key={ot.value} className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={editObjectTypes.includes(ot.value)}
+                                          onChange={() => toggleEditObjectType(ot.value)}
+                                          className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
+                                        />
+                                        <span className="text-sm text-gray-700">{ot.label}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-gray-400 mt-1">Leave all unchecked to apply to all object types.</p>
+                                </div>
+
+                                {/* Source Code */}
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-sm font-medium text-gray-700">Source Code</label>
+                                    {!loadingEditCode && editCode && (
+                                      <button
+                                        type="button"
+                                        onClick={handleCopyEditCode}
+                                        className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                                        title="Copy code"
+                                      >
+                                        {copiedEditCode ? (
+                                          <>
+                                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Copied
+                                          </>
+                                        ) : (
+                                          <>
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                            Copy
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                  {loadingEditCode ? (
+                                    <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
+                                      <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                                      Loading source code...
+                                    </div>
+                                  ) : (
+                                    <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900">
+                                      <div className="flex" style={{ height: '320px' }}>
+                                        <div
+                                          ref={lineNumbersRef}
+                                          className="select-none overflow-hidden shrink-0 py-3 pl-3 pr-2 text-right text-sm font-mono text-gray-600 bg-gray-950 border-r border-gray-700"
+                                          style={{ lineHeight: '1.5rem' }}
+                                        >
+                                          {editCode.split('\n').map((_, i) => (
+                                            <div key={i}>{i + 1}</div>
+                                          ))}
+                                        </div>
+                                        <textarea
+                                          ref={editTextareaRef}
+                                          value={editCode}
+                                          onChange={(e) => setEditCode(e.target.value)}
+                                          onScroll={handleEditCodeScroll}
+                                          spellCheck={false}
+                                          className="flex-1 px-3 py-3 text-sm font-mono bg-gray-900 text-green-400 outline-none resize-none"
+                                          style={{ lineHeight: '1.5rem' }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    Changes to source code require a server restart to take effect.
+                                  </p>
+                                </div>
+
+                                {/* Save / Cancel */}
+                                <div className="flex justify-end gap-2 pt-2">
+                                  <button
+                                    onClick={cancelEditing}
+                                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSave(rule)}
+                                    disabled={isSaving || savingCode}
+                                    className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                                  >
+                                    {isSaving || savingCode ? 'Saving...' : 'Save Changes'}
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
               </table>
             </div>
 
-            {/* Edit panel (shown below table when editing) */}
-            {editingRule && (() => {
-              const rule = rules.find((r) => r.ruleId === editingRule);
-              if (!rule) return null;
-              const isSaving = saving === rule.ruleId;
-
-              return (
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-900">Editing: {rule.name}</h3>
-                    <button
-                      onClick={cancelEditing}
-                      className="text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="px-5 py-4 space-y-4">
-                    {/* Name */}
+            {/* Add new rule form */}
+            {isAdding && (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-900">Add New Rule</h3>
+                  <button onClick={resetAddForm} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                </div>
+                <div className="px-5 py-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Rule Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rule ID</label>
                       <input
                         type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
+                        value={newRuleId}
+                        onChange={(e) => setNewRuleId(e.target.value)}
+                        placeholder="e.g. my-custom-validation"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Unique identifier (lowercase, hyphens). Must match a script file name.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                      <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="e.g. My Custom Validation"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
                       />
                     </div>
-
-                    {/* Description */}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                      rows={2}
+                      placeholder="What does this rule do?"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-none"
-                      />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                      <select
+                        value={newRuleType}
+                        onChange={(e) => setNewRuleType(e.target.value as 'transform' | 'validate')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                      >
+                        <option value="validate">Validate</option>
+                        <option value="transform">Transform</option>
+                      </select>
                     </div>
-
-                    {/* Object Types */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Applies to Object Types</label>
-                      <div className="flex gap-3">
-                        {OBJECT_TYPES.map((ot) => (
-                          <label key={ot.value} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editObjectTypes.includes(ot.value)}
-                              onChange={() => toggleEditObjectType(ot.value)}
-                              className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
-                            />
-                            <span className="text-sm text-gray-700">{ot.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Leave all unchecked to apply to all object types.
-                      </p>
-                    </div>
-
-                    {/* Target Fields */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Target Fields</label>
                       <input
                         type="text"
-                        value={editTargetFields}
-                        onChange={(e) => setEditTargetFields(e.target.value)}
-                        placeholder="e.g. email, phone, firstname"
+                        value={newTargetFields}
+                        onChange={(e) => setNewTargetFields(e.target.value)}
+                        placeholder="e.g. email, phone"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
                       />
-                      <p className="text-xs text-gray-400 mt-1">
-                        Comma-separated list of field names this rule targets.
-                      </p>
                     </div>
-
-                    {/* Source Code */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">Source Code</label>
-                        {!loadingEditCode && editCode && (
-                          <button
-                            type="button"
-                            onClick={handleCopyEditCode}
-                            className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                            title="Copy code"
-                          >
-                            {copiedEditCode ? (
-                              <>
-                                <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Copied
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                Copy
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                      {loadingEditCode ? (
-                        <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
-                          <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
-                          Loading source code...
-                        </div>
-                      ) : (
-                        <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900">
-                          <div className="flex" style={{ height: '480px' }}>
-                            {/* Line numbers */}
-                            <div
-                              ref={lineNumbersRef}
-                              className="select-none overflow-hidden shrink-0 py-3 pl-3 pr-2 text-right text-sm font-mono text-gray-600 bg-gray-950 border-r border-gray-700"
-                              style={{ lineHeight: '1.5rem' }}
-                            >
-                              {editCode.split('\n').map((_, i) => (
-                                <div key={i}>{i + 1}</div>
-                              ))}
-                            </div>
-                            {/* Code textarea */}
-                            <textarea
-                              ref={editTextareaRef}
-                              value={editCode}
-                              onChange={(e) => setEditCode(e.target.value)}
-                              onScroll={handleEditCodeScroll}
-                              spellCheck={false}
-                              className="flex-1 px-3 py-3 text-sm font-mono bg-gray-900 text-green-400 outline-none resize-none"
-                              style={{ lineHeight: '1.5rem' }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        Changes to source code require a server restart to take effect in the validation pipeline.
-                      </p>
-                    </div>
-
-                    {/* Save / Cancel */}
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button
-                        onClick={cancelEditing}
-                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleSave(rule)}
-                        disabled={isSaving || savingCode}
-                        className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
-                      >
-                        {isSaving || savingCode ? 'Saving...' : 'Save Changes'}
-                      </button>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                      <input
+                        type="number"
+                        value={newDisplayOrder}
+                        onChange={(e) => setNewDisplayOrder(Number(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                      />
                     </div>
                   </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={resetAddForm} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button
+                      onClick={handleCreateRule}
+                      disabled={isCreating || !newRuleId.trim() || !newName.trim()}
+                      className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                    >
+                      {isCreating ? 'Creating...' : 'Create Rule'}
+                    </button>
+                  </div>
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
