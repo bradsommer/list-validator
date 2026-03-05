@@ -194,7 +194,6 @@ export default function RulesPage() {
     }
   };
 
-  const enabledCount = rules.filter((r) => r.enabled).length;
 
   // Sorting
   const handleSort = (field: SortField) => {
@@ -287,10 +286,7 @@ export default function RulesPage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            {enabledCount} of {rules.length} rules enabled
-          </div>
+        <div className="flex items-center justify-end">
           <Link
             href="/rules/new"
             className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
