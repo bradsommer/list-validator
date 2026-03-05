@@ -109,6 +109,10 @@ export default function IntegrationsPage() {
   };
 
   const handleSyncProperties = async () => {
+    if (!user?.accountId) {
+      setMessage({ type: 'error', text: 'No account ID available. Please contact your administrator.' });
+      return;
+    }
     setIsSyncing(true);
     setMessage(null);
     try {
@@ -116,7 +120,7 @@ export default function IntegrationsPage() {
       const propsResponse = await fetch('/api/hubspot/properties', {
         method: 'POST',
         headers: {
-          'x-account-id': user?.accountId || '',
+          'x-account-id': user.accountId,
         },
       });
       const propsData = await propsResponse.json();
@@ -124,7 +128,7 @@ export default function IntegrationsPage() {
       const headingsResponse = await fetch('/api/hubspot/sync-headings', {
         method: 'POST',
         headers: {
-          'x-account-id': user?.accountId || '',
+          'x-account-id': user.accountId,
         },
       });
       const headingsData = await headingsResponse.json();

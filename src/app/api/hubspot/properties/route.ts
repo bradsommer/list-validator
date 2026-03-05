@@ -59,6 +59,10 @@ async function fetchPropertiesFromHubSpot(
 }
 
 async function savePropertiesToDB(accountId: string, properties: HubSpotProperty[]): Promise<void> {
+  if (!accountId || accountId.length === 0) {
+    throw new Error('Cannot save properties: account ID is required');
+  }
+
   const db = getServerSupabase();
 
   // Delete existing properties for this account, then insert fresh

@@ -238,36 +238,77 @@ export async function toggleQuestionEnabled(
 }
 
 /**
- * Copy default questions to a new account
+ * Default questions embedded in code so initialization works without DB seeds.
+ */
+const DEFAULT_QUESTIONS = [
+  {
+    question_text: 'Is this a B2B or B2C list?',
+    column_header: 'B2B or B2C',
+    question_type: 'radio' as const,
+    options: ['B2B', 'B2C'],
+    option_values: {},
+    default_value: null,
+    is_required: true,
+    display_order: 10,
+    enabled: true,
+  },
+  {
+    question_text: 'Will you want to sync these contacts to Dynamics?',
+    column_header: 'Sync to Dynamics?',
+    question_type: 'checkbox' as const,
+    options: ['Yes', 'No'],
+    option_values: {},
+    default_value: null,
+    is_required: false,
+    display_order: 20,
+    enabled: true,
+  },
+];
+
+/**
+ * Initialize a new account with questions.
+ * If sourceAccountId is provided, copies from that account.
+ * Otherwise seeds from TypeScript-embedded defaults.
  */
 export async function initializeAccountQuestions(
   accountId: string,
-  sourceAccountId: string = 'default'
+  sourceAccountId?: string
 ): Promise<boolean> {
   try {
-    // Fetch source account's questions
-    const { data: sourceQuestions, error: fetchError } = await supabase
-      .from('import_questions')
-      .select('*')
-      .eq('account_id', sourceAccountId);
+    // If a source account is specified, try to copy from it
+    if (sourceAccountId) {
+      const { data: sourceQuestions, error: fetchError } = await supabase
+        .from('import_questions')
+        .select('*')
+        .eq('account_id', sourceAccountId);
 
-    if (fetchError || !sourceQuestions?.length) {
-      console.error('[importQuestions] Failed to fetch source questions:', fetchError);
-      return false;
+      if (!fetchError && sourceQuestions && sourceQuestions.length > 0) {
+        const newQuestions = sourceQuestions.map((q: DbImportQuestion) => ({
+          account_id: accountId,
+          question_text: q.question_text,
+          column_header: q.column_header,
+          question_type: q.question_type,
+          options: q.options,
+          option_values: q.option_values || {},
+          default_value: q.default_value,
+          is_required: q.is_required,
+          display_order: q.display_order,
+          enabled: q.enabled,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('import_questions')
+          .insert(newQuestions);
+
+        if (!insertError) return true;
+        console.error('[importQuestions] Failed to copy from source:', insertError);
+      }
     }
 
-    // Insert copies for the new account
-    const newQuestions = sourceQuestions.map((q: DbImportQuestion) => ({
+    // Seed from TypeScript defaults
+    const newQuestions = DEFAULT_QUESTIONS.map((q) => ({
       account_id: accountId,
-      question_text: q.question_text,
-      column_header: q.column_header,
-      question_type: q.question_type,
-      options: q.options,
-      option_values: q.option_values || {},
-      default_value: q.default_value,
-      is_required: q.is_required,
-      display_order: q.display_order,
-      enabled: q.enabled,
+      ...q,
     }));
 
     const { error: insertError } = await supabase
@@ -275,7 +316,7 @@ export async function initializeAccountQuestions(
       .insert(newQuestions);
 
     if (insertError) {
-      console.error('[importQuestions] Failed to insert questions:', insertError);
+      console.error('[importQuestions] Failed to insert default questions:', insertError);
       return false;
     }
 

@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
 
   let questions = await fetchImportQuestions(accountId);
 
-  // Auto-initialize from 'default' seed if this account has no questions
-  if (questions.length === 0 && accountId !== 'default') {
-    await initializeAccountQuestions(accountId, 'default');
+  // Auto-initialize if this account has no questions
+  if (questions.length === 0) {
+    await initializeAccountQuestions(accountId);
     questions = await fetchImportQuestions(accountId);
   }
 
