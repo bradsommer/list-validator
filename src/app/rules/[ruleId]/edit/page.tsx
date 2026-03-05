@@ -31,7 +31,6 @@ export default function EditRulePage() {
   const [rule, setRule] = useState<AccountRule | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState('');
@@ -114,7 +113,6 @@ export default function EditRulePage() {
   const handleSave = async () => {
     if (!rule) return;
     setIsSaving(true);
-    setSaveSuccess(false);
 
     const targetFields = editTargetFields
       .split(',')
@@ -123,9 +121,8 @@ export default function EditRulePage() {
 
     const updatedConfig = {
       ...rule.config,
-      objectTypes: editObjectTypes.length > 0 ? editObjectTypes : undefined,
+      objectTypes: editObjectTypes,
     };
-    if (!updatedConfig.objectTypes) delete updatedConfig.objectTypes;
 
     const success = await updateRuleConfig(accountId, rule.ruleId, {
       name: editName.trim() || rule.name,
@@ -145,12 +142,11 @@ export default function EditRulePage() {
       console.error('Failed to save source code');
     }
 
-    if (success) {
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    }
-
     setIsSaving(false);
+
+    if (success) {
+      router.push('/rules?saved=1');
+    }
   };
 
   if (isLoading) {
@@ -196,29 +192,6 @@ export default function EditRulePage() {
               <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
               <p className="text-sm text-gray-500">{rule.name}</p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {saveSuccess && (
-              <span className="text-sm text-green-600 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Saved
-              </span>
-            )}
-            <Link
-              href="/rules"
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </Link>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-6 py-2.5 text-sm font-medium bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 shadow-sm"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
           </div>
         </div>
 
@@ -277,7 +250,7 @@ export default function EditRulePage() {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Leave all unchecked to apply to all object types.</p>
+            <p className="text-xs text-gray-400 mt-1">Select which object types this rule applies to.</p>
           </div>
 
           {/* Source Code */}
@@ -346,14 +319,6 @@ export default function EditRulePage() {
 
         {/* Bottom save bar */}
         <div className="flex items-center justify-end gap-3 sticky bottom-0 bg-gray-50 -mx-6 px-6 py-4 border-t border-gray-200">
-          {saveSuccess && (
-            <span className="text-sm text-green-600 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Saved successfully
-            </span>
-          )}
           <Link
             href="/rules"
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"

@@ -16,7 +16,6 @@ export default function EditImportQuestionPage() {
   const [question, setQuestion] = useState<ImportQuestion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
     questionText: '',
@@ -81,7 +80,6 @@ export default function EditImportQuestionPage() {
     }
 
     setIsSaving(true);
-    setSaveSuccess(false);
 
     try {
       const cleanOptionValues: Record<string, string> = {};
@@ -108,8 +106,8 @@ export default function EditImportQuestionPage() {
       });
 
       if (response.ok) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        router.push('/import-questions?saved=1');
+        return;
       }
     } catch (error) {
       console.error('Failed to save question:', error);
@@ -195,29 +193,6 @@ export default function EditImportQuestionPage() {
               <h2 className="text-lg font-semibold text-gray-900">Edit Question</h2>
               <p className="text-sm text-gray-500">{question.questionText}</p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {saveSuccess && (
-              <span className="text-sm text-green-600 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Saved
-              </span>
-            )}
-            <Link
-              href="/import-questions"
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </Link>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-6 py-2.5 text-sm font-medium bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 shadow-sm"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
           </div>
         </div>
 
@@ -395,14 +370,6 @@ export default function EditImportQuestionPage() {
 
         {/* Bottom save bar */}
         <div className="flex items-center justify-end gap-3 sticky bottom-0 bg-gray-50 -mx-6 px-6 py-4 border-t border-gray-200">
-          {saveSuccess && (
-            <span className="text-sm text-green-600 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Saved successfully
-            </span>
-          )}
           <Link
             href="/import-questions"
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
