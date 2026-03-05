@@ -203,7 +203,6 @@ export default function ImportQuestionsPage() {
     }
   };
 
-  const enabledCount = questions.filter((q) => q.enabled).length;
 
   // Sorting
   const handleSort = (field: SortField) => {
@@ -289,10 +288,7 @@ export default function ImportQuestionsPage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            {enabledCount} of {questions.length} questions enabled
-          </div>
+        <div className="flex items-center justify-end">
           <Link
             href="/import-questions/new"
             className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
