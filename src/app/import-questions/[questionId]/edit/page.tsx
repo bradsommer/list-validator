@@ -175,10 +175,10 @@ export default function EditImportQuestionPage() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout hideChrome>
       <div className="space-y-6">
         {/* Fixed top save bar */}
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-green-800 px-6 py-3 shadow-md">
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-3 shadow-md" style={{ backgroundColor: '#0d9487' }}>
           <div className="flex items-center gap-3">
             <Link
               href="/import-questions"
@@ -204,9 +204,10 @@ export default function EditImportQuestionPage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-6 py-2.5 text-sm font-medium bg-amber-400 text-green-900 rounded-lg hover:bg-amber-300 disabled:opacity-50 shadow-sm"
+              className="px-6 py-2.5 text-sm font-medium text-green-900 rounded-lg hover:opacity-90 disabled:opacity-50 shadow-sm"
+              style={{ backgroundColor: '#EEE5BF' }}
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
