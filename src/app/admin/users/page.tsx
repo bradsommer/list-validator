@@ -161,6 +161,12 @@ export default function UsersPage() {
           }),
         });
 
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setFormError(data?.error || `Server error (${res.status}). Please try again.`);
+          return;
+        }
+
         const data = await res.json();
         if (!data.success) {
           setFormError(data.error || 'Failed to update user');
@@ -181,6 +187,12 @@ export default function UsersPage() {
             customPermissions: formData.role === 'custom' ? formData.customPermissions : undefined,
           }),
         });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setFormError(data?.error || `Server error (${res.status}). Please try again.`);
+          return;
+        }
 
         const data = await res.json();
         if (!data.success) {

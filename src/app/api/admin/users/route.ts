@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSupabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { sendWelcomeEmail } from '@/lib/email';
 
 /**
@@ -7,7 +7,6 @@ import { sendWelcomeEmail } from '@/lib/email';
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
     const body = await request.json();
     const { username, password, displayName, role, accountId, sendEmail, customPermissions } = body;
 
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
       }
       console.error('Create error:', createError);
       return NextResponse.json(
-        { success: false, error: 'Failed to create user' },
+        { success: false, error: `Failed to create user: ${createError.message}` },
         { status: 500 }
       );
     }
@@ -89,8 +88,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Create user API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred while creating the user. Please try again.' },
+      { success: false, error: `Failed to create user: ${message}` },
       { status: 500 }
     );
   }
@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
     const body = await request.json();
     const { id, displayName, role, password, customPermissions } = body;
 
@@ -151,7 +150,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Update error:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to update user' },
+        { success: false, error: `Failed to update user: ${error.message}` },
         { status: 500 }
       );
     }
@@ -159,8 +158,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update user API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred while updating the user. Please try again.' },
+      { success: false, error: `Failed to update user: ${message}` },
       { status: 500 }
     );
   }
