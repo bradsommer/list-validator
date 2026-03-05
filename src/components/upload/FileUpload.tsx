@@ -118,7 +118,7 @@ export function FileUpload() {
   });
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Object Type Selection */}
       <div className="border rounded-lg p-6 bg-white">
         <h4 className="font-medium text-gray-900 mb-1">
