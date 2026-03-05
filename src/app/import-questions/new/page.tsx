@@ -6,6 +6,13 @@ import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { QuestionType } from '@/lib/importQuestions';
+import type { HubSpotObjectType } from '@/types';
+
+const OBJECT_TYPES: { value: HubSpotObjectType; label: string }[] = [
+  { value: 'contacts', label: 'Contacts' },
+  { value: 'companies', label: 'Companies' },
+  { value: 'deals', label: 'Deals' },
+];
 
 export default function NewImportQuestionPage() {
   const router = useRouter();
@@ -18,6 +25,7 @@ export default function NewImportQuestionPage() {
     questionType: 'dropdown' as QuestionType,
     options: [''],
     optionValues: {} as Record<string, string>,
+    objectTypes: [] as string[],
     isRequired: false,
     displayOrder: 100,
     enabled: true,
@@ -61,6 +69,7 @@ export default function NewImportQuestionPage() {
           questionType: formData.questionType,
           options: cleanOptions,
           optionValues: cleanOptionValues,
+          objectTypes: formData.objectTypes,
           isRequired: formData.isRequired,
           displayOrder: formData.displayOrder,
           enabled: formData.enabled,
@@ -279,6 +288,32 @@ export default function NewImportQuestionPage() {
               </div>
             </div>
           )}
+
+          {/* Object Types */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Applies to Object Types</label>
+            <div className="flex gap-3">
+              {OBJECT_TYPES.map((ot) => (
+                <label key={ot.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.objectTypes.includes(ot.value)}
+                    onChange={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        objectTypes: prev.objectTypes.includes(ot.value)
+                          ? prev.objectTypes.filter((t) => t !== ot.value)
+                          : [...prev.objectTypes, ot.value],
+                      }));
+                    }}
+                    className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
+                  />
+                  <span className="text-sm text-gray-700">{ot.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Select which object types this question applies to.</p>
+          </div>
 
           {/* Required Toggle */}
           <div className="flex items-center gap-3">
