@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
+import { validatePassword } from '@/lib/passwordValidation';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-12-18.acacia',
@@ -24,9 +25,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
       return NextResponse.json(
-        { success: false, error: 'Password must be at least 6 characters' },
+        { success: false, error: pwCheck.error },
         { status: 400 }
       );
     }
