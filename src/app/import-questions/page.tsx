@@ -327,6 +327,15 @@ export default function ImportQuestionsPage() {
                             {getQuestionTypeLabel(question.questionType)}
                           </span>
                         </div>
+                        {question.objectTypes && question.objectTypes.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            {question.objectTypes.map((ot) => (
+                              <span key={ot} className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">
+                                {ot}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
