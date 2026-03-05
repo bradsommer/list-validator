@@ -10,7 +10,6 @@ import {
   toggleRuleEnabled,
   updateRuleConfig,
   deleteAccountRule,
-  createAccountRule,
   initializeAccountRules,
   type AccountRule,
 } from '@/lib/accountRules';
@@ -195,47 +194,6 @@ export default function RulesPage() {
     }
   };
 
-  // --- Add new rule ---
-  const [isAdding, setIsAdding] = useState(false);
-  const [newRuleId, setNewRuleId] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newRuleType, setNewRuleType] = useState<'transform' | 'validate'>('validate');
-  const [newTargetFields, setNewTargetFields] = useState('');
-  const [newDisplayOrder, setNewDisplayOrder] = useState(100);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const resetAddForm = () => {
-    setNewRuleId('');
-    setNewName('');
-    setNewDescription('');
-    setNewRuleType('validate');
-    setNewTargetFields('');
-    setNewDisplayOrder(100);
-    setIsAdding(false);
-  };
-
-  const handleCreateRule = async () => {
-    if (!newRuleId.trim() || !newName.trim()) return;
-    setIsCreating(true);
-
-    const created = await createAccountRule(accountId, {
-      ruleId: newRuleId.trim(),
-      name: newName.trim(),
-      description: newDescription.trim() || undefined,
-      ruleType: newRuleType,
-      targetFields: newTargetFields.split(',').map((f) => f.trim()).filter(Boolean),
-      displayOrder: newDisplayOrder,
-      enabled: true,
-    });
-
-    if (created) {
-      setRules((prev) => [...prev, created]);
-      resetAddForm();
-    }
-    setIsCreating(false);
-  };
-
   const enabledCount = rules.filter((r) => r.enabled).length;
 
   // Sorting
@@ -333,17 +291,15 @@ export default function RulesPage() {
           <div className="text-sm text-gray-500">
             {enabledCount} of {rules.length} rules enabled
           </div>
-          {!isAdding && (
-            <button
-              onClick={() => setIsAdding(true)}
-              className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Rule
-            </button>
-          )}
+          <Link
+            href="/rules/new"
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Rule
+          </Link>
         </div>
 
         {isLoading ? (
@@ -502,93 +458,6 @@ export default function RulesPage() {
                 </tbody>
               </table>
             </div>
-
-            {/* Add new rule form */}
-            {isAdding && (
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-900">Add New Rule</h3>
-                  <button onClick={resetAddForm} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-                </div>
-                <div className="px-5 py-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Rule ID</label>
-                      <input
-                        type="text"
-                        value={newRuleId}
-                        onChange={(e) => setNewRuleId(e.target.value)}
-                        placeholder="e.g. my-custom-validation"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Unique identifier (lowercase, hyphens). Must match a script file name.</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                      <input
-                        type="text"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="e.g. My Custom Validation"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      value={newDescription}
-                      onChange={(e) => setNewDescription(e.target.value)}
-                      rows={2}
-                      placeholder="What does this rule do?"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none resize-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                      <select
-                        value={newRuleType}
-                        onChange={(e) => setNewRuleType(e.target.value as 'transform' | 'validate')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
-                      >
-                        <option value="validate">Validate</option>
-                        <option value="transform">Transform</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Target Fields</label>
-                      <input
-                        type="text"
-                        value={newTargetFields}
-                        onChange={(e) => setNewTargetFields(e.target.value)}
-                        placeholder="e.g. email, phone"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                      <input
-                        type="number"
-                        value={newDisplayOrder}
-                        onChange={(e) => setNewDisplayOrder(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={resetAddForm} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button
-                      onClick={handleCreateRule}
-                      disabled={isCreating || !newRuleId.trim() || !newName.trim()}
-                      className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
-                    >
-                      {isCreating ? 'Creating...' : 'Create Rule'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
