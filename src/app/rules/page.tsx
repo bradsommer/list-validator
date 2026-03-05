@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchAccountRules,
   toggleRuleEnabled,
+  updateRuleConfig,
   deleteAccountRule,
   createAccountRule,
   initializeAccountRules,
@@ -38,6 +39,11 @@ export default function RulesPage() {
   const [sortField, setSortField] = useState<SortField>('displayOrder');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showSavedToast, setShowSavedToast] = useState(false);
+
+  // Drag state
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const dragCounter = useRef(0);
 
   useEffect(() => {
     if (searchParams.get('saved') === '1') {
@@ -98,6 +104,79 @@ export default function RulesPage() {
     setDeletingRule(null);
   };
 
+
+  // --- Drag and drop ---
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+    setDragIndex(null);
+    setDropIndex(null);
+    dragCounter.current = 0;
+  };
+
+  const handleRowDragEnter = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (dragIndex !== null && dragIndex !== index) {
+      setDropIndex(index);
+    }
+  };
+
+  const handleRowDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDropIndex(null);
+    }
+  };
+
+  const handleRowDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleRowDrop = async (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+
+    if (dragIndex === null || dragIndex === toIndex) {
+      setDragIndex(null);
+      setDropIndex(null);
+      return;
+    }
+
+    const reordered = [...sortedRules];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    // Assign new display orders
+    const updated = reordered.map((r, i) => ({ ...r, displayOrder: (i + 1) * 10 }));
+    setRules(updated);
+    setDragIndex(null);
+    setDropIndex(null);
+
+    // Persist
+    try {
+      await Promise.all(
+        updated.map((r) =>
+          updateRuleConfig(accountId, r.ruleId, { displayOrder: r.displayOrder })
+        )
+      );
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      await loadRules();
+    }
+  };
 
   // --- Add new rule ---
   const [isAdding, setIsAdding] = useState(false);
@@ -257,6 +336,7 @@ export default function RulesPage() {
               <table className="w-full min-w-[800px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="px-2 py-3 w-8"></th>
                     <SortHeader field="enabled">Enabled</SortHeader>
                     <SortHeader field="name">Name</SortHeader>
                     <SortHeader field="ruleType">Type</SortHeader>
@@ -269,13 +349,39 @@ export default function RulesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sortedRules.map((rule) => {
+                  {sortedRules.map((rule, index) => {
                     const objectTypes = getObjectTypes(rule);
                     const isDeleting = deletingRule === rule.ruleId;
+                    const showDropAbove = dropIndex === index && dragIndex !== null && dragIndex > index;
+                    const showDropBelow = dropIndex === index && dragIndex !== null && dragIndex < index;
 
                     return (
                       <React.Fragment key={rule.id}>
-                        <tr className="hover:bg-gray-50">
+                        <tr
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragEnd={handleDragEnd}
+                          onDragEnter={(e) => handleRowDragEnter(e, index)}
+                          onDragLeave={handleRowDragLeave}
+                          onDragOver={handleRowDragOver}
+                          onDrop={(e) => handleRowDrop(e, index)}
+                          className={`hover:bg-gray-50 ${dragIndex === index ? 'opacity-50' : ''} ${
+                            showDropAbove ? 'border-t-2 border-t-primary-500' : ''
+                          } ${showDropBelow ? 'border-b-2 border-b-primary-500' : ''}`}
+                        >
+                          {/* Drag handle */}
+                          <td className="px-2 py-3 w-8">
+                            <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600" title="Drag to reorder">
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <circle cx="9" cy="6" r="1.5" />
+                                <circle cx="15" cy="6" r="1.5" />
+                                <circle cx="9" cy="12" r="1.5" />
+                                <circle cx="15" cy="12" r="1.5" />
+                                <circle cx="9" cy="18" r="1.5" />
+                                <circle cx="15" cy="18" r="1.5" />
+                              </svg>
+                            </div>
+                          </td>
                           {/* Enabled toggle */}
                           <td className="px-4 py-3">
                             <button
