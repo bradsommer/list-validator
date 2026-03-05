@@ -2,11 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { getServerSupabase } from '@/lib/supabase';
+import { validateSession } from '@/lib/auth';
 
 // POST - sync HubSpot properties into column_headings
 export async function POST(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || '';
+    const fromHeader = request.headers.get('x-account-id');
+    let accountId = fromHeader && fromHeader.length > 0 ? fromHeader : null;
+    if (!accountId) {
+      const token = request.cookies.get('session_token')?.value;
+      if (token) {
+        const user = await validateSession(token);
+        accountId = user?.accountId || null;
+      }
+    }
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID required' }, { status: 400 });
+    }
 
     // First refresh HubSpot properties from the API
     await fetchAndStoreProperties(accountId);
