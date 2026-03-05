@@ -22,7 +22,7 @@ export default function ImportQuestionsPage() {
     if (searchParams.get('saved') === '1') {
       setShowSavedToast(true);
       window.history.replaceState({}, '', '/import-questions');
-      const timer = setTimeout(() => setShowSavedToast(false), 5000);
+      const timer = setTimeout(() => setShowSavedToast(false), 3500);
       return () => clearTimeout(timer);
     }
   }, [searchParams]);
