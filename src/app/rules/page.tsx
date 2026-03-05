@@ -48,10 +48,15 @@ export default function RulesPage() {
     if (searchParams.get('saved') === '1') {
       setShowSavedToast(true);
       window.history.replaceState({}, '', '/rules');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (showSavedToast) {
       const timer = setTimeout(() => setShowSavedToast(false), 3500);
       return () => clearTimeout(timer);
     }
-  }, [searchParams]);
+  }, [showSavedToast]);
 
   const accountId = user?.accountId || 'default';
 
