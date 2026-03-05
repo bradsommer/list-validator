@@ -239,7 +239,7 @@ export default function ImportQuestionsPage() {
         </div>
 
         {/* Questions List - Full Width */}
-        <div className="space-y-0">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
@@ -276,8 +276,8 @@ export default function ImportQuestionsPage() {
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
-                  className={`border rounded-lg overflow-hidden mb-2 transition-colors ${
-                    question.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
+                  className={`border-b border-gray-200 overflow-hidden transition-colors ${
+                    question.enabled ? 'bg-white' : 'bg-gray-50'
                   } ${dragIndex === index ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start justify-between px-4 py-3">
