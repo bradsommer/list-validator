@@ -42,8 +42,7 @@ export default function RulesPage() {
 
   // Drag state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const dragCounter = useRef(0);
+  const [dropTarget, setDropTarget] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
 
   useEffect(() => {
     if (searchParams.get('saved') === '1') {
@@ -120,38 +119,51 @@ export default function RulesPage() {
       e.currentTarget.style.opacity = '1';
     }
     setDragIndex(null);
-    setDropIndex(null);
-    dragCounter.current = 0;
+    setDropTarget(null);
   };
 
-  const handleRowDragEnter = (e: React.DragEvent, index: number) => {
+  const handleRowDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    dragCounter.current++;
-    if (dragIndex !== null && dragIndex !== index) {
-      setDropIndex(index);
-    }
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndex === null || dragIndex === index) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'above' : 'below';
+    setDropTarget({ index, position });
   };
 
   const handleRowDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) {
-      setDropIndex(null);
+    // Only clear if leaving the row entirely (not entering a child)
+    const related = e.relatedTarget as HTMLElement | null;
+    if (!related || !(e.currentTarget as HTMLElement).contains(related)) {
+      setDropTarget(null);
     }
   };
 
-  const handleRowDragOver = (e: React.DragEvent) => {
+  const handleRowDrop = async (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
 
-  const handleRowDrop = async (e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    dragCounter.current = 0;
-
-    if (dragIndex === null || dragIndex === toIndex) {
+    if (dragIndex === null || !dropTarget) {
       setDragIndex(null);
-      setDropIndex(null);
+      setDropTarget(null);
+      return;
+    }
+
+    // Calculate the actual insertion index
+    let toIndex = dropTarget.index;
+    if (dropTarget.position === 'below') {
+      toIndex += 1;
+    }
+    // Adjust for the removed item
+    if (dragIndex < toIndex) {
+      toIndex -= 1;
+    }
+
+    if (dragIndex === toIndex) {
+      setDragIndex(null);
+      setDropTarget(null);
       return;
     }
 
@@ -163,7 +175,7 @@ export default function RulesPage() {
     const updated = reordered.map((r, i) => ({ ...r, displayOrder: (i + 1) * 10 }));
     setRules(updated);
     setDragIndex(null);
-    setDropIndex(null);
+    setDropTarget(null);
 
     // Persist
     try {
@@ -352,8 +364,8 @@ export default function RulesPage() {
                   {sortedRules.map((rule, index) => {
                     const objectTypes = getObjectTypes(rule);
                     const isDeleting = deletingRule === rule.ruleId;
-                    const showDropAbove = dropIndex === index && dragIndex !== null && dragIndex > index;
-                    const showDropBelow = dropIndex === index && dragIndex !== null && dragIndex < index;
+                    const showDropAbove = dropTarget?.index === index && dropTarget?.position === 'above' && dragIndex !== null;
+                    const showDropBelow = dropTarget?.index === index && dropTarget?.position === 'below' && dragIndex !== null;
 
                     return (
                       <React.Fragment key={rule.id}>
@@ -361,13 +373,17 @@ export default function RulesPage() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, index)}
                           onDragEnd={handleDragEnd}
-                          onDragEnter={(e) => handleRowDragEnter(e, index)}
+                          onDragOver={(e) => handleRowDragOver(e, index)}
                           onDragLeave={handleRowDragLeave}
-                          onDragOver={handleRowDragOver}
                           onDrop={(e) => handleRowDrop(e, index)}
-                          className={`hover:bg-gray-50 ${dragIndex === index ? 'opacity-50' : ''} ${
-                            showDropAbove ? 'border-t-2 border-t-primary-500' : ''
-                          } ${showDropBelow ? 'border-b-2 border-b-primary-500' : ''}`}
+                          className={`hover:bg-gray-50 ${dragIndex === index ? 'opacity-50' : ''}`}
+                          style={
+                            showDropAbove
+                              ? { boxShadow: 'inset 0 2px 0 0 var(--color-primary-500, #6366f1)' }
+                              : showDropBelow
+                              ? { boxShadow: 'inset 0 -2px 0 0 var(--color-primary-500, #6366f1)' }
+                              : undefined
+                          }
                         >
                           {/* Drag handle */}
                           <td className="px-2 py-3 w-8">
