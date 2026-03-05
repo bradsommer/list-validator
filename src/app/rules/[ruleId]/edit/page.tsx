@@ -176,12 +176,12 @@ export default function EditRulePage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header with back link and save */}
-        <div className="flex items-center justify-between">
+        {/* Fixed top save bar */}
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-green-800 px-6 py-3 shadow-md">
           <div className="flex items-center gap-3">
             <Link
               href="/rules"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+              className="p-2 text-green-200 hover:text-white hover:bg-green-700 rounded"
               title="Back to Rules"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,11 +189,29 @@ export default function EditRulePage() {
               </svg>
             </Link>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Edit Rule</h2>
-              <p className="text-sm text-gray-500">{rule.name}</p>
+              <h2 className="text-lg font-semibold text-white">Edit Rule</h2>
+              <p className="text-sm text-green-200">{rule.name}</p>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/rules"
+              className="px-4 py-2 text-sm text-green-200 hover:text-white"
+            >
+              Cancel
+            </Link>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-6 py-2.5 text-sm font-medium bg-amber-400 text-green-900 rounded-lg hover:bg-amber-300 disabled:opacity-50 shadow-sm"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
+
+        {/* Spacer for fixed top bar */}
+        <div className="h-16"></div>
 
         {/* Form */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-5">
@@ -317,22 +335,6 @@ export default function EditRulePage() {
           </div>
         </div>
 
-        {/* Bottom save bar */}
-        <div className="flex items-center justify-end gap-3 sticky bottom-0 bg-gray-50 -mx-6 px-6 py-4 border-t border-gray-200">
-          <Link
-            href="/rules"
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-          >
-            Cancel
-          </Link>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-6 py-2.5 text-sm font-medium bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 shadow-sm"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
       </div>
     </AdminLayout>
   );
