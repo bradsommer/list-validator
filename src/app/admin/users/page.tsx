@@ -193,7 +193,7 @@ export default function UsersPage() {
       resetForm();
       fetchUsers();
     } catch {
-      setFormError('An error occurred');
+      setFormError('Unable to reach the server. Please check your connection and try again.');
     } finally {
       setIsSaving(false);
     }
