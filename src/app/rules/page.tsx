@@ -172,7 +172,7 @@ export default function RulesPage() {
     reordered.splice(toIndex, 0, moved);
 
     // Assign new display orders
-    const updated = reordered.map((r, i) => ({ ...r, displayOrder: (i + 1) * 10 }));
+    const updated = reordered.map((r, i) => ({ ...r, displayOrder: i + 1 }));
     setRules(updated);
     setDragIndex(null);
     setDropTarget(null);
@@ -354,7 +354,6 @@ export default function RulesPage() {
                     <SortHeader field="ruleType">Type</SortHeader>
                     <SortHeader field="targetFields">Target Fields</SortHeader>
                     <SortHeader field="objectTypes">Object Types</SortHeader>
-                    <SortHeader field="displayOrder">Order</SortHeader>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Actions
                     </th>
@@ -439,7 +438,12 @@ export default function RulesPage() {
 
                           {/* Target Fields */}
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {rule.targetFields.length > 0 ? rule.targetFields.join(', ') : <span className="text-gray-400">all</span>}
+                            {rule.targetFields.length > 0 ? (() => {
+                              const text = rule.targetFields.join(', ');
+                              return text.length > 26
+                                ? <span title={text}>{text.slice(0, 26)}...</span>
+                                : text;
+                            })() : <span className="text-gray-400">all</span>}
                           </td>
 
                           {/* Object Types */}
@@ -455,11 +459,6 @@ export default function RulesPage() {
                             ) : (
                               <span className="text-sm text-gray-400">all</span>
                             )}
-                          </td>
-
-                          {/* Display Order */}
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {rule.displayOrder}
                           </td>
 
                           {/* Actions */}

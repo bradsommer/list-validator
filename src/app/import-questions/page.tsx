@@ -172,7 +172,7 @@ export default function ImportQuestionsPage() {
     const [moved] = reordered.splice(dragIndex, 1);
     reordered.splice(toIndex, 0, moved);
 
-    const updated = reordered.map((q, i) => ({ ...q, displayOrder: (i + 1) * 10 }));
+    const updated = reordered.map((q, i) => ({ ...q, displayOrder: i + 1 }));
     setQuestions(updated);
     setDragIndex(null);
     setDropTarget(null);
