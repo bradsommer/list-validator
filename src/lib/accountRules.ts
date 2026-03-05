@@ -367,6 +367,51 @@ export async function deleteAccountRule(
 }
 
 /**
+ * Create a new rule for an account
+ */
+export async function createAccountRule(
+  accountId: string,
+  rule: {
+    ruleId: string;
+    name: string;
+    description?: string;
+    ruleType: 'transform' | 'validate';
+    targetFields: string[];
+    config?: Record<string, unknown>;
+    displayOrder?: number;
+    enabled?: boolean;
+  }
+): Promise<AccountRule | null> {
+  try {
+    const { data, error } = await supabase
+      .from('account_rules')
+      .insert({
+        account_id: accountId,
+        rule_id: rule.ruleId,
+        name: rule.name,
+        description: rule.description || null,
+        rule_type: rule.ruleType,
+        target_fields: rule.targetFields,
+        config: rule.config || {},
+        display_order: rule.displayOrder ?? 100,
+        enabled: rule.enabled ?? true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[accountRules] Create error:', error);
+      return null;
+    }
+
+    return mapDbToAccountRule(data);
+  } catch (err) {
+    console.error('[accountRules] Create error:', err);
+    return null;
+  }
+}
+
+/**
  * Get the list of enabled rule IDs for an account (for use with validation scripts)
  */
 export async function getEnabledRuleIds(accountId: string): Promise<string[]> {
