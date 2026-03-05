@@ -161,9 +161,9 @@ export async function updateRuleConfig(
 }
 
 /**
- * Default example rules seeded into new accounts (all disabled by default).
+ * Fallback rules used when no 'default' account exists in the DB.
  */
-const DEFAULT_RULES = [
+const FALLBACK_RULES = [
   {
     rule_id: 'state-normalization',
     name: 'State Normalization',
@@ -194,13 +194,47 @@ const DEFAULT_RULES = [
 ];
 
 /**
- * Initialize a new account with example rules (all disabled by default).
+ * Initialize a new account with rules copied from a source account.
+ * Tries sourceAccountId first, then 'default', then falls back to hardcoded defaults.
  */
 export async function initializeAccountRules(
   accountId: string,
+  sourceAccountId?: string,
 ): Promise<boolean> {
   try {
-    const newRules = DEFAULT_RULES.map((rule) => ({
+    // Try to copy from source account or 'default' seed
+    const sourceIds = [sourceAccountId, 'default'].filter(Boolean) as string[];
+
+    for (const srcId of sourceIds) {
+      const { data: sourceRules } = await supabase
+        .from('account_rules')
+        .select('*')
+        .eq('account_id', srcId);
+
+      if (sourceRules && sourceRules.length > 0) {
+        const newRules = sourceRules.map((r: DbAccountRule) => ({
+          account_id: accountId,
+          rule_id: r.rule_id,
+          enabled: r.enabled,
+          name: r.name,
+          description: r.description,
+          rule_type: r.rule_type,
+          target_fields: r.target_fields,
+          config: r.config,
+          display_order: r.display_order,
+        }));
+
+        const { error } = await supabase.from('account_rules').insert(newRules);
+        if (error) {
+          console.error('[accountRules] Failed to copy rules from', srcId, error);
+          continue;
+        }
+        return true;
+      }
+    }
+
+    // Fallback to hardcoded defaults
+    const newRules = FALLBACK_RULES.map((rule) => ({
       account_id: accountId,
       rule_id: rule.rule_id,
       enabled: false,
@@ -217,7 +251,7 @@ export async function initializeAccountRules(
       .insert(newRules);
 
     if (insertError) {
-      console.error('[accountRules] Failed to insert rules:', insertError);
+      console.error('[accountRules] Failed to insert fallback rules:', insertError);
       return false;
     }
 

@@ -4,18 +4,26 @@ import {
   createImportQuestion,
   updateImportQuestion,
   deleteImportQuestion,
+  initializeAccountQuestions,
   type QuestionType,
 } from '@/lib/importQuestions';
 
 /**
  * GET /api/import-questions?accountId=xxx
- * Returns all import questions for an account
+ * Returns all import questions for an account.
+ * Auto-initializes from 'default' seed if the account has none.
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const accountId = searchParams.get('accountId') || 'default';
 
-  const questions = await fetchImportQuestions(accountId);
+  let questions = await fetchImportQuestions(accountId);
+
+  // Auto-initialize from 'default' seed if this account has no questions
+  if (questions.length === 0 && accountId !== 'default') {
+    await initializeAccountQuestions(accountId, 'default');
+    questions = await fetchImportQuestions(accountId);
+  }
 
   return NextResponse.json({ success: true, questions });
 }

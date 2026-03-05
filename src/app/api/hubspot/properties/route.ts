@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/hubspot';
 import { getServerSupabase } from '@/lib/supabase';
+import { validateSession } from '@/lib/auth';
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
 
@@ -96,6 +97,15 @@ async function savePropertiesToDB(accountId: string, properties: HubSpotProperty
   }
 }
 
+async function resolveAccountId(request: NextRequest): Promise<string | null> {
+  const fromHeader = request.headers.get('x-account-id');
+  if (fromHeader && fromHeader.length > 0) return fromHeader;
+  const token = request.cookies.get('session_token')?.value;
+  if (!token) return null;
+  const user = await validateSession(token);
+  return user?.accountId || null;
+}
+
 // Exported for use by OAuth callback
 export async function fetchAndStoreProperties(accountId: string): Promise<{
   total: number;
@@ -125,7 +135,10 @@ export async function fetchAndStoreProperties(accountId: string): Promise<{
 // GET - return properties from DB
 export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') as ObjectType | null;
-  const accountId = request.headers.get('x-account-id') || '';
+  const accountId = await resolveAccountId(request);
+  if (!accountId) {
+    return NextResponse.json({ success: false, error: 'Account ID required', properties: [] }, { status: 400 });
+  }
 
   const db = getServerSupabase();
 
@@ -193,7 +206,10 @@ export async function GET(request: NextRequest) {
 // POST - manually sync/refresh properties from HubSpot
 export async function POST(request: NextRequest) {
   try {
-    const accountId = request.headers.get('x-account-id') || '';
+    const accountId = await resolveAccountId(request);
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID required' }, { status: 400 });
+    }
 
     // Get existing count for comparison
     const db = getServerSupabase();
