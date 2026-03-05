@@ -282,16 +282,13 @@ export default function ImportQuestionsPage() {
         </div>
       )}
       <div className="space-y-6">
-        <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-8 py-3 sm:py-0">
           <p className="text-gray-600">
             Configure questions shown during list import. Answers will add columns to the imported data.
           </p>
-        </div>
-
-        <div className="flex items-center justify-end">
           <Link
             href="/import-questions/new"
-            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5 shrink-0 self-start sm:self-center"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
