@@ -113,7 +113,7 @@ export default function NewImportQuestionPage() {
 
   return (
     <AdminLayout hideChrome>
-      <div className="space-y-6">
+      <div className="space-y-6" style={{ paddingTop: '30px' }}>
         {/* Fixed top save bar */}
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-3 shadow-md" style={{ backgroundColor: '#0d9487' }}>
           <div className="flex items-center gap-3">
