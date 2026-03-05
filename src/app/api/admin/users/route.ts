@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { sendWelcomeEmail } from '@/lib/email';
 
 /**
@@ -7,6 +7,7 @@ import { sendWelcomeEmail } from '@/lib/email';
  */
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getServerSupabase();
     const body = await request.json();
     const { username, password, displayName, role, accountId, sendEmail, customPermissions } = body;
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create user API error:', error);
     return NextResponse.json(
-      { success: false, error: 'An error occurred' },
+      { success: false, error: 'An unexpected error occurred while creating the user. Please try again.' },
       { status: 500 }
     );
   }
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = getServerSupabase();
     const body = await request.json();
     const { id, displayName, role, password, customPermissions } = body;
 
@@ -158,7 +160,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Update user API error:', error);
     return NextResponse.json(
-      { success: false, error: 'An error occurred' },
+      { success: false, error: 'An unexpected error occurred while updating the user. Please try again.' },
       { status: 500 }
     );
   }
