@@ -212,9 +212,6 @@ export default function EditImportQuestionPage() {
           </div>
         </div>
 
-        {/* Spacer for fixed top bar */}
-        <div className="h-16"></div>
-
         {/* Form */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-5">
           {/* Question Text */}
