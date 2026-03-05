@@ -161,55 +161,136 @@ export async function updateRuleConfig(
 }
 
 /**
- * Fallback rules used when no 'default' account exists in the DB.
+ * Full set of default rules matching the SQL migration seed.
+ * Embedded in code so initialization works even if DB seeds haven't been applied.
  */
-const FALLBACK_RULES = [
+const DEFAULT_RULES = [
   {
     rule_id: 'state-normalization',
     name: 'State Normalization',
-    description: 'Normalize US state names to two-letter abbreviations (e.g. California → CA).',
+    description: 'Converts state abbreviations (AL, CA, NY) to full names (Alabama, California, New York). Also fixes common misspellings and case variations.',
     rule_type: 'transform' as const,
     target_fields: ['state'],
     config: {},
     display_order: 10,
   },
   {
+    rule_id: 'whitespace-validation',
+    name: 'Whitespace Cleanup',
+    description: 'Removes leading/trailing whitespace and normalizes multiple spaces to single spaces in text fields.',
+    rule_type: 'transform' as const,
+    target_fields: ['*'],
+    config: {},
+    display_order: 12,
+  },
+  {
+    rule_id: 'new-business-validation',
+    name: 'New Business Flag',
+    description: 'Validates the New Business field contains only "Yes" or "No" values.',
+    rule_type: 'validate' as const,
+    target_fields: ['new_business'],
+    config: {},
+    display_order: 13,
+  },
+  {
+    rule_id: 'role-normalization',
+    name: 'Role Normalization',
+    description: 'Validates role values against an allowed list (Admin, Educator, Student, etc.). Non-matching values are set to "Other".',
+    rule_type: 'transform' as const,
+    target_fields: ['role'],
+    config: { validValues: ['Admin', 'Administrator', 'Ascend Employee', 'ATI Champion', 'ATI Employee', 'Champion Nominee', 'Coordinator', 'Dean', 'Director', 'Educator', 'Instructor', 'Other', 'Proctor', 'Student', 'TEAS Student', 'LMS Admin'] },
+    display_order: 15,
+  },
+  {
+    rule_id: 'program-type-normalization',
+    name: 'Program Type Normalization',
+    description: 'Normalizes program type values to a standard list (ADN, ASN, BSN, LPN, etc.). Non-matching values are set to "Other".',
+    rule_type: 'transform' as const,
+    target_fields: ['program_type'],
+    config: { validValues: ['ADN', 'ASN', 'BSN', 'LPN', 'LVN', 'MSN', 'PN', 'RN', 'Other'] },
+    display_order: 16,
+  },
+  {
+    rule_id: 'solution-normalization',
+    name: 'Solution Normalization',
+    description: 'Validates solution values against an allowed list (OPTIMAL, SUPREME, STO, CARP, BASIC, MID-MARKET, COMPLETE). Non-matching values are set to "Other".',
+    rule_type: 'transform' as const,
+    target_fields: ['solution'],
+    config: { validValues: ['OPTIMAL', 'SUPREME', 'STO', 'CARP', 'BASIC', 'MID-MARKET', 'COMPLETE'] },
+    display_order: 17,
+  },
+  {
     rule_id: 'email-validation',
     name: 'Email Validation',
-    description: 'Validate email format and flag invalid addresses.',
+    description: 'Validates email format and checks for common issues like missing @ symbol, invalid domains, or typos in common domains (gmail, yahoo, etc.).',
     rule_type: 'validate' as const,
     target_fields: ['email'],
     config: {},
     display_order: 20,
   },
   {
+    rule_id: 'phone-normalization',
+    name: 'Phone Normalization',
+    description: 'Formats phone numbers to a consistent format and validates they contain valid digits.',
+    rule_type: 'transform' as const,
+    target_fields: ['phone'],
+    config: {},
+    display_order: 30,
+  },
+  {
+    rule_id: 'date-normalization',
+    name: 'Date Normalization',
+    description: 'Parses various date formats and normalizes them to ISO format (YYYY-MM-DD). Handles formats like MM/DD/YYYY, DD-MM-YYYY, etc.',
+    rule_type: 'transform' as const,
+    target_fields: ['date'],
+    config: {},
+    display_order: 35,
+  },
+  {
+    rule_id: 'name-capitalization',
+    name: 'Name Capitalization',
+    description: 'Capitalizes first and last names properly, handling edge cases like McDonald, O\'Brien, etc.',
+    rule_type: 'transform' as const,
+    target_fields: ['firstname', 'lastname'],
+    config: {},
+    display_order: 50,
+  },
+  {
+    rule_id: 'company-normalization',
+    name: 'Company Normalization',
+    description: 'Standardizes company name formatting and common abbreviations (Inc., LLC, Corp., etc.).',
+    rule_type: 'transform' as const,
+    target_fields: ['company'],
+    config: {},
+    display_order: 60,
+  },
+  {
     rule_id: 'duplicate-detection',
-    name: 'Email Duplicate Detection',
-    description: 'Flag duplicate rows based on email address.',
+    name: 'Duplicate Detection',
+    description: 'Identifies potential duplicate records based on email address or name + company combination.',
     rule_type: 'validate' as const,
-    target_fields: ['email'],
+    target_fields: ['email', 'firstname', 'lastname', 'company'],
     config: {},
     display_order: 100,
   },
 ];
 
 /**
- * Initialize a new account with rules copied from a source account.
- * Tries sourceAccountId first, then 'default', then falls back to hardcoded defaults.
+ * Initialize a new account with rules.
+ * If sourceAccountId is provided, copies from that account.
+ * Otherwise seeds the full default rule set from TypeScript constants.
  */
 export async function initializeAccountRules(
   accountId: string,
   sourceAccountId?: string,
 ): Promise<boolean> {
   try {
-    // Try to copy from source account or 'default' seed
-    const sourceIds = [sourceAccountId, 'default'].filter(Boolean) as string[];
-
-    for (const srcId of sourceIds) {
+    // If a source account is specified, try to copy from it
+    if (sourceAccountId) {
       const { data: sourceRules } = await supabase
         .from('account_rules')
         .select('*')
-        .eq('account_id', srcId);
+        .eq('account_id', sourceAccountId);
 
       if (sourceRules && sourceRules.length > 0) {
         const newRules = sourceRules.map((r: DbAccountRule) => ({
@@ -225,19 +306,16 @@ export async function initializeAccountRules(
         }));
 
         const { error } = await supabase.from('account_rules').insert(newRules);
-        if (error) {
-          console.error('[accountRules] Failed to copy rules from', srcId, error);
-          continue;
-        }
-        return true;
+        if (!error) return true;
+        console.error('[accountRules] Failed to copy rules from', sourceAccountId, error);
       }
     }
 
-    // Fallback to hardcoded defaults
-    const newRules = FALLBACK_RULES.map((rule) => ({
+    // Seed from TypeScript defaults (all enabled by default)
+    const newRules = DEFAULT_RULES.map((rule) => ({
       account_id: accountId,
       rule_id: rule.rule_id,
-      enabled: false,
+      enabled: true,
       name: rule.name,
       description: rule.description,
       rule_type: rule.rule_type,
@@ -251,7 +329,7 @@ export async function initializeAccountRules(
       .insert(newRules);
 
     if (insertError) {
-      console.error('[accountRules] Failed to insert fallback rules:', insertError);
+      console.error('[accountRules] Failed to insert default rules:', insertError);
       return false;
     }
 

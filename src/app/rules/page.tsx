@@ -57,8 +57,8 @@ export default function RulesPage() {
     setIsLoading(true);
     let accountRules = await fetchAccountRules(accountId);
 
-    // For new accounts with no rules, seed example rules (all disabled)
-    if (accountRules.length === 0 && accountId !== 'default') {
+    // For accounts with no rules, seed the full default rule set
+    if (accountRules.length === 0) {
       setIsInitializing(true);
       const initialized = await initializeAccountRules(accountId);
       if (initialized) {

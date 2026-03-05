@@ -136,6 +136,10 @@ export default function ColumnHeadingsPage() {
   };
 
   const handleReSync = async () => {
+    if (!accountId) {
+      setSyncMessage({ type: 'error', text: 'No account ID available. Please contact your administrator.' });
+      return;
+    }
     setIsSyncing(true);
     setSyncMessage(null);
     try {
