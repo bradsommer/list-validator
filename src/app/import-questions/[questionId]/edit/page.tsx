@@ -175,10 +175,10 @@ export default function EditImportQuestionPage() {
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <AdminLayout hideChrome>
+      <div className="space-y-6" style={{ paddingTop: '40px' }}>
         {/* Fixed top save bar */}
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-green-800 px-6 py-3 shadow-md">
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-3 shadow-md" style={{ backgroundColor: '#0d9487' }}>
           <div className="flex items-center gap-3">
             <Link
               href="/import-questions"
@@ -189,30 +189,25 @@ export default function EditImportQuestionPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Edit Question</h2>
-              <p className="text-sm text-green-200">{question.questionText}</p>
-            </div>
+            <h2 className="text-lg font-semibold text-white">Edit Question</h2>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/import-questions"
-              className="px-4 py-2 text-sm text-green-200 hover:text-white"
+              className="px-4 py-2 text-sm text-white hover:text-green-200"
             >
               Cancel
             </Link>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-6 py-2.5 text-sm font-medium bg-amber-400 text-green-900 rounded-lg hover:bg-amber-300 disabled:opacity-50 shadow-sm"
+              className="px-6 py-2.5 text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50 shadow-sm"
+              style={{ backgroundColor: '#EEE5BF', color: '#000000' }}
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
-
-        {/* Spacer for fixed top bar */}
-        <div className="h-16"></div>
 
         {/* Form */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-5">

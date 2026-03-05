@@ -8,6 +8,7 @@ import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 
 interface AdminLayoutProps {
   children: ReactNode;
+  hideChrome?: boolean;
 }
 
 interface NavItem {
@@ -67,7 +68,7 @@ function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: 
   );
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const {
@@ -134,6 +135,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     await logout();
     router.push('/login');
   };
+
+  if (hideChrome) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="p-6">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
