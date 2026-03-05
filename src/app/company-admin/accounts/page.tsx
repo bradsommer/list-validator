@@ -25,13 +25,15 @@ interface AccountUser {
 }
 
 export default function CompanyAdminAccountsPage() {
-  const { isCompanyAdmin, impersonate, impersonating, isLoading: authLoading } = useAuth();
+  const { user, isCompanyAdmin, impersonate, impersonating, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [users, setUsers] = useState<AccountUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+  const [copyingConfigTo, setCopyingConfigTo] = useState<string | null>(null);
+  const [copyResult, setCopyResult] = useState<{ accountId: string; message: string; success: boolean } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isCompanyAdmin) {
@@ -84,6 +86,34 @@ export default function CompanyAdminAccountsPage() {
     return users.filter((u) => u.account_id === accountId);
   };
 
+  const handleCopyConfig = async (targetAccountId: string) => {
+    const sourceAccountId = user?.accountId;
+    if (!sourceAccountId) return;
+    setCopyingConfigTo(targetAccountId);
+    setCopyResult(null);
+    try {
+      const res = await fetch('/api/admin/copy-account-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceAccountId, targetAccountId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCopyResult({
+          accountId: targetAccountId,
+          message: `Copied ${data.rulesCopied} rules and ${data.questionsCopied} questions`,
+          success: true,
+        });
+      } else {
+        setCopyResult({ accountId: targetAccountId, message: data.error || 'Copy failed', success: false });
+      }
+    } catch {
+      setCopyResult({ accountId: targetAccountId, message: 'Network error', success: false });
+    } finally {
+      setCopyingConfigTo(null);
+    }
+  };
+
   const unassignedUsers = users.filter((u) => !u.account_id);
 
   if (authLoading || (!isCompanyAdmin && !authLoading)) {
@@ -130,6 +160,18 @@ export default function CompanyAdminAccountsPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
+                        {account.id !== user?.accountId && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyConfig(account.id);
+                            }}
+                            disabled={copyingConfigTo === account.id}
+                            className="px-2.5 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                          >
+                            {copyingConfigTo === account.id ? 'Copying...' : 'Apply My Rules & Questions'}
+                          </button>
+                        )}
                         <span className={`px-2 py-0.5 text-xs rounded-full ${
                           account.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                         }`}>
@@ -147,6 +189,15 @@ export default function CompanyAdminAccountsPage() {
                       </svg>
                     </div>
                   </button>
+
+                  {/* Copy config result */}
+                  {copyResult && copyResult.accountId === account.id && (
+                    <div className={`mx-5 mb-3 px-3 py-2 rounded text-sm ${
+                      copyResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      {copyResult.message}
+                    </div>
+                  )}
 
                   {/* Users list */}
                   {isExpanded && (
