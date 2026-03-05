@@ -7,7 +7,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ImportQuestion, QuestionType } from '@/lib/importQuestions';
 
-type SortField = 'questionText' | 'columnHeader' | 'questionType' | 'objectTypes' | 'enabled';
+type SortField = 'questionText' | 'columnHeader' | 'questionType' | 'isRequired' | 'objectTypes' | 'enabled';
 type SortDirection = 'asc' | 'desc';
 
 export default function ImportQuestionsPage() {
@@ -229,6 +229,8 @@ export default function ImportQuestionsPage() {
         const bTypes = (b.objectTypes || []).join(', ') || 'all';
         return dir * aTypes.localeCompare(bTypes);
       }
+      case 'isRequired':
+        return dir * (Number(a.isRequired) - Number(b.isRequired));
       case 'enabled':
         return dir * (Number(a.enabled) - Number(b.enabled));
       default:
@@ -317,6 +319,7 @@ export default function ImportQuestionsPage() {
                   <SortHeader field="questionText">Question</SortHeader>
                   <SortHeader field="columnHeader">Column</SortHeader>
                   <SortHeader field="questionType">Type</SortHeader>
+                  <SortHeader field="isRequired">Required</SortHeader>
                   <SortHeader field="objectTypes">Object Types</SortHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Actions
@@ -379,11 +382,6 @@ export default function ImportQuestionsPage() {
                         {/* Question Text */}
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-900 text-sm">{question.questionText}</div>
-                          {question.isRequired && (
-                            <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full mt-0.5 inline-block">
-                              Required
-                            </span>
-                          )}
                         </td>
 
                         {/* Column Header */}
@@ -398,6 +396,15 @@ export default function ImportQuestionsPage() {
                           >
                             {getQuestionTypeLabel(question.questionType)}
                           </span>
+                        </td>
+
+                        {/* Required */}
+                        <td className="px-4 py-3">
+                          {question.isRequired ? (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">Yes</span>
+                          ) : (
+                            <span className="text-sm text-gray-400">No</span>
+                          )}
                         </td>
 
                         {/* Object Types */}
