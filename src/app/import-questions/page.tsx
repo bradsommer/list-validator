@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -16,8 +16,7 @@ export default function ImportQuestionsPage() {
 
   // Drag state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const dragCounter = useRef(0);
+  const [dropTarget, setDropTarget] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
 
   useEffect(() => {
     if (searchParams.get('saved') === '1') {
@@ -114,7 +113,6 @@ export default function ImportQuestionsPage() {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
-    // Make the drag image slightly transparent
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = '0.5';
     }
@@ -125,53 +123,60 @@ export default function ImportQuestionsPage() {
       e.currentTarget.style.opacity = '1';
     }
     setDragIndex(null);
-    setDropIndex(null);
-    dragCounter.current = 0;
+    setDropTarget(null);
   };
 
-  const handleDragEnter = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    dragCounter.current++;
-    if (dragIndex !== null && dragIndex !== index) {
-      setDropIndex(index);
-    }
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndex === null || dragIndex === index) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'above' : 'below';
+    setDropTarget({ index, position });
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) {
-      setDropIndex(null);
+    const related = e.relatedTarget as HTMLElement | null;
+    if (!related || !(e.currentTarget as HTMLElement).contains(related)) {
+      setDropTarget(null);
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
 
-  const handleDrop = async (e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    dragCounter.current = 0;
-
-    if (dragIndex === null || dragIndex === toIndex) {
+    if (dragIndex === null || !dropTarget) {
       setDragIndex(null);
-      setDropIndex(null);
+      setDropTarget(null);
       return;
     }
 
-    // Reorder locally
+    let toIndex = dropTarget.index;
+    if (dropTarget.position === 'below') {
+      toIndex += 1;
+    }
+    if (dragIndex < toIndex) {
+      toIndex -= 1;
+    }
+
+    if (dragIndex === toIndex) {
+      setDragIndex(null);
+      setDropTarget(null);
+      return;
+    }
+
     const reordered = [...questions];
     const [moved] = reordered.splice(dragIndex, 1);
     reordered.splice(toIndex, 0, moved);
 
-    // Assign new display orders (use index * 10 for spacing)
     const updated = reordered.map((q, i) => ({ ...q, displayOrder: (i + 1) * 10 }));
     setQuestions(updated);
     setDragIndex(null);
-    setDropIndex(null);
+    setDropTarget(null);
 
-    // Persist all new orders
     try {
       await Promise.all(
         updated.map((q) =>
@@ -184,7 +189,7 @@ export default function ImportQuestionsPage() {
       );
     } catch (error) {
       console.error('Failed to save order:', error);
-      await loadQuestions(); // Reload on failure
+      await loadQuestions();
     }
   };
 
@@ -241,10 +246,14 @@ export default function ImportQuestionsPage() {
               </p>
             </div>
           ) : (
-            questions.map((question, index) => (
+            questions.map((question, index) => {
+              const showDropAbove = dropTarget?.index === index && dropTarget?.position === 'above' && dragIndex !== null;
+              const showDropBelow = dropTarget?.index === index && dropTarget?.position === 'below' && dragIndex !== null;
+
+              return (
               <div key={question.id} className="relative">
                 {/* Drop indicator line - above */}
-                {dropIndex === index && dragIndex !== null && dragIndex > index && (
+                {showDropAbove && (
                   <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary-500 z-10 -translate-y-px">
                     <div className="absolute -left-1 -top-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />
                   </div>
@@ -254,15 +263,12 @@ export default function ImportQuestionsPage() {
                   draggable
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragEnd={handleDragEnd}
-                  onDragEnter={(e) => handleDragEnter(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
-                  onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, index)}
                   className={`border rounded-lg overflow-hidden mb-2 transition-colors ${
                     question.enabled ? 'border-green-200 bg-white' : 'border-gray-200 bg-gray-50'
-                  } ${dragIndex === index ? 'opacity-50' : ''} ${
-                    dropIndex === index && dragIndex !== null ? 'border-primary-300' : ''
-                  }`}
+                  } ${dragIndex === index ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start justify-between px-4 py-3">
                     <div className="flex items-start gap-3 flex-1">
@@ -337,14 +343,15 @@ export default function ImportQuestionsPage() {
                   </div>
                 </div>
 
-                {/* Drop indicator line - below last item */}
-                {dropIndex === index && dragIndex !== null && dragIndex < index && (
+                {/* Drop indicator line - below */}
+                {showDropBelow && (
                   <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-primary-500 z-10">
                     <div className="absolute -left-1 -top-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />
                   </div>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
