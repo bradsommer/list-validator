@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { validatePassword } from '@/lib/passwordValidation';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2026-01-28.clover',
 });
 
 /** Map ISO country code to data residency region */

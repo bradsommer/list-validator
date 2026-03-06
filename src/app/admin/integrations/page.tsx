@@ -37,6 +37,7 @@ export default function IntegrationsPage() {
   const [hubspotAuthorizeUrl, setHubspotAuthorizeUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
     fetchIntegrations();
@@ -145,6 +146,30 @@ export default function IntegrationsPage() {
       setMessage({ type: 'error', text: 'Failed to sync HubSpot properties.' });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    setMessage(null);
+    try {
+      // Revoke any existing partial authorization at HubSpot, then get a fresh authorize URL
+      const response = await fetch('/api/hubspot/oauth/connect', {
+        method: 'POST',
+        headers: {
+          'x-account-id': user?.accountId || '',
+        },
+      });
+      const data = await response.json();
+      if (data.success && data.authorizeUrl) {
+        window.location.href = data.authorizeUrl;
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to start HubSpot connection.' });
+        setIsConnecting(false);
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to start HubSpot connection.' });
+      setIsConnecting(false);
     }
   };
 
@@ -276,13 +301,14 @@ export default function IntegrationsPage() {
                         </button>
                       </>
                     ) : integration.provider === 'hubspot' && hubspotAuthorizeUrl ? (
-                      <a
-                        href={hubspotAuthorizeUrl}
-                        className="px-5 py-2.5 text-sm font-medium rounded-lg text-white hover:opacity-90 transition-opacity"
+                      <button
+                        onClick={handleConnect}
+                        disabled={isConnecting}
+                        className="px-5 py-2.5 text-sm font-medium rounded-lg text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                         style={{ backgroundColor: integration.color }}
                       >
-                        Connect {integration.name}
-                      </a>
+                        {isConnecting ? 'Connecting...' : `Connect ${integration.name}`}
+                      </button>
                     ) : integration.provider === 'hubspot' ? (
                       <span className="text-sm text-gray-500">
                         Set HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET in .env.local

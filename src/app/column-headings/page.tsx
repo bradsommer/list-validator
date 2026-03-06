@@ -173,8 +173,14 @@ export default function ColumnHeadingsPage() {
     }
   };
 
+  // Filter out HubSpot headings when HubSpot is not connected
+  const visibleHeadings = useMemo(() => {
+    if (hubspotConnected) return headings;
+    return headings.filter((h) => h.source !== 'hubspot');
+  }, [headings, hubspotConnected]);
+
   const sortedHeadings = useMemo(() => {
-    const sorted = [...headings].sort((a, b) => {
+    const sorted = [...visibleHeadings].sort((a, b) => {
       let aVal: string;
       let bVal: string;
 
@@ -204,10 +210,10 @@ export default function ColumnHeadingsPage() {
       return 0;
     });
     return sorted;
-  }, [headings, sortKey, sortDirection]);
+  }, [visibleHeadings, sortKey, sortDirection]);
 
-  const manualCount = headings.filter((h) => h.source !== 'hubspot').length;
-  const hubspotCount = headings.filter((h) => h.source === 'hubspot').length;
+  const manualCount = visibleHeadings.filter((h) => h.source !== 'hubspot').length;
+  const hubspotCount = visibleHeadings.filter((h) => h.source === 'hubspot').length;
 
   return (
     <AdminLayout>
@@ -284,7 +290,7 @@ export default function ColumnHeadingsPage() {
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
               Loading...
             </div>
-          ) : headings.length === 0 ? (
+          ) : visibleHeadings.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               No output headings added yet. Add your first one above.
             </div>
@@ -410,7 +416,7 @@ export default function ColumnHeadingsPage() {
         </div>
 
         <div className="text-sm text-gray-500">
-          {headings.length} output heading{headings.length !== 1 ? 's' : ''} configured
+          {visibleHeadings.length} output heading{visibleHeadings.length !== 1 ? 's' : ''} configured
           {hubspotCount > 0 && (
             <span className="ml-2">
               ({manualCount} manual, {hubspotCount} from HubSpot)

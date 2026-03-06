@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -29,6 +29,14 @@ function getObjectTypes(rule: AccountRule): HubSpotObjectType[] {
 }
 
 export default function RulesPage() {
+  return (
+    <Suspense>
+      <RulesContent />
+    </Suspense>
+  );
+}
+
+function RulesContent() {
   const { user, isLoading: isAuthLoading, isAdmin, canEdit: userCanEdit } = useAuth();
   const searchParams = useSearchParams();
   const [rules, setRules] = useState<AccountRule[]>([]);

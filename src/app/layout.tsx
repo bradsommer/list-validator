@@ -6,7 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'FreshSegments',
+  title: 'HubSpot Data Hygiene | Clean Lists | FreshSegments',
   description: 'Clean, validate, and prepare your data for HubSpot',
 };
 
