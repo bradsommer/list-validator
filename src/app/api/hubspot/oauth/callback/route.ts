@@ -4,21 +4,43 @@ import { cache, CACHE_KEYS } from '@/lib/cache';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 
+// Returns a small HTML page that posts a message to the opener window and closes itself.
+// This supports both popup-based OAuth (sends postMessage + closes) and direct navigation
+// (falls back to redirect if there is no opener).
+function oauthResultPage(result: { success: boolean; error?: string }) {
+  const payload = JSON.stringify(result);
+  return new NextResponse(
+    `<!DOCTYPE html><html><head><title>Connecting...</title></head><body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage(${JSON.stringify(payload)}, window.location.origin);
+    window.close();
+  } else {
+    window.location.href = ${JSON.stringify(
+      result.success
+        ? '/admin/integrations?hubspot_connected=true'
+        : '/admin/integrations?hubspot_error=' + encodeURIComponent(result.error || 'unknown')
+    )};
+  }
+</script>
+<noscript><a href="/admin/integrations">Return to integrations</a></noscript>
+</body></html>`,
+    { headers: { 'Content-Type': 'text/html' } }
+  );
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const error = request.nextUrl.searchParams.get('error');
   const state = request.nextUrl.searchParams.get('state'); // account_id passed as state
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const redirectPage = '/admin/integrations';
-
   if (error) {
     console.error('HubSpot OAuth error:', error);
-    return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_error=${encodeURIComponent(error)}`);
+    return oauthResultPage({ success: false, error });
   }
 
   if (!code) {
-    return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_error=no_code`);
+    return oauthResultPage({ success: false, error: 'no_code' });
   }
 
   try {
@@ -62,9 +84,9 @@ export async function GET(request: NextRequest) {
       // Non-blocking — user can still manually sync later
     }
 
-    return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_connected=true`);
+    return oauthResultPage({ success: true });
   } catch (err) {
     console.error('HubSpot OAuth callback error:', err);
-    return NextResponse.redirect(`${baseUrl}${redirectPage}?hubspot_error=token_exchange_failed`);
+    return oauthResultPage({ success: false, error: 'token_exchange_failed' });
   }
 }

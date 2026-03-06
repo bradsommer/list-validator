@@ -52,21 +52,29 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if account already exists
-    const { data: existing } = await supabase
+    // Check if user already exists with this email (multi-account support)
+    const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, password_hash')
       .eq('username', normalizedEmail)
+      .limit(1)
       .single();
 
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: 'An account with this email already exists. Please sign in.' },
-        { status: 409 }
-      );
+    // If the email already exists, verify the password matches before creating a new account
+    if (existingUser) {
+      const { data: passwordMatch } = await supabase.rpc('verify_password', {
+        password,
+        password_hash: existingUser.password_hash,
+      });
+      if (!passwordMatch) {
+        return NextResponse.json(
+          { success: false, error: 'An account with this email already exists. Please enter your existing password to create an additional account, or sign in.' },
+          { status: 409 }
+        );
+      }
     }
 
-    // Hash password
+    // Hash password (reuse for new user row even if existing)
     const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
       password,
     });
@@ -124,7 +132,7 @@ export async function POST(request: NextRequest) {
     if (createError) {
       if (createError.code === '23505') {
         return NextResponse.json(
-          { success: false, error: 'An account with this email already exists. Please sign in.' },
+          { success: false, error: 'This email is already linked to this account.' },
           { status: 409 }
         );
       }
