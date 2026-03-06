@@ -18,7 +18,8 @@ function LandingPage() {
             <FreshSegmentsLogo className="h-7" />
             <Link
               href="/login"
-              className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+              className="px-4 py-2 text-sm font-medium"
+              style={{ color: '#0B8377' }}
             >
               Sign In
             </Link>
@@ -31,7 +32,7 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
             Clean Your Data
-            <span className="block text-primary-600">Before It Hits HubSpot</span>
+            <span className="block" style={{ color: '#0B8377' }}>Before It Hits HubSpot</span>
           </h1>
           <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
             Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
@@ -39,7 +40,8 @@ function LandingPage() {
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup"
-              className="px-8 py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-500/25"
+              className="px-8 py-4 text-white rounded-xl font-semibold text-lg transition-colors"
+              style={{ backgroundColor: '#0B8377' }}
             >
               Start Free Trial
             </Link>
@@ -67,8 +69,8 @@ function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: '#ccfbf1' }}>
+                <svg className="w-6 h-6" style={{ color: '#0B8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
@@ -144,7 +146,7 @@ function LandingPage() {
 
           <div className="space-y-8">
             <div className="flex items-start gap-6">
-              <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold">1</div>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold" style={{ backgroundColor: '#0B8377' }}>1</div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Upload Your Spreadsheet</h3>
                 <p className="mt-2 text-gray-600">Drag and drop your CSV or Excel file. We support files with thousands of rows.</p>
@@ -152,7 +154,7 @@ function LandingPage() {
             </div>
 
             <div className="flex items-start gap-6">
-              <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold">2</div>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold" style={{ backgroundColor: '#0B8377' }}>2</div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Review & Fix Issues</h3>
                 <p className="mt-2 text-gray-600">Our validation rules automatically clean your data and flag any issues that need your attention.</p>
@@ -160,7 +162,7 @@ function LandingPage() {
             </div>
 
             <div className="flex items-start gap-6">
-              <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold">3</div>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold" style={{ backgroundColor: '#0B8377' }}>3</div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Export Clean Data</h3>
                 <p className="mt-2 text-gray-600">Download your validated, HubSpot-ready file and import it with confidence.</p>
@@ -178,9 +180,9 @@ function LandingPage() {
             <p className="mt-4 text-lg text-gray-600">One plan with everything you need.</p>
           </div>
 
-          <div className="bg-gradient-to-br from-primary-50 to-white rounded-3xl p-8 border-2 border-primary-200 shadow-xl">
+          <div className="bg-gradient-to-br from-teal-50 to-white rounded-3xl p-8 border-2 border-teal-200 shadow-xl">
             <div className="text-center">
-              <p className="text-sm font-medium text-primary-600 uppercase tracking-wide">Pro Plan</p>
+              <p className="text-sm font-medium uppercase tracking-wide" style={{ color: '#0B8377' }}>Pro Plan</p>
               <div className="mt-4 flex items-baseline justify-center gap-2">
                 <span className="text-5xl font-bold text-gray-900">$19.99</span>
                 <span className="text-xl text-gray-500">/month</span>
@@ -229,7 +231,8 @@ function LandingPage() {
 
             <Link
               href="/signup"
-              className="mt-8 block w-full py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-colors text-center"
+              className="mt-8 block w-full py-4 text-white rounded-xl font-semibold text-lg transition-colors text-center"
+              style={{ backgroundColor: '#0B8377' }}
             >
               Start Your Free Trial
             </Link>
@@ -283,7 +286,8 @@ function Dashboard() {
         <div className="flex items-center justify-end">
           <Link
             href="/import"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-medium text-sm"
+            style={{ backgroundColor: '#0B8377' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -293,16 +297,16 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/import" className="bg-primary-50 rounded-lg p-5 border border-primary-200 hover:bg-primary-100 transition-colors">
+          <Link href="/import" className="rounded-lg p-5 border transition-colors" style={{ backgroundColor: '#f0fdfa', borderColor: '#99f6e4' }}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ccfbf1' }}>
+                <svg className="w-5 h-5" style={{ color: '#0a7469' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-primary-900">Import & Validate</p>
-                <p className="text-sm text-primary-700">Upload a CSV or Excel file to clean and validate</p>
+                <p className="text-sm font-semibold" style={{ color: '#064e47' }}>Import & Validate</p>
+                <p className="text-sm" style={{ color: '#0a7469' }}>Upload a CSV or Excel file to clean and validate</p>
               </div>
             </div>
           </Link>
@@ -357,8 +361,8 @@ function Dashboard() {
 
           {importCount !== null && (
             <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ccfbf1' }}>
+                <svg className="w-6 h-6" style={{ color: '#0B8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -379,7 +383,7 @@ export default function HomePage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
       </div>
     );
   }

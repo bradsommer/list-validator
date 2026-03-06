@@ -47,7 +47,7 @@ export default function LoginPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -63,7 +63,8 @@ export default function LoginPage() {
             </Link>
             <Link
               href="/"
-              className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+              className="px-4 py-2 text-sm font-medium"
+              style={{ color: '#0B8377' }}
             >
               Back to Home
             </Link>
@@ -122,7 +123,8 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed transition-colors font-medium"
+                className="w-full py-3 text-white rounded-lg disabled:cursor-not-allowed transition-colors font-medium disabled:opacity-60"
+                style={{ backgroundColor: '#0B8377' }}
               >
                 {isSubmitting ? 'Signing in...' : 'Sign In'}
               </button>
@@ -130,7 +132,8 @@ export default function LoginPage() {
               <div className="text-center">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
+                  className="text-sm transition-colors"
+                  style={{ color: '#0B8377' }}
                 >
                   Forgot password or username?
                 </Link>
@@ -140,7 +143,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+            <Link href="/signup" className="font-medium" style={{ color: '#0B8377' }}>
               Start Free Trial
             </Link>
           </div>
