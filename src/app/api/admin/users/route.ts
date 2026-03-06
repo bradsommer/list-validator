@@ -38,11 +38,19 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = username.toLowerCase().trim();
 
-    // Check if this email already exists in another account with a password
+    // Check if this email already exists in any account
     const { data: existingUsers } = await supabase
       .from('users')
-      .select('id, password_hash, display_name')
+      .select('id, password_hash, display_name, account_id')
       .eq('username', normalizedEmail);
+
+    // Block duplicate within the same account
+    if (accountId && existingUsers?.some((u) => u.account_id === accountId)) {
+      return NextResponse.json(
+        { success: false, error: 'This user has already been invited to this account' },
+        { status: 409 }
+      );
+    }
 
     const existingWithPassword = existingUsers?.find((u) => u.password_hash);
     const isExistingUser = !!existingWithPassword;
@@ -69,8 +77,17 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       if (createError.code === '23505') {
+        // If we get here despite the pre-check, it likely means the old UNIQUE(username)
+        // constraint is still in place. The migration 20260306_multi_account_users.sql
+        // needs to be applied to allow the same email across different accounts.
+        const isOldConstraint = createError.message?.includes('users_username_key');
         return NextResponse.json(
-          { success: false, error: 'This user has already been invited to this account' },
+          {
+            success: false,
+            error: isOldConstraint
+              ? 'Database migration required: run the 20260306_multi_account_users.sql migration to allow multi-account users'
+              : 'This user has already been invited to this account',
+          },
           { status: 409 }
         );
       }
