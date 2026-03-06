@@ -253,11 +253,30 @@ export function ColumnMapper() {
   const [allHeadingsRaw, setAllHeadingsRaw] = useState<ColumnHeading[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [headingsLoaded, setHeadingsLoaded] = useState(false);
+  const [hubspotConnected, setHubspotConnected] = useState(false);
+
+  // Check HubSpot connection status
+  useEffect(() => {
+    if (!accountId) return;
+    async function checkConnection() {
+      try {
+        const response = await fetch('/api/hubspot/oauth', {
+          headers: { 'x-account-id': accountId },
+        });
+        const data = await response.json();
+        setHubspotConnected(data.connected === true);
+      } catch {
+        setHubspotConnected(false);
+      }
+    }
+    checkConnection();
+  }, [accountId]);
 
   // Filter headings by object type: show manual headings always,
-  // but only show HubSpot-sourced headings matching the selected object type
+  // but only show HubSpot-sourced headings if connected and matching the selected object type
   const headings = allHeadingsRaw.filter((h) => {
     if (h.source !== 'hubspot') return true;
+    if (!hubspotConnected) return false;
     if (!objectType) return true;
     return h.hubspotObjectType === objectType;
   });
