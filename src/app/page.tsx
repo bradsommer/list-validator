@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ImportsChart } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { supabase } from '@/lib/supabase';
 
 function LandingPage() {
   return (
@@ -259,6 +261,22 @@ function LandingPage() {
 }
 
 function Dashboard() {
+  const [importCount, setImportCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from('upload_sessions')
+      .select('*', { count: 'exact', head: true })
+      .then(({ count }) => setImportCount(count ?? 0));
+  }, []);
+
+  const minutesSaved = (importCount ?? 0) * 10;
+  const hoursSaved = Math.floor(minutesSaved / 60);
+  const remainingMinutes = minutesSaved % 60;
+  const timeSavedDisplay = hoursSaved > 0
+    ? `${hoursSaved}h ${remainingMinutes}m`
+    : `${minutesSaved}m`;
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -320,6 +338,22 @@ function Dashboard() {
             </div>
           </Link>
         </div>
+
+        {importCount !== null && (
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
+                <p className="text-sm text-gray-500">Estimated time saved across {importCount} import{importCount !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <ImportsChart />
       </div>
