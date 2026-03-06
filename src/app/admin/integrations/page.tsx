@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -149,6 +149,29 @@ export default function IntegrationsPage() {
     }
   };
 
+  // Listen for OAuth popup result
+  const handleOAuthMessage = useCallback((event: MessageEvent) => {
+    if (event.origin !== window.location.origin) return;
+    try {
+      const result = JSON.parse(event.data);
+      if (result.success) {
+        setMessage({ type: 'success', text: 'HubSpot connected successfully!' });
+        setHubspotConnected(true);
+        checkHubSpotConnection();
+      } else {
+        setMessage({ type: 'error', text: `HubSpot connection failed: ${result.error || 'unknown'}` });
+      }
+    } catch {
+      // Not a JSON message we care about
+    }
+    setIsConnecting(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, [handleOAuthMessage]);
+
   const handleConnect = async () => {
     setIsConnecting(true);
     setMessage(null);
@@ -162,7 +185,20 @@ export default function IntegrationsPage() {
       });
       const data = await response.json();
       if (data.success && data.authorizeUrl) {
-        window.location.href = data.authorizeUrl;
+        // Open in a popup so HubSpot's multi-screen flow isn't interrupted by redirects
+        const width = 600;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        const popup = window.open(
+          data.authorizeUrl,
+          'hubspot_oauth',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+        );
+        // If popup was blocked, fall back to direct navigation
+        if (!popup) {
+          window.location.href = data.authorizeUrl;
+        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to start HubSpot connection.' });
         setIsConnecting(false);
