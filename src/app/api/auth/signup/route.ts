@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { validatePassword } from '@/lib/passwordValidation';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -51,21 +51,32 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const supabase = getServerSupabase();
 
     // Check if user already exists with this email (multi-account support)
-    const { data: existingUser } = await supabase
+    // Use maybeSingle() to avoid errors when no rows match
+    const { data: existingUsers } = await supabase
       .from('users')
       .select('id, password_hash, stripe_customer_id')
       .eq('username', normalizedEmail)
-      .limit(1)
-      .single();
+      .not('password_hash', 'is', null)
+      .limit(1);
+
+    const existingUser = existingUsers?.[0] || null;
 
     // If the email already exists, verify the password matches before creating a new account
     if (existingUser) {
-      const { data: passwordMatch } = await supabase.rpc('verify_password', {
+      const { data: passwordMatch, error: verifyError } = await supabase.rpc('verify_password', {
         password,
         password_hash: existingUser.password_hash,
       });
+      if (verifyError) {
+        console.error('Password verification error:', verifyError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to verify credentials. Please try again.' },
+          { status: 500 }
+        );
+      }
       if (!passwordMatch) {
         return NextResponse.json(
           { success: false, error: 'An account with this email already exists. Please enter your existing password to create an additional account, or sign in.' },
@@ -74,7 +85,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Hash password (reuse for new user row even if existing)
+    // Hash password
     const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
       password,
     });
@@ -159,7 +170,18 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // Reuse existing Stripe customer if this email already has one
-    const existingStripeCustomerId = existingUser?.stripe_customer_id || null;
+    let existingStripeCustomerId = existingUser?.stripe_customer_id || null;
+    if (!existingStripeCustomerId) {
+      // The first user row we checked might not have had a stripe_customer_id;
+      // look across all rows for this email
+      const { data: stripeRow } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('username', normalizedEmail)
+        .not('stripe_customer_id', 'is', null)
+        .limit(1);
+      existingStripeCustomerId = stripeRow?.[0]?.stripe_customer_id || null;
+    }
 
     const checkoutParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
