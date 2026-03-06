@@ -339,9 +339,9 @@ export default function ImportQuestionsPage() {
                         className={`hover:bg-gray-50 ${dragIndex === index ? 'opacity-50' : ''}`}
                         style={
                           showDropAbove
-                            ? { boxShadow: 'inset 0 2px 0 0 var(--color-primary-500, #6366f1)' }
+                            ? { boxShadow: 'inset 0 2px 0 0 var(--color-primary-500, #14b8a6)' }
                             : showDropBelow
-                            ? { boxShadow: 'inset 0 -2px 0 0 var(--color-primary-500, #6366f1)' }
+                            ? { boxShadow: 'inset 0 -2px 0 0 var(--color-primary-500, #14b8a6)' }
                             : undefined
                         }
                       >

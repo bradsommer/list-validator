@@ -24,7 +24,7 @@ export async function sendWelcomeEmail(
             <p style="margin: 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
           </div>
           <p>Please sign in and change your password as soon as possible.</p>
-          <a href="${APP_URL}/login" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+          <a href="${APP_URL}/login" style="display: inline-block; background: #0B8377; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
             Sign In
           </a>
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
@@ -55,7 +55,7 @@ export async function sendInviteEmail(
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Welcome to FreshSegments${displayName ? `, ${displayName}` : ''}!</h2>
           <p>An account has been created for you. Click the button below to set up your password and get started:</p>
-          <a href="${setupUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+          <a href="${setupUrl}" style="display: inline-block; background: #0B8377; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
             Set Up Your Account
           </a>
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
@@ -87,7 +87,7 @@ export async function sendAccountAcceptEmail(
           <h2>New Account Invitation${displayName ? `, ${displayName}` : ''}!</h2>
           <p>You've been invited to access a new account on FreshSegments. Since you already have a FreshSegments account, no password setup is needed.</p>
           <p>Click the button below to accept the invitation:</p>
-          <a href="${acceptUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+          <a href="${acceptUrl}" style="display: inline-block; background: #0B8377; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
             Accept Invitation
           </a>
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
@@ -117,7 +117,7 @@ export async function sendPasswordResetEmail(
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset Request</h2>
           <p>We received a request to reset your password. Click the button below to choose a new password:</p>
-          <a href="${resetUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+          <a href="${resetUrl}" style="display: inline-block; background: #0B8377; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
             Reset Password
           </a>
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
@@ -149,7 +149,7 @@ export async function sendUsernameReminderEmail(
           <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
             <p style="margin: 0;"><strong>Username:</strong> ${username}</p>
           </div>
-          <a href="${APP_URL}/login" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+          <a href="${APP_URL}/login" style="display: inline-block; background: #0B8377; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
             Sign In
           </a>
         </div>

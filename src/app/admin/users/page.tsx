@@ -29,7 +29,7 @@ interface User {
 
 const ROLE_BADGE_CLASS: Record<string, string> = {
   super_admin: 'bg-red-100 text-red-700',
-  company_admin: 'bg-indigo-100 text-indigo-700',
+  company_admin: 'bg-primary-100 text-primary-700',
   admin: 'bg-purple-100 text-purple-700',
   billing: 'bg-emerald-100 text-emerald-700',
   editor: 'bg-primary-100 text-primary-700',
