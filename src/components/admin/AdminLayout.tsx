@@ -347,6 +347,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                 isActive={pathname === '/documentation'}
               />
+              <SidebarNavItem
+                href="/contact"
+                label="Contact Us"
+                icon="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                isActive={pathname === '/contact'}
+              />
             </ul>
 
             {/* Company Admin section */}
@@ -383,6 +389,10 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
               <div className="flex items-center gap-3">
                 <Link href="/documentation" className="hover:text-gray-700 transition-colors">
                   Documentation
+                </Link>
+                <span>|</span>
+                <Link href="/contact" className="hover:text-gray-700 transition-colors">
+                  Contact Us
                 </Link>
                 <span>|</span>
                 <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">

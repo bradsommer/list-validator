@@ -291,6 +291,10 @@ export default function SignupPage() {
                 Documentation
               </Link>
               <span className="text-gray-500">|</span>
+              <Link href="/contact" className="hover:text-white transition-colors">
+                Contact Us
+              </Link>
+              <span className="text-gray-500">|</span>
               <Link href="/legal/privacy" className="hover:text-white transition-colors">
                 Privacy Policy
               </Link>
