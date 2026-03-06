@@ -42,6 +42,11 @@ export async function loginUser(username: string, password: string): Promise<Aut
       return { success: false, error: 'Invalid username or password' };
     }
 
+    // User hasn't completed account setup yet
+    if (!user.password_hash) {
+      return { success: false, error: 'Please check your email for the invitation link to set up your account.' };
+    }
+
     // Verify password using Supabase RPC
     const { data: isValid, error: verifyError } = await supabase.rpc('verify_password', {
       password: password,

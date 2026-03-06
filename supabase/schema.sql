@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_accounts_slug ON accounts(slug);
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   display_name VARCHAR(255),
   role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'admin' or 'user'
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
