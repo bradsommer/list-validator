@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { supabase } from '@/lib/supabase';
 
-// Map rule IDs to their source file names
+// Map built-in rule IDs to their source file names
 const RULE_FILES: Record<string, string> = {
   'state-normalization': 'state-normalization.ts',
   'whitespace-validation': 'whitespace-validation.ts',
@@ -19,38 +20,52 @@ const RULE_FILES: Record<string, string> = {
 };
 
 /**
- * GET /api/rules/source?id=rule-id
- * Returns the actual TypeScript source code for a validation rule
+ * GET /api/rules/source?id=rule-id&accountId=account-id
+ * Returns source code for a rule. Checks DB first, falls back to file for built-in rules.
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const ruleId = searchParams.get('id');
+  const accountId = searchParams.get('accountId');
 
   if (!ruleId) {
     return NextResponse.json({ error: 'Missing rule ID' }, { status: 400 });
   }
 
+  // Try DB first (if accountId provided)
+  if (accountId) {
+    try {
+      const { data } = await supabase
+        .from('account_rules')
+        .select('source_code')
+        .eq('account_id', accountId)
+        .eq('rule_id', ruleId)
+        .single();
+
+      if (data?.source_code) {
+        return NextResponse.json({ ruleId, source: data.source_code });
+      }
+    } catch {
+      // Fall through to file-based lookup
+    }
+  }
+
+  // Fall back to file for built-in rules
   const fileName = RULE_FILES[ruleId];
   if (!fileName) {
-    return NextResponse.json({ error: 'Unknown rule ID' }, { status: 404 });
+    return NextResponse.json({ ruleId, source: '' });
   }
 
   try {
-    // Read the source file
     const scriptsDir = path.join(process.cwd(), 'src', 'lib', 'scripts');
     const filePath = path.join(scriptsDir, fileName);
 
     if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: 'Source file not found' }, { status: 404 });
+      return NextResponse.json({ ruleId, source: '' });
     }
 
     const source = fs.readFileSync(filePath, 'utf-8');
-
-    return NextResponse.json({
-      ruleId,
-      fileName,
-      source,
-    });
+    return NextResponse.json({ ruleId, fileName, source });
   } catch (error) {
     console.error('[rules/source] Error reading source file:', error);
     return NextResponse.json({ error: 'Failed to read source file' }, { status: 500 });
@@ -59,40 +74,37 @@ export async function GET(request: NextRequest) {
 
 /**
  * PUT /api/rules/source
- * Saves updated TypeScript source code for a validation rule.
- * Body: { id: string, source: string }
+ * Saves source code to the database (account_rules.source_code column).
+ * Body: { id: string, source: string, accountId: string }
  */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id: ruleId, source } = body;
+    const { id: ruleId, source, accountId } = body;
 
     if (!ruleId || typeof source !== 'string') {
       return NextResponse.json({ error: 'Missing rule ID or source' }, { status: 400 });
     }
 
-    const fileName = RULE_FILES[ruleId];
-    if (!fileName) {
-      return NextResponse.json({ error: 'Unknown rule ID' }, { status: 404 });
+    if (!accountId) {
+      return NextResponse.json({ error: 'Missing account ID' }, { status: 400 });
     }
 
-    const scriptsDir = path.join(process.cwd(), 'src', 'lib', 'scripts');
-    const filePath = path.join(scriptsDir, fileName);
+    // Save to database
+    const { error } = await supabase
+      .from('account_rules')
+      .update({ source_code: source })
+      .eq('account_id', accountId)
+      .eq('rule_id', ruleId);
 
-    // Ensure the file exists before overwriting
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: 'Source file not found' }, { status: 404 });
+    if (error) {
+      console.error('[rules/source] DB save error:', error);
+      return NextResponse.json({ error: 'Failed to save source code' }, { status: 500 });
     }
 
-    fs.writeFileSync(filePath, source, 'utf-8');
-
-    return NextResponse.json({
-      ruleId,
-      fileName,
-      success: true,
-    });
+    return NextResponse.json({ ruleId, success: true });
   } catch (error) {
-    console.error('[rules/source] Error saving source file:', error);
-    return NextResponse.json({ error: 'Failed to save source file' }, { status: 500 });
+    console.error('[rules/source] Error saving source code:', error);
+    return NextResponse.json({ error: 'Failed to save source code' }, { status: 500 });
   }
 }

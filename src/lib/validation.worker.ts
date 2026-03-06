@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { validateAndTransform } from './validator';
+import type { DynamicScriptSource } from './validator';
 import type { ParsedRow, HeaderMatch, ValidationResult, ScriptRunnerResult } from '@/types';
 
 export interface WorkerInput {
@@ -10,6 +11,7 @@ export interface WorkerInput {
   requiredFields: string[];
   enabledScriptIds?: string[];
   targetFieldsOverrides?: Record<string, string[]>;
+  dynamicScriptSources?: DynamicScriptSource[];
 }
 
 export interface WorkerProgressMessage {
@@ -36,7 +38,7 @@ export type WorkerOutputMessage = WorkerProgressMessage | WorkerResultMessage | 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = (event: MessageEvent<WorkerInput>) => {
-  const { rows, headerMatches, requiredFields, enabledScriptIds, targetFieldsOverrides } = event.data;
+  const { rows, headerMatches, requiredFields, enabledScriptIds, targetFieldsOverrides, dynamicScriptSources } = event.data;
 
   try {
     const result = validateAndTransform(
@@ -52,7 +54,8 @@ ctx.onmessage = (event: MessageEvent<WorkerInput>) => {
           totalScripts: total,
           scriptName,
         } satisfies WorkerProgressMessage);
-      }
+      },
+      dynamicScriptSources
     );
 
     ctx.postMessage({

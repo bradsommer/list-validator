@@ -53,21 +53,10 @@ export default function NewRulePage() {
         config: { objectTypes: formData.objectTypes },
         displayOrder: formData.displayOrder,
         enabled: true,
+        sourceCode: editCode.trim() || undefined,
       });
 
       if (created) {
-        // Save source code if provided
-        if (editCode.trim()) {
-          try {
-            await fetch('/api/rules/source', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: formData.ruleId.trim(), source: editCode }),
-            });
-          } catch {
-            console.error('Failed to save source code');
-          }
-        }
         router.push('/rules?saved=1');
         return;
       }
@@ -297,7 +286,7 @@ export default function NewRulePage() {
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Changes to source code require a server restart to take effect.
+              Source code is saved to the database and takes effect on the next import.
             </p>
           </div>
         </div>
