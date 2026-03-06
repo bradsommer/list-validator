@@ -52,9 +52,7 @@ export default function ImportPage() {
       </div>
 
       {/* Main content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        {renderStep()}
-      </div>
+      {renderStep()}
 
       {/* Log viewer */}
       <LogViewer />
