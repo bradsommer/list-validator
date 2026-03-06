@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255),
   display_name VARCHAR(255),
-  role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'admin' or 'user'
+  role VARCHAR(50) NOT NULL DEFAULT 'user'
+    CHECK (role IN ('super_admin', 'company_admin', 'admin', 'billing', 'editor', 'user', 'custom')),
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_login TIMESTAMP WITH TIME ZONE,
