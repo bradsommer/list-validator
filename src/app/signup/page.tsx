@@ -13,6 +13,7 @@ export default function SignupPage() {
 
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -34,6 +35,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!country) {
+      setError('Please select your country');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -49,6 +55,7 @@ export default function SignupPage() {
           email,
           password,
           displayName: displayName || undefined,
+          country,
         }),
       });
 
@@ -139,6 +146,53 @@ export default function SignupPage() {
                   placeholder="Enter your name"
                   autoComplete="name"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                  Country
+                </label>
+                <select
+                  id="country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
+                  required
+                >
+                  <option value="">Select your country</option>
+                  <optgroup label="North America">
+                    <option value="US">United States</option>
+                    <option value="CA">Canada</option>
+                    <option value="MX">Mexico</option>
+                  </optgroup>
+                  <optgroup label="Europe">
+                    <option value="CH">Switzerland</option>
+                    <option value="GB">United Kingdom</option>
+                    <option value="DE">Germany</option>
+                    <option value="FR">France</option>
+                    <option value="NL">Netherlands</option>
+                    <option value="IT">Italy</option>
+                    <option value="ES">Spain</option>
+                    <option value="AT">Austria</option>
+                    <option value="BE">Belgium</option>
+                    <option value="SE">Sweden</option>
+                    <option value="NO">Norway</option>
+                    <option value="DK">Denmark</option>
+                    <option value="FI">Finland</option>
+                    <option value="IE">Ireland</option>
+                    <option value="PT">Portugal</option>
+                    <option value="PL">Poland</option>
+                  </optgroup>
+                  <optgroup label="Asia Pacific">
+                    <option value="AU">Australia</option>
+                    <option value="NZ">New Zealand</option>
+                    <option value="JP">Japan</option>
+                    <option value="SG">Singapore</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="OTHER">Other</option>
+                  </optgroup>
+                </select>
               </div>
 
               <div>

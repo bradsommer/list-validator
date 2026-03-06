@@ -75,6 +75,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
   const router = useRouter();
   const {
     user, logout, isAdmin, isCompanyAdmin, isSuperAdmin,
+    subscriptionInactive,
     accounts,
     impersonating, stopImpersonating,
     isLoading, isAuthenticated,
@@ -99,6 +100,8 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
   // Build main nav items based on permissions
   const isBillingRole = user?.role === 'billing';
   const mainNavItems = useMemo(() => {
+    // Inactive subscription: no main nav items
+    if (subscriptionInactive) return [];
     // Billing users only see Dashboard (Import is excluded)
     if (isBillingRole) return [baseNavItems[0]];
     const items = [...baseNavItems];
@@ -106,10 +109,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
     if (isAdmin || userCanView('questions')) items.push(questionsItem);
     if (isAdmin || userCanView('column_headings')) items.push(headingsItem);
     return items;
-  }, [isAdmin, isBillingRole, userCanView]);
+  }, [isAdmin, isBillingRole, subscriptionInactive, userCanView]);
 
   // Build settings nav items based on permissions
   const visibleSettingsItems = useMemo(() => {
+    // Inactive subscription: only show billing
+    if (subscriptionInactive) return [billingItem];
     const items: NavItem[] = [];
     if (isAdmin) {
       items.push(settingsNavItems[0]); // Users
@@ -124,7 +129,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
       items.push(accountItem);
     }
     return items;
-  }, [isAdmin, userCanView]);
+  }, [isAdmin, subscriptionInactive, userCanView]);
 
   // Show loading state
   if (isLoading) {
@@ -169,6 +174,24 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      {/* Subscription inactive banner */}
+      {subscriptionInactive && (
+        <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between shrink-0 z-20">
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span>Your subscription is inactive. Resubscribe to regain full access. Your data will be retained for 45 days.</span>
+          </div>
+          <Link
+            href="/billing"
+            className="px-3 py-1 text-sm bg-white text-red-700 rounded-md hover:bg-red-50 font-medium shrink-0"
+          >
+            Manage Billing
+          </Link>
+        </div>
+      )}
+
       {/* Impersonation banner */}
       {impersonating && (
         <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between shrink-0 z-20">

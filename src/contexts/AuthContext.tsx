@@ -34,6 +34,8 @@ interface AuthContextType {
   isCompanyAdmin: boolean;
   /** True for super_admin only (FreshSegments internal) */
   isSuperAdmin: boolean;
+  /** True when subscription is cancelled but within 45-day retention */
+  subscriptionInactive: boolean;
   permissions: PermissionMap;
   canView: (area: PermissionArea) => boolean;
   canEdit: (area: PermissionArea) => boolean;
@@ -53,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [realUser, setRealUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<AccountOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionInactive, setSubscriptionInactive] = useState(false);
 
   const checkSession = useCallback(async () => {
     try {
@@ -61,15 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user);
+        setSubscriptionInactive(!!data.subscriptionInactive);
         if (data.accounts && data.accounts.length > 1) {
           setAccounts(data.accounts);
         }
       } else {
         setUser(null);
         setAccounts(null);
+        setSubscriptionInactive(false);
       }
     } catch {
       setUser(null);
+      setSubscriptionInactive(false);
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success && data.user) {
         setUser(data.user);
         setRealUser(null);
+        setSubscriptionInactive(!!data.subscriptionInactive);
 
         if (data.accounts && data.accounts.length > 1) {
           setAccounts(data.accounts);
@@ -115,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setRealUser(null);
       setAccounts(null);
+      setSubscriptionInactive(false);
     }
   };
 
@@ -187,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: activeRole === 'admin' || activeRole === 'company_admin' || activeRole === 'super_admin',
         isCompanyAdmin: activeRole === 'company_admin' || activeRole === 'super_admin',
         isSuperAdmin: activeRole === 'super_admin',
+        subscriptionInactive,
         permissions,
         canView: (area: PermissionArea) => canView(permissions, area),
         canEdit: (area: PermissionArea) => canEdit(permissions, area),

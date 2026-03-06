@@ -7,6 +7,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-12-18.acacia',
 });
 
+/** Map ISO country code to data residency region */
+function countryToRegion(countryCode: string): 'us' | 'eu' | 'ch' {
+  if (countryCode === 'CH') return 'ch';
+  const euCountries = ['AT', 'BE', 'DE', 'DK', 'ES', 'FI', 'FR', 'GB', 'IE', 'IT', 'NL', 'NO', 'PL', 'PT', 'SE'];
+  if (euCountries.includes(countryCode)) return 'eu';
+  return 'us';
+}
+
 /**
  * POST /api/auth/signup
  * 1. Create user account
@@ -16,7 +24,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, displayName } = await request.json();
+    const { email, password, displayName, country } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -77,11 +85,14 @@ export async function POST(request: NextRequest) {
       : normalizedEmail.split('@')[0] + "'s Account";
     const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
+    const region = countryToRegion(country || '');
+
     const { data: account, error: accountError } = await supabase
       .from('accounts')
       .insert({
         name: accountName,
         slug: accountSlug,
+        region,
       })
       .select()
       .single();
