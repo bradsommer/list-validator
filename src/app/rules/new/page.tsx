@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -18,6 +18,10 @@ export default function NewRulePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [editCode, setEditCode] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     ruleId: '',
@@ -52,6 +56,18 @@ export default function NewRulePage() {
       });
 
       if (created) {
+        // Save source code if provided
+        if (editCode.trim()) {
+          try {
+            await fetch('/api/rules/source', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: formData.ruleId.trim(), source: editCode }),
+            });
+          } catch {
+            console.error('Failed to save source code');
+          }
+        }
         router.push('/rules?saved=1');
         return;
       }
@@ -69,6 +85,30 @@ export default function NewRulePage() {
         ? prev.objectTypes.filter((t) => t !== type)
         : [...prev.objectTypes, type],
     }));
+  };
+
+  const handleCopyCode = async () => {
+    if (!editCode) return;
+    try {
+      await navigator.clipboard.writeText(editCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = editCode;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleCodeScroll = () => {
+    if (editTextareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = editTextareaRef.current.scrollTop;
+    }
   };
 
   return (
@@ -202,6 +242,63 @@ export default function NewRulePage() {
               ))}
             </div>
             <p className="text-xs text-gray-400 mt-1">Select which object types this rule applies to.</p>
+          </div>
+
+          {/* Source Code */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Source Code</label>
+              {editCode && (
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                  title="Copy code"
+                >
+                  {copiedCode ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900">
+              <div className="flex" style={{ height: '320px' }}>
+                <div
+                  ref={lineNumbersRef}
+                  className="select-none overflow-hidden shrink-0 py-3 pl-3 pr-2 text-right text-sm font-mono text-gray-600 bg-gray-950 border-r border-gray-700"
+                  style={{ lineHeight: '1.5rem' }}
+                >
+                  {(editCode || '\n').split('\n').map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  ref={editTextareaRef}
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                  onScroll={handleCodeScroll}
+                  spellCheck={false}
+                  placeholder="// Write your rule code here..."
+                  className="flex-1 px-3 py-3 text-sm font-mono bg-gray-900 text-green-400 outline-none resize-none placeholder-gray-600"
+                  style={{ lineHeight: '1.5rem' }}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Changes to source code require a server restart to take effect.
+            </p>
           </div>
         </div>
       </div>

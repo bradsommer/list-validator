@@ -47,7 +47,7 @@ export const PERMISSION_AREAS: { key: PermissionArea; label: string }[] = [
 export const ROLE_OPTIONS: { value: UserRole; label: string; description: string }[] = [
   { value: 'admin', label: 'Admin', description: 'Full access to their own account' },
   { value: 'billing', label: 'Billing', description: 'Billing access only' },
-  { value: 'user', label: 'Standard User', description: 'Upload only, no admin features' },
+  { value: 'user', label: 'Standard User', description: 'View rules, questions, and headings; no delete or admin access' },
   { value: 'editor', label: 'Editor', description: 'Everything except integrations and billing' },
   { value: 'custom', label: 'Custom', description: 'Custom permission set' },
   { value: 'company_admin', label: 'Company Admin', description: 'Cross-account view and management' },
@@ -86,7 +86,12 @@ const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'custom'>, PermissionMap> = {
     questions: 'edit',
     rules: 'edit',
   },
-  user: NONE_ALL,
+  user: {
+    ...NONE_ALL,
+    rules: 'view',
+    questions: 'view',
+    column_headings: 'view',
+  },
 };
 
 /**
