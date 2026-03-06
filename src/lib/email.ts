@@ -71,6 +71,38 @@ export async function sendInviteEmail(
   }
 }
 
+export async function sendAccountAcceptEmail(
+  to: string,
+  displayName: string,
+  acceptToken: string
+): Promise<boolean> {
+  const acceptUrl = `${APP_URL}/accept-invite?token=${acceptToken}`;
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: "You've been added to a new account on FreshSegments",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>New Account Invitation${displayName ? `, ${displayName}` : ''}!</h2>
+          <p>You've been invited to access a new account on FreshSegments. Since you already have a FreshSegments account, no password setup is needed.</p>
+          <p>Click the button below to accept the invitation:</p>
+          <a href="${acceptUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+            Accept Invitation
+          </a>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+            This link expires in 48 hours. If you did not expect this email, please ignore it.
+          </p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (err) {
+    console.error('[email] Failed to send account accept email:', err);
+    return false;
+  }
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetToken: string

@@ -13,11 +13,19 @@ export interface User {
   createdAt: string;
 }
 
+export interface AccountOption {
+  userId: string;
+  accountId: string;
+  accountName: string;
+  role: UserRole;
+}
+
 export interface AuthResult {
   success: boolean;
   user?: User;
   token?: string;
   error?: string;
+  accounts?: AccountOption[];
 }
 
 // Generate a secure random token
@@ -27,36 +35,89 @@ function generateToken(): string {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Login user with username and password
+// Login user with username and password.
+// If the user belongs to multiple accounts, returns the accounts list
+// so the frontend can show an account selector.
 export async function loginUser(username: string, password: string): Promise<AuthResult> {
   try {
-    // Find user and verify password using Supabase
-    const { data: user, error: userError } = await supabase
+    // Find ALL user records for this email (could be in multiple accounts)
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('*, account:accounts(id, name)')
       .eq('username', username.toLowerCase().trim())
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
 
-    if (userError || !user) {
+    if (userError || !users || users.length === 0) {
       return { success: false, error: 'Invalid username or password' };
+    }
+
+    // Find a record with a password_hash to verify against
+    const userWithPassword = users.find((u) => u.password_hash);
+    if (!userWithPassword) {
+      return { success: false, error: 'Please check your email for the invitation link to set up your account.' };
     }
 
     // Verify password using Supabase RPC
     const { data: isValid, error: verifyError } = await supabase.rpc('verify_password', {
       password: password,
-      password_hash: user.password_hash,
+      password_hash: userWithPassword.password_hash,
     });
 
     if (verifyError || !isValid) {
       return { success: false, error: 'Invalid username or password' };
     }
 
-    // Generate session token
-    const token = generateToken();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // If multiple active accounts, return the list for the account selector
+    if (users.length > 1) {
+      // Create session for the first account (can be switched later)
+      const firstUser = users[0];
+      const token = generateToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Create session
+      await supabase.from('user_sessions').insert({
+        user_id: firstUser.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+      });
+
+      await supabase
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', firstUser.id);
+
+      const firstAccount = firstUser.account as { id: string; name: string } | null;
+
+      return {
+        success: true,
+        token,
+        user: {
+          id: firstUser.id,
+          username: firstUser.username,
+          displayName: firstUser.display_name,
+          role: firstUser.role,
+          accountId: firstAccount?.id || null,
+          accountName: firstAccount?.name || null,
+          isActive: firstUser.is_active,
+          lastLogin: firstUser.last_login,
+          createdAt: firstUser.created_at,
+        },
+        accounts: users.map((u) => {
+          const acc = u.account as { id: string; name: string } | null;
+          return {
+            userId: u.id,
+            accountId: acc?.id || '',
+            accountName: acc?.name || 'Unknown Account',
+            role: u.role,
+          };
+        }),
+      };
+    }
+
+    // Single account — standard login flow
+    const user = users[0];
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     const { error: sessionError } = await supabase.from('user_sessions').insert({
       user_id: user.id,
       token,
@@ -67,28 +128,27 @@ export async function loginUser(username: string, password: string): Promise<Aut
       return { success: false, error: 'Failed to create session' };
     }
 
-    // Update last login
     await supabase
       .from('users')
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id);
 
-    // Bootstrap: if this user is an admin and no company_admin exists,
-    // auto-promote them to company_admin so there's always a super admin.
+    // Bootstrap: if this user is an admin and no super_admin exists,
+    // auto-promote them to super_admin so there's always a system admin.
     let effectiveRole = user.role;
     if (user.role === 'admin') {
-      const { data: companyAdmins } = await supabase
+      const { data: superAdmins } = await supabase
         .from('users')
         .select('id')
-        .eq('role', 'company_admin')
+        .eq('role', 'super_admin')
         .limit(1);
 
-      if (!companyAdmins || companyAdmins.length === 0) {
+      if (!superAdmins || superAdmins.length === 0) {
         await supabase
           .from('users')
-          .update({ role: 'company_admin' })
+          .update({ role: 'super_admin' })
           .eq('id', user.id);
-        effectiveRole = 'company_admin';
+        effectiveRole = 'super_admin';
       }
     }
 
@@ -111,6 +171,75 @@ export async function loginUser(username: string, password: string): Promise<Aut
   } catch (error) {
     console.error('Login error:', error);
     return { success: false, error: 'An error occurred during login' };
+  }
+}
+
+// Select a specific account (switch session to a different user record for the same email)
+export async function selectAccount(
+  currentToken: string,
+  targetUserId: string
+): Promise<AuthResult> {
+  try {
+    // Validate current session to get the logged-in username
+    const currentUser = await validateSession(currentToken);
+    if (!currentUser) {
+      return { success: false, error: 'Session expired' };
+    }
+
+    // Verify the target user record belongs to the same email
+    const { data: targetUser, error: targetError } = await supabase
+      .from('users')
+      .select('*, account:accounts(id, name)')
+      .eq('id', targetUserId)
+      .eq('username', currentUser.username)
+      .eq('is_active', true)
+      .single();
+
+    if (targetError || !targetUser) {
+      return { success: false, error: 'Invalid account selection' };
+    }
+
+    // Delete old session
+    await supabase.from('user_sessions').delete().eq('token', currentToken);
+
+    // Create new session for the target user record
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const { error: sessionError } = await supabase.from('user_sessions').insert({
+      user_id: targetUser.id,
+      token,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (sessionError) {
+      return { success: false, error: 'Failed to create session' };
+    }
+
+    await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', targetUser.id);
+
+    const account = targetUser.account as { id: string; name: string } | null;
+    return {
+      success: true,
+      token,
+      user: {
+        id: targetUser.id,
+        username: targetUser.username,
+        displayName: targetUser.display_name,
+        role: targetUser.role,
+        accountId: account?.id || null,
+        accountName: account?.name || null,
+        isActive: targetUser.is_active,
+        lastLogin: targetUser.last_login,
+        createdAt: targetUser.created_at,
+      },
+    };
+  } catch (error) {
+    console.error('Select account error:', error);
+    return { success: false, error: 'An error occurred' };
   }
 }
 
@@ -189,7 +318,7 @@ export async function createUser(
 
     if (createError) {
       if (createError.code === '23505') {
-        return { success: false, error: 'Username already exists' };
+        return { success: false, error: 'This user already exists in this account' };
       }
       return { success: false, error: 'Failed to create user' };
     }
@@ -214,7 +343,7 @@ export async function createUser(
   }
 }
 
-// Update user password (admin only)
+// Update user password (admin only) — syncs across all accounts for same email
 export async function updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
   try {
     const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
@@ -228,7 +357,24 @@ export async function updateUserPassword(userId: string, newPassword: string): P
       .update({ password_hash: passwordHash })
       .eq('id', userId);
 
-    return !error;
+    if (error) return false;
+
+    // Sync password across all accounts for this email
+    const { data: thisUser } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', userId)
+      .single();
+
+    if (thisUser) {
+      await supabase
+        .from('users')
+        .update({ password_hash: passwordHash })
+        .eq('username', thisUser.username)
+        .neq('id', userId);
+    }
+
+    return true;
   } catch {
     return false;
   }

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check subscription status for non-admin users
-    if (user.role !== 'company_admin' && user.role !== 'admin') {
+    if (user.role !== 'super_admin' && user.role !== 'company_admin' && user.role !== 'admin') {
       const { data: dbUser } = await supabase
         .from('users')
         .select('subscription_status')
@@ -70,7 +70,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, user });
+    // Fetch accounts for multi-account users (same email, different accounts)
+    let accounts: { userId: string; accountId: string; accountName: string; role: string }[] = [];
+    if (user.username) {
+      const { data: userRows } = await supabase
+        .from('users')
+        .select('id, role, account_id, accounts!inner(id, name)')
+        .eq('username', user.username)
+        .eq('is_active', true);
+
+      if (userRows && userRows.length > 1) {
+        accounts = userRows.map((row: Record<string, unknown>) => {
+          const acct = row.accounts as Record<string, unknown>;
+          return {
+            userId: row.id as string,
+            accountId: acct.id as string,
+            accountName: acct.name as string,
+            role: row.role as string,
+          };
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, user, accounts: accounts.length > 1 ? accounts : undefined });
   } catch (error) {
     console.error('Auth check error:', error);
     return NextResponse.json(

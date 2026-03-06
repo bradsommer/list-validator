@@ -20,12 +20,14 @@ interface User {
   display_name: string | null;
   role: UserRole;
   is_active: boolean;
+  password_hash: string | null;
   last_login: string | null;
   created_at: string;
   config?: { permissions?: Partial<PermissionMap> };
 }
 
 const ROLE_BADGE_CLASS: Record<string, string> = {
+  super_admin: 'bg-red-100 text-red-700',
   company_admin: 'bg-indigo-100 text-indigo-700',
   admin: 'bg-purple-100 text-purple-700',
   billing: 'bg-emerald-100 text-emerald-700',
@@ -35,6 +37,7 @@ const ROLE_BADGE_CLASS: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
   company_admin: 'Company Admin',
   admin: 'Admin',
   billing: 'Billing',
@@ -44,7 +47,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { user: currentUser, isCompanyAdmin } = useAuth();
+  const { user: currentUser, isCompanyAdmin, isSuperAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -73,13 +76,20 @@ export default function UsersPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Company admins see all users; account admins see only their account's users
+      // Super/company admins see all users; account admins see only their account's users
       if (!isCompanyAdmin && currentUser?.accountId) {
         query = query.eq('account_id', currentUser.accountId);
       }
 
       const { data } = await query;
-      setUsers(((data || []) as User[]).filter((u) => isCompanyAdmin || u.role !== 'company_admin'));
+      // Filter out roles the current user shouldn't see:
+      // - super_admin users are FreshSegments-internal; only visible to other super_admins
+      // - company_admin users are only visible to super_admins
+      setUsers(((data || []) as User[]).filter((u) => {
+        if (u.role === 'super_admin') return isSuperAdmin;
+        if (u.role === 'company_admin') return isSuperAdmin;
+        return true;
+      }));
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
@@ -206,17 +216,26 @@ export default function UsersPage() {
     }
   };
 
-  const toggleActive = async (user: User) => {
-    if (user.id === currentUser?.id) {
-      alert("You can't disable your own account");
-      return;
-    }
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
 
+  const resendInvite = async (user: User) => {
+    setResendingInvite(user.id);
     try {
-      await supabase.from('users').update({ is_active: !user.is_active }).eq('id', user.id);
-      fetchUsers();
-    } catch (err) {
-      console.error('Error toggling user:', err);
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Invite email sent successfully');
+      } else {
+        alert(data.error || 'Failed to resend invite');
+      }
+    } catch {
+      alert('Failed to resend invite. Please check your connection.');
+    } finally {
+      setResendingInvite(null);
     }
   };
 
@@ -317,28 +336,26 @@ export default function UsersPage() {
                   <td className="px-4 py-4">
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
-                        user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        !user.is_active
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-green-100 text-green-700'
                       }`}
                     >
-                      {user.is_active ? 'Active' : 'Disabled'}
+                      {!user.is_active ? 'Pending Invite' : 'Active'}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500">{formatDate(user.last_login)}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => toggleActive(user)}
-                        disabled={user.id === currentUser?.id}
-                        className={`text-sm ${
-                          user.id === currentUser?.id
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : user.is_active
-                            ? 'text-orange-600 hover:text-orange-700'
-                            : 'text-green-600 hover:text-green-700'
-                        }`}
-                      >
-                        {user.is_active ? 'Disable' : 'Enable'}
-                      </button>
+                      {!user.is_active && (
+                        <button
+                          onClick={() => resendInvite(user)}
+                          disabled={resendingInvite === user.id}
+                          className="text-sm text-orange-600 hover:text-orange-700 disabled:text-orange-400"
+                        >
+                          {resendingInvite === user.id ? 'Sending...' : 'Resend Invite'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEditModal(user)}
                         className="text-sm text-primary-600 hover:text-primary-700"
@@ -443,7 +460,13 @@ export default function UsersPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
                       {ROLE_OPTIONS
-                        .filter((opt) => isCompanyAdmin || opt.value !== 'company_admin')
+                        .filter((opt) => {
+                          // super_admin can only be assigned by other super_admins
+                          if (opt.value === 'super_admin') return isSuperAdmin;
+                          // company_admin can only be assigned from within the super admin account
+                          if (opt.value === 'company_admin') return isSuperAdmin;
+                          return true;
+                        })
                         .map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}

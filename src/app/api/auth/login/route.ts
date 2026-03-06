@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Admins can always log in. For other users, check subscription status.
-    if (result.user && result.user.role !== 'company_admin' && result.user.role !== 'admin') {
+    if (result.user && result.user.role !== 'super_admin' && result.user.role !== 'company_admin' && result.user.role !== 'admin') {
       const { data: dbUser } = await supabase
         .from('users')
         .select('subscription_status')
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: result.user,
+      accounts: result.accounts || undefined,
     });
 
     // Set HTTP-only cookie for security

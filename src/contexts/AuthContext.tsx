@@ -16,19 +16,32 @@ export interface User {
   customPermissions?: Partial<PermissionMap>;
 }
 
+export interface AccountOption {
+  userId: string;
+  accountId: string;
+  accountName: string;
+  role: string;
+}
+
 interface AuthContextType {
   user: User | null;
+  accounts: AccountOption[] | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True for admin, company_admin, or super_admin */
   isAdmin: boolean;
+  /** True for company_admin or super_admin (cross-account access) */
   isCompanyAdmin: boolean;
+  /** True for super_admin only (FreshSegments internal) */
+  isSuperAdmin: boolean;
   permissions: PermissionMap;
   canView: (area: PermissionArea) => boolean;
   canEdit: (area: PermissionArea) => boolean;
   impersonating: User | null;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string; accounts?: AccountOption[] }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  selectAccount: (userId: string) => Promise<{ success: boolean; error?: string }>;
   impersonate: (userId: string) => Promise<{ success: boolean; error?: string }>;
   stopImpersonating: () => void;
 }
@@ -38,6 +51,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [realUser, setRealUser] = useState<User | null>(null);
+  const [accounts, setAccounts] = useState<AccountOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const checkSession = useCallback(async () => {
@@ -47,8 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user);
+        if (data.accounts && data.accounts.length > 1) {
+          setAccounts(data.accounts);
+        }
       } else {
         setUser(null);
+        setAccounts(null);
       }
     } catch {
       setUser(null);
@@ -74,6 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success && data.user) {
         setUser(data.user);
         setRealUser(null);
+
+        if (data.accounts && data.accounts.length > 1) {
+          setAccounts(data.accounts);
+          return { success: true, accounts: data.accounts };
+        }
+
+        setAccounts(null);
         return { success: true };
       }
 
@@ -89,6 +114,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setRealUser(null);
+      setAccounts(null);
+    }
+  };
+
+  const selectAccount = async (userId: string) => {
+    try {
+      const res = await fetch('/api/auth/select-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.user) {
+        setUser(data.user);
+        setRealUser(null);
+        return { success: true };
+      }
+
+      return { success: false, error: data.error || 'Failed to select account' };
+    } catch {
+      return { success: false, error: 'An error occurred' };
     }
   };
 
@@ -133,10 +181,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        accounts,
         isLoading,
         isAuthenticated: !!user,
-        isAdmin: activeRole === 'admin' || activeRole === 'company_admin',
-        isCompanyAdmin: activeRole === 'company_admin',
+        isAdmin: activeRole === 'admin' || activeRole === 'company_admin' || activeRole === 'super_admin',
+        isCompanyAdmin: activeRole === 'company_admin' || activeRole === 'super_admin',
+        isSuperAdmin: activeRole === 'super_admin',
         permissions,
         canView: (area: PermissionArea) => canView(permissions, area),
         canEdit: (area: PermissionArea) => canEdit(permissions, area),
@@ -144,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         checkSession,
+        selectAccount,
         impersonate,
         stopImpersonating,
       }}

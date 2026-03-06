@@ -54,6 +54,21 @@ export async function POST(request: NextRequest) {
       .update({ password_hash: hash })
       .eq('id', resetToken.user_id);
 
+    // Sync password across all accounts for this email
+    const { data: thisUser } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', resetToken.user_id)
+      .single();
+
+    if (thisUser) {
+      await supabase
+        .from('users')
+        .update({ password_hash: hash })
+        .eq('username', thisUser.username)
+        .neq('id', resetToken.user_id);
+    }
+
     // Delete used token
     await supabase
       .from('password_reset_tokens')

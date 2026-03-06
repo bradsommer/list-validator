@@ -26,10 +26,12 @@ CREATE INDEX IF NOT EXISTS idx_accounts_slug ON accounts(slug);
 -- ============================================================================
 
 -- Users table - managed by admin, no email required
+-- Same email can exist in multiple accounts (one row per account membership).
+-- Password is shared across all rows for the same username.
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  username VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   display_name VARCHAR(255),
   role VARCHAR(50) NOT NULL DEFAULT 'user', -- 'admin' or 'user'
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
@@ -41,7 +43,8 @@ CREATE TABLE IF NOT EXISTS users (
   subscription_status VARCHAR(50),
   subscription_trial_end TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(username, account_id)
 );
 
 -- Create index on username for login
@@ -444,10 +447,10 @@ INSERT INTO accounts (id, name, slug) VALUES
   ('00000000-0000-0000-0000-000000000001', 'Default Account', 'default')
 ON CONFLICT (slug) DO NOTHING;
 
--- Insert default admin user (password: admin123 - CHANGE IN PRODUCTION!)
+-- Insert default super admin user (password: admin123 - CHANGE IN PRODUCTION!)
 INSERT INTO users (username, password_hash, display_name, role, account_id) VALUES
-  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'company_admin', '00000000-0000-0000-0000-000000000001')
-ON CONFLICT (username) DO NOTHING;
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'super_admin', '00000000-0000-0000-0000-000000000001')
+ON CONFLICT (username, account_id) DO NOTHING;
 
 -- Insert default HubSpot fields
 INSERT INTO hubspot_fields (field_name, field_label, field_type, is_required) VALUES

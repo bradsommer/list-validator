@@ -28,7 +28,11 @@ export default function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
-      router.push('/');
+      if (result.accounts && result.accounts.length > 1) {
+        router.push('/select-account');
+      } else {
+        router.push('/');
+      }
     } else {
       setError(result.error || 'Login failed');
     }
