@@ -280,10 +280,7 @@ function Dashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-600">Upload and validate spreadsheets. Data is cleaned and formatted for export.</p>
-          </div>
+        <div className="flex items-center justify-end">
           <Link
             href="/import"
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"
@@ -295,7 +292,7 @@ function Dashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/import" className="bg-blue-50 rounded-lg p-5 border border-blue-200 hover:bg-blue-100 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -334,6 +331,20 @@ function Dashboard() {
               <div>
                 <p className="text-sm font-semibold text-green-900">Output Headings</p>
                 <p className="text-sm text-green-700">Manage HubSpot column heading names</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/import-questions" className="bg-orange-50 rounded-lg p-5 border border-orange-200 hover:bg-orange-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-orange-900">Import Questions</p>
+                <p className="text-sm text-orange-700">Set metadata questions for each import</p>
               </div>
             </div>
           </Link>
