@@ -11,12 +11,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading, accounts } = useAuth();
   const router = useRouter();
 
   // Redirect if already logged in
   if (!isLoading && isAuthenticated) {
-    router.push('/');
+    if (accounts && accounts.length > 1) {
+      router.push('/select-account');
+    } else {
+      router.push('/');
+    }
     return null;
   }
 
