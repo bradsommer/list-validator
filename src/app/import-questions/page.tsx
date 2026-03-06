@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -11,6 +11,14 @@ type SortField = 'questionText' | 'columnHeader' | 'questionType' | 'isRequired'
 type SortDirection = 'asc' | 'desc';
 
 export default function ImportQuestionsPage() {
+  return (
+    <Suspense>
+      <ImportQuestionsContent />
+    </Suspense>
+  );
+}
+
+function ImportQuestionsContent() {
   const { user, isAdmin, canEdit: userCanEdit } = useAuth();
   const searchParams = useSearchParams();
   const [questions, setQuestions] = useState<ImportQuestion[]>([]);
