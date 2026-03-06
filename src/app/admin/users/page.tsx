@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { validatePassword } from '@/lib/passwordValidation';
 import {
   ROLE_OPTIONS,
   PERMISSION_AREAS,
@@ -55,7 +56,6 @@ export default function UsersPage() {
     password: '',
     display_name: '',
     role: 'user' as UserRole,
-    sendEmail: true,
     customPermissions: defaultCustomPermissions(),
   });
   const [formError, setFormError] = useState('');
@@ -93,7 +93,6 @@ export default function UsersPage() {
       password: '',
       display_name: '',
       role: 'user',
-      sendEmail: true,
       customPermissions: defaultCustomPermissions(),
     });
     setFormError('');
@@ -112,7 +111,6 @@ export default function UsersPage() {
       password: '',
       display_name: user.display_name || '',
       role: user.role,
-      sendEmail: false,
       customPermissions: user.config?.permissions
         ? { ...defaultCustomPermissions(), ...user.config.permissions }
         : defaultCustomPermissions(),
@@ -133,14 +131,13 @@ export default function UsersPage() {
       return;
     }
 
-    if (!editingUser && !formData.password) {
-      setFormError('Password is required for new users');
-      return;
-    }
-
-    if (formData.password && formData.password.length < 6) {
-      setFormError('Password must be at least 6 characters');
-      return;
+    // Only validate password when editing and a new password is provided
+    if (editingUser && formData.password) {
+      const pwCheck = validatePassword(formData.password);
+      if (!pwCheck.valid) {
+        setFormError(pwCheck.error!);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -161,26 +158,36 @@ export default function UsersPage() {
           }),
         });
 
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setFormError(data?.error || `Server error (${res.status}). Please try again.`);
+          return;
+        }
+
         const data = await res.json();
         if (!data.success) {
           setFormError(data.error || 'Failed to update user');
           return;
         }
       } else {
-        // Create via API (server-side password hashing)
+        // Create via API (invite flow — no password)
         const res = await fetch('/api/admin/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: formData.username,
-            password: formData.password,
             displayName: formData.display_name,
             role: formData.role,
             accountId: currentUser?.accountId,
-            sendEmail: formData.sendEmail,
             customPermissions: formData.role === 'custom' ? formData.customPermissions : undefined,
           }),
         });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setFormError(data?.error || `Server error (${res.status}). Please try again.`);
+          return;
+        }
 
         const data = await res.json();
         if (!data.success) {
@@ -265,7 +272,7 @@ export default function UsersPage() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
             <p className="text-gray-500 text-sm mt-1">
-              Create and manage user accounts. New users will receive a welcome email with their credentials.
+              Create and manage user accounts. New users will receive an email invitation to set up their account.
             </p>
           </div>
           <button
@@ -363,8 +370,8 @@ export default function UsersPage() {
 
         {/* Add/Edit Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-full overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {editingUser ? 'Edit User' : 'Add User'}
@@ -389,21 +396,11 @@ export default function UsersPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none disabled:bg-gray-100"
                       placeholder="user@company.com"
                     />
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password {editingUser && '(leave blank to keep current)'}
-                    </label>
-                    <input
-                      type="password"
-                      required={!editingUser}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      placeholder={editingUser ? 'Enter new password' : 'Enter password'}
-                    />
+                    {!editingUser && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        An invitation email will be sent to this address to set up their account.
+                      </p>
+                    )}
                   </div>
 
                   {/* Display Name */}
@@ -417,6 +414,25 @@ export default function UsersPage() {
                       placeholder="Enter display name"
                     />
                   </div>
+
+                  {/* Password — only shown when editing */}
+                  {editingUser && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Password (leave blank to keep current)
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="Enter new password"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Min. 12 characters with at least one special character.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Role */}
                   <div>
@@ -475,28 +491,6 @@ export default function UsersPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Send welcome email toggle (new users only) */}
-                  {!editingUser && (
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, sendEmail: !formData.sendEmail })}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          formData.sendEmail ? 'bg-primary-500' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            formData.sendEmail ? 'left-5' : 'left-0.5'
-                          }`}
-                        />
-                      </button>
-                      <label className="text-sm text-gray-700">
-                        Send welcome email with login credentials
-                      </label>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 mt-6">
@@ -514,7 +508,11 @@ export default function UsersPage() {
                     disabled={isSaving}
                     className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400"
                   >
-                    {isSaving ? 'Saving...' : 'Save'}
+                    {isSaving
+                      ? 'Saving...'
+                      : editingUser
+                      ? 'Save'
+                      : 'Send Invite'}
                   </button>
                 </div>
               </div>

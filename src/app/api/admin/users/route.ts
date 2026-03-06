@@ -1,50 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSupabase } from '@/lib/supabase';
-import { sendWelcomeEmail } from '@/lib/email';
+import { supabase } from '@/lib/supabase';
+import { sendInviteEmail } from '@/lib/email';
+import { validatePassword } from '@/lib/passwordValidation';
 
 /**
- * POST /api/admin/users — Create a new user
+ * POST /api/admin/users — Create a new user (invite flow, no password)
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
     const body = await request.json();
-    const { username, password, displayName, role, accountId, sendEmail, customPermissions } = body;
+    const { username, displayName, role, accountId, customPermissions } = body;
 
-    if (!username || !password) {
+    if (!username) {
       return NextResponse.json(
-        { success: false, error: 'Username and password are required' },
+        { success: false, error: 'Email address is required' },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(username)) {
       return NextResponse.json(
-        { success: false, error: 'Password must be at least 6 characters' },
+        { success: false, error: 'Please enter a valid email address' },
         { status: 400 }
       );
     }
 
-    // Hash password via Supabase RPC
-    const { data: hash, error: hashError } = await supabase.rpc('hash_password', {
-      password,
-    });
-
-    if (hashError || !hash) {
-      console.error('Hash error:', hashError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to hash password' },
-        { status: 500 }
-      );
-    }
-
-    // Build user insert
+    // Build user insert — no password_hash; user sets password via invite link
     const insertData: Record<string, unknown> = {
       username: username.toLowerCase().trim(),
-      password_hash: hash,
+      password_hash: null,
       display_name: displayName || null,
       role: role || 'user',
       account_id: accountId || null,
+      is_active: false,
     };
 
     // Store custom permissions in config column if role is custom
@@ -61,20 +51,36 @@ export async function POST(request: NextRequest) {
     if (createError) {
       if (createError.code === '23505') {
         return NextResponse.json(
-          { success: false, error: 'Username already exists' },
+          { success: false, error: 'A user with this email already exists' },
           { status: 409 }
         );
       }
       console.error('Create error:', createError);
       return NextResponse.json(
-        { success: false, error: 'Failed to create user' },
+        { success: false, error: `Failed to create user: ${createError.message}` },
         { status: 500 }
       );
     }
 
-    // Send welcome email if requested
-    if (sendEmail && username.includes('@')) {
-      await sendWelcomeEmail(username, displayName || '', password);
+    // Generate invite token (48-hour expiry)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const token = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+    const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
+      user_id: user.id,
+      token,
+      expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    });
+
+    if (tokenError) {
+      console.error('Token error:', tokenError);
+      // Still created the user — admin can resend invite later
+    }
+
+    // Send invite email
+    if (!tokenError) {
+      await sendInviteEmail(username.toLowerCase().trim(), displayName || '', token);
     }
 
     return NextResponse.json({
@@ -89,8 +95,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Create user API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred while creating the user. Please try again.' },
+      { success: false, error: `Failed to create user: ${message}` },
       { status: 500 }
     );
   }
@@ -101,7 +108,6 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
     const body = await request.json();
     const { id, displayName, role, password, customPermissions } = body;
 
@@ -120,11 +126,12 @@ export async function PUT(request: NextRequest) {
       updates.config = { permissions: customPermissions };
     }
 
-    // If password provided, hash it server-side
+    // If password provided, validate and hash it server-side
     if (password) {
-      if (password.length < 6) {
+      const pwCheck = validatePassword(password);
+      if (!pwCheck.valid) {
         return NextResponse.json(
-          { success: false, error: 'Password must be at least 6 characters' },
+          { success: false, error: pwCheck.error },
           { status: 400 }
         );
       }
@@ -151,7 +158,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Update error:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to update user' },
+        { success: false, error: `Failed to update user: ${error.message}` },
         { status: 500 }
       );
     }
@@ -159,8 +166,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update user API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred while updating the user. Please try again.' },
+      { success: false, error: `Failed to update user: ${message}` },
       { status: 500 }
     );
   }

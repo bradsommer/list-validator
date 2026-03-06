@@ -40,6 +40,37 @@ export async function sendWelcomeEmail(
   }
 }
 
+export async function sendInviteEmail(
+  to: string,
+  displayName: string,
+  inviteToken: string
+): Promise<boolean> {
+  const setupUrl = `${APP_URL}/setup-account?token=${inviteToken}`;
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: "You're invited to FreshSegments",
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Welcome to FreshSegments${displayName ? `, ${displayName}` : ''}!</h2>
+          <p>An account has been created for you. Click the button below to set up your password and get started:</p>
+          <a href="${setupUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">
+            Set Up Your Account
+          </a>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+            This link expires in 48 hours. If you did not expect this email, please ignore it.
+          </p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (err) {
+    console.error('[email] Failed to send invite email:', err);
+    return false;
+  }
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetToken: string

@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { validatePassword } from '@/lib/passwordValidation';
 
-function ResetPasswordForm() {
+function SetupAccountForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const [password, setPassword] = useState('');
@@ -33,21 +33,28 @@ function ResetPasswordForm() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetch('/api/auth/setup-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword: password }),
+        body: JSON.stringify({ token, password }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || 'Failed to set up account');
+        setIsSubmitting(false);
+        return;
+      }
 
       const data = await res.json();
 
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error || 'Failed to reset password');
+        setError(data.error || 'Failed to set up account');
       }
     } catch {
-      setError('An error occurred. Please try again.');
+      setError('Unable to reach the server. Please try again.');
     }
 
     setIsSubmitting(false);
@@ -56,13 +63,7 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600">Invalid reset link. Please request a new password reset.</p>
-        <Link
-          href="/forgot-password"
-          className="inline-block mt-4 text-primary-600 hover:text-primary-700 text-sm font-medium"
-        >
-          Request Password Reset
-        </Link>
+        <p className="text-gray-600">Invalid invitation link. Please ask your administrator to resend the invite.</p>
       </div>
     );
   }
@@ -75,8 +76,8 @@ function ResetPasswordForm() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <p className="text-gray-900 font-medium">Password reset successfully</p>
-        <p className="text-gray-500 text-sm mt-1">You can now sign in with your new password.</p>
+        <p className="text-gray-900 font-medium">Account set up successfully!</p>
+        <p className="text-gray-500 text-sm mt-1">You can now sign in with your email and password.</p>
         <Link
           href="/login"
           className="inline-block mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"
@@ -97,7 +98,7 @@ function ResetPasswordForm() {
 
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-          New Password
+          Password
         </label>
         <input
           id="password"
@@ -105,10 +106,14 @@ function ResetPasswordForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          placeholder="Enter new password"
+          placeholder="Create a password"
           required
           minLength={12}
+          autoComplete="new-password"
         />
+        <p className="text-xs text-gray-400 mt-1">
+          Min. 12 characters with at least one special character.
+        </p>
       </div>
 
       <div>
@@ -121,9 +126,10 @@ function ResetPasswordForm() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          placeholder="Confirm new password"
+          placeholder="Confirm your password"
           required
           minLength={12}
+          autoComplete="new-password"
         />
       </div>
 
@@ -132,23 +138,23 @@ function ResetPasswordForm() {
         disabled={isSubmitting}
         className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed transition-colors font-medium"
       >
-        {isSubmitting ? 'Resetting...' : 'Reset Password'}
+        {isSubmitting ? 'Setting up...' : 'Set Up Account'}
       </button>
     </form>
   );
 }
 
-export default function ResetPasswordPage() {
+export default function SetupAccountPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Reset Password</h1>
-            <p className="text-gray-500 mt-2 text-sm">Enter your new password below.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Set Up Your Account</h1>
+            <p className="text-gray-500 mt-2 text-sm">Create a password to complete your account setup.</p>
           </div>
           <Suspense fallback={<div className="text-center py-4 text-gray-500">Loading...</div>}>
-            <ResetPasswordForm />
+            <SetupAccountForm />
           </Suspense>
         </div>
       </div>

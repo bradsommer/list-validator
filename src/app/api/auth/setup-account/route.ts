@@ -4,16 +4,16 @@ import { validatePassword } from '@/lib/passwordValidation';
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, newPassword } = await request.json();
+    const { token, password } = await request.json();
 
-    if (!token || !newPassword) {
+    if (!token || !password) {
       return NextResponse.json(
-        { success: false, error: 'Token and new password are required' },
+        { success: false, error: 'Token and password are required' },
         { status: 400 }
       );
     }
 
-    const pwCheck = validatePassword(newPassword);
+    const pwCheck = validatePassword(password);
     if (!pwCheck.valid) {
       return NextResponse.json(
         { success: false, error: pwCheck.error },
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find valid token
+    // Find valid invite token
     const { data: resetToken } = await supabase
       .from('password_reset_tokens')
       .select('id, user_id')
@@ -31,27 +31,27 @@ export async function POST(request: NextRequest) {
 
     if (!resetToken) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired reset link' },
+        { success: false, error: 'Invalid or expired invitation link. Please ask your administrator to resend the invite.' },
         { status: 400 }
       );
     }
 
     // Hash new password
     const { data: hash, error: hashError } = await supabase.rpc('hash_password', {
-      password: newPassword,
+      password,
     });
 
     if (hashError || !hash) {
       return NextResponse.json(
-        { success: false, error: 'Failed to update password' },
+        { success: false, error: 'Failed to set password' },
         { status: 500 }
       );
     }
 
-    // Update password
+    // Update user: set password and activate account
     await supabase
       .from('users')
-      .update({ password_hash: hash })
+      .update({ password_hash: hash, is_active: true })
       .eq('id', resetToken.user_id);
 
     // Delete used token
@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('Setup account error:', error);
     return NextResponse.json(
-      { success: false, error: 'An error occurred' },
+      { success: false, error: 'An error occurred. Please try again.' },
       { status: 500 }
     );
   }
