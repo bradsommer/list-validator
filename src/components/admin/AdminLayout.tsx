@@ -336,6 +336,19 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
               </>
             )}
 
+            {/* Help section */}
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
+              Help
+            </div>
+            <ul className="space-y-1">
+              <SidebarNavItem
+                href="/documentation"
+                label="Documentation"
+                icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                isActive={pathname === '/documentation'}
+              />
+            </ul>
+
             {/* Company Admin section */}
             {isCompanyAdmin && (
               <>
@@ -368,6 +381,10 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
               <p>&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
               <div className="flex items-center gap-3">
+                <Link href="/documentation" className="hover:text-gray-700 transition-colors">
+                  Documentation
+                </Link>
+                <span>|</span>
                 <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
                   Privacy Policy
                 </Link>
