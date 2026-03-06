@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { supabase } from '@/lib/supabase';
+import { supabase, getServerSupabase } from '@/lib/supabase';
 
 // Map built-in rule IDs to their source file names
 const RULE_FILES: Record<string, string> = {
@@ -114,22 +114,34 @@ export async function PUT(request: NextRequest) {
  * Backfill: copies built-in script file contents into the source_code column
  * for all existing account_rules rows that have NULL source_code.
  * Safe to run multiple times — only touches rows with NULL source_code.
+ * Uses service role client to bypass RLS policies.
  */
 export async function POST() {
+  const adminClient = getServerSupabase();
   const scriptsDir = path.join(process.cwd(), 'src', 'lib', 'scripts');
   let updated = 0;
   let skipped = 0;
   const errors: string[] = [];
 
-  // Fetch all rules with NULL source_code that have a built-in file
-  const { data: rules, error: fetchError } = await supabase
+  // First check total rows in account_rules for diagnostics
+  const { count: totalRows } = await adminClient
     .from('account_rules')
-    .select('id, rule_id')
+    .select('*', { count: 'exact', head: true });
+
+  // Fetch all rules with NULL source_code that have a built-in file
+  const { data: rules, error: fetchError } = await adminClient
+    .from('account_rules')
+    .select('id, rule_id, account_id')
     .is('source_code', null);
 
   if (fetchError) {
     console.error('[rules/source] Backfill fetch error:', fetchError);
-    return NextResponse.json({ error: 'Failed to fetch rules' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Failed to fetch rules',
+      details: fetchError.message,
+      hint: fetchError.hint,
+      totalRowsInTable: totalRows,
+    }, { status: 500 });
   }
 
   for (const rule of rules || []) {
@@ -141,13 +153,14 @@ export async function POST() {
 
     const filePath = path.join(scriptsDir, fileName);
     if (!fs.existsSync(filePath)) {
+      errors.push(`${rule.rule_id}: file not found at ${filePath}`);
       skipped++;
       continue;
     }
 
     try {
       const source = fs.readFileSync(filePath, 'utf-8');
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminClient
         .from('account_rules')
         .update({ source_code: source })
         .eq('id', rule.id);
@@ -167,6 +180,7 @@ export async function POST() {
     updated,
     skipped,
     errors: errors.length > 0 ? errors : undefined,
-    total: (rules || []).length,
+    totalRowsInTable: totalRows ?? 0,
+    rowsWithNullSource: (rules || []).length,
   });
 }
