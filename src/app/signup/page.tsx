@@ -287,6 +287,10 @@ export default function SignupPage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <FreshSegmentsLogo className="h-6" dark />
             <div className="flex items-center gap-4 text-sm">
+              <Link href="/documentation" className="hover:text-white transition-colors">
+                Documentation
+              </Link>
+              <span className="text-gray-500">|</span>
               <Link href="/legal/privacy" className="hover:text-white transition-colors">
                 Privacy Policy
               </Link>
