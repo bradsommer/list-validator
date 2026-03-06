@@ -72,7 +72,7 @@ export default function LoginPage() {
       </nav>
 
       {/* Login Form */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           <div className="bg-white rounded-xl shadow-lg p-8">
             <div className="text-center mb-8">
