@@ -25,9 +25,8 @@ export async function GET(request: NextRequest) {
     const tokens = await exchangeCodeForTokens(code);
     const accountId = state || '';
 
-    // Fetch the portal ID and verify granted scopes from HubSpot token info
+    // Fetch the portal ID (hub_id) from HubSpot token info
     let portalId: string | undefined;
-    const requiredScopes = ['crm.schemas.contacts.read', 'crm.schemas.companies.read', 'crm.schemas.deals.read'];
     try {
       const tokenInfoResponse = await fetch(
         `https://api.hubapi.com/oauth/v1/access-tokens/${tokens.access_token}`
@@ -36,32 +35,14 @@ export async function GET(request: NextRequest) {
         const tokenInfo = await tokenInfoResponse.json();
         portalId = tokenInfo.hub_id?.toString();
         console.log('HubSpot portal ID fetched:', portalId);
-
-        // Verify that the required scopes were actually granted
-        const grantedScopes: string[] = tokenInfo.scopes || [];
-        const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
-        if (missingScopes.length > 0) {
-          console.error('HubSpot OAuth incomplete: missing scopes:', missingScopes, 'granted:', grantedScopes);
-          return NextResponse.redirect(
-            `${baseUrl}${redirectPage}?hubspot_error=${encodeURIComponent(
-              'Authorization incomplete. Please re-connect and approve all requested permissions on the second screen.'
-            )}`
-          );
-        }
       } else {
         console.error('Failed to fetch HubSpot token info:', tokenInfoResponse.status);
-        return NextResponse.redirect(
-          `${baseUrl}${redirectPage}?hubspot_error=${encodeURIComponent('Failed to verify token. Please try again.')}`
-        );
       }
     } catch (err) {
       console.error('Error fetching HubSpot token info:', err);
-      return NextResponse.redirect(
-        `${baseUrl}${redirectPage}?hubspot_error=${encodeURIComponent('Failed to verify token. Please try again.')}`
-      );
     }
 
-    // Store tokens to in-memory, file, and database (only reached if scopes are verified)
+    // Store tokens to in-memory, file, and database
     await setTokens(tokens, accountId, portalId);
     resetClient();
 
