@@ -20,12 +20,6 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if already logged in
-  if (!authLoading && isAuthenticated) {
-    router.push('/');
-    return null;
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -109,8 +103,14 @@ export default function SignupPage() {
         <div className="max-w-md w-full">
           <div className="bg-white rounded-xl shadow-lg p-8">
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
-              <p className="text-gray-500 mt-2">14 days free, then $19.99/month. Cancel anytime.</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {isAuthenticated ? 'Create Another Account' : 'Start Your Free Trial'}
+              </h1>
+              <p className="text-gray-500 mt-2">
+                {isAuthenticated
+                  ? 'Set up a new account with its own subscription and data.'
+                  : '14 days free, then $19.99/month. Cancel anytime.'}
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
