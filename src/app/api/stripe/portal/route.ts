@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Look up stripe_customer_id for the authenticated user
     const { data: dbUser } = await supabase
       .from('users')
-      .select('stripe_customer_id, username')
+      .select('stripe_customer_id, username, account_id')
       .eq('id', sessionUser.id)
       .single();
 
@@ -44,6 +44,22 @@ export async function POST(request: NextRequest) {
           .from('users')
           .update({ stripe_customer_id: stripeCustomerId })
           .eq('id', sessionUser.id);
+      }
+    }
+
+    // If still no customer ID, check other users in the same account
+    // This allows billing-permissioned users to manage the account's subscription
+    if (!stripeCustomerId && dbUser?.account_id) {
+      const { data: accountUser } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('account_id', dbUser.account_id)
+        .not('stripe_customer_id', 'is', null)
+        .limit(1)
+        .single();
+
+      if (accountUser?.stripe_customer_id) {
+        stripeCustomerId = accountUser.stripe_customer_id;
       }
     }
 
