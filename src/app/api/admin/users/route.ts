@@ -104,6 +104,88 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * PATCH /api/admin/users — Resend invite email for a pending user
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch the user
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    if (user.password_hash) {
+      return NextResponse.json(
+        { success: false, error: 'User has already set up their account' },
+        { status: 400 }
+      );
+    }
+
+    // Delete any existing tokens for this user
+    await supabase.from('password_reset_tokens').delete().eq('user_id', userId);
+
+    // Generate new invite token (48-hour expiry)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const token = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+    const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
+      user_id: userId,
+      token,
+      expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    });
+
+    if (tokenError) {
+      console.error('Token error:', tokenError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to generate invite token' },
+        { status: 500 }
+      );
+    }
+
+    const emailSent = await sendInviteEmail(
+      user.username,
+      user.display_name || '',
+      token
+    );
+
+    if (!emailSent) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to send invite email' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Resend invite API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { success: false, error: `Failed to resend invite: ${message}` },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PUT /api/admin/users — Update a user
  */
 export async function PUT(request: NextRequest) {

@@ -20,6 +20,7 @@ interface User {
   display_name: string | null;
   role: UserRole;
   is_active: boolean;
+  password_hash: string | null;
   last_login: string | null;
   created_at: string;
   config?: { permissions?: Partial<PermissionMap> };
@@ -206,17 +207,26 @@ export default function UsersPage() {
     }
   };
 
-  const toggleActive = async (user: User) => {
-    if (user.id === currentUser?.id) {
-      alert("You can't disable your own account");
-      return;
-    }
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
 
+  const resendInvite = async (user: User) => {
+    setResendingInvite(user.id);
     try {
-      await supabase.from('users').update({ is_active: !user.is_active }).eq('id', user.id);
-      fetchUsers();
-    } catch (err) {
-      console.error('Error toggling user:', err);
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Invite email sent successfully');
+      } else {
+        alert(data.error || 'Failed to resend invite');
+      }
+    } catch {
+      alert('Failed to resend invite. Please check your connection.');
+    } finally {
+      setResendingInvite(null);
     }
   };
 
@@ -317,28 +327,26 @@ export default function UsersPage() {
                   <td className="px-4 py-4">
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
-                        user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        !user.password_hash
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-green-100 text-green-700'
                       }`}
                     >
-                      {user.is_active ? 'Active' : 'Disabled'}
+                      {!user.password_hash ? 'Pending Invite' : 'Active'}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500">{formatDate(user.last_login)}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => toggleActive(user)}
-                        disabled={user.id === currentUser?.id}
-                        className={`text-sm ${
-                          user.id === currentUser?.id
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : user.is_active
-                            ? 'text-orange-600 hover:text-orange-700'
-                            : 'text-green-600 hover:text-green-700'
-                        }`}
-                      >
-                        {user.is_active ? 'Disable' : 'Enable'}
-                      </button>
+                      {!user.password_hash && (
+                        <button
+                          onClick={() => resendInvite(user)}
+                          disabled={resendingInvite === user.id}
+                          className="text-sm text-orange-600 hover:text-orange-700 disabled:text-orange-400"
+                        >
+                          {resendingInvite === user.id ? 'Sending...' : 'Resend Invite'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEditModal(user)}
                         className="text-sm text-primary-600 hover:text-primary-700"
