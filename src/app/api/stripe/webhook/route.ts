@@ -90,9 +90,8 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription?.id;
+        const sub = invoice.parent?.subscription_details?.subscription;
+        const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
         await supabase
           .from('users')
           .update({
