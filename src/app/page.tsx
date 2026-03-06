@@ -339,23 +339,22 @@ function Dashboard() {
           </Link>
         </div>
 
-        {importCount !== null && (
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <div className="flex items-center gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
+          <ImportsChart />
+
+          {importCount !== null && (
+            <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center md:w-56">
               <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
-                <p className="text-sm text-gray-500">Estimated time saved across {importCount} import{importCount !== 1 ? 's' : ''}</p>
-              </div>
+              <p className="mt-3 text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
+              <p className="text-sm text-gray-500">Estimated time saved across {importCount} import{importCount !== 1 ? 's' : ''}</p>
+              <p className="mt-2 text-xs text-gray-400">Based on 10 minutes saved per import</p>
             </div>
-          </div>
-        )}
-
-        <ImportsChart />
+          )}
+        </div>
       </div>
     </AdminLayout>
   );
