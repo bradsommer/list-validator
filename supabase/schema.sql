@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) UNIQUE NOT NULL,
+  region VARCHAR(10) NOT NULL DEFAULT 'us'
+    CHECK (region IN ('us', 'eu', 'ch')),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
