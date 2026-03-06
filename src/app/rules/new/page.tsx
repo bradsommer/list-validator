@@ -108,7 +108,7 @@ export default function NewRulePage() {
           <div className="flex items-center gap-3">
             <Link
               href="/rules"
-              className="p-2 text-green-200 hover:text-white hover:bg-green-700 rounded"
+              className="p-2 text-green-200 hover:text-white rounded transition-colors [&:hover]:!bg-[rgb(238,229,191)]"
               title="Back to Rules"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
