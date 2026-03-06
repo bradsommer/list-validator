@@ -107,7 +107,9 @@ export async function POST(request: NextRequest) {
 
     const region = countryToRegion(country || '');
 
-    const { data: account, error: accountError } = await supabase
+    // Try with region column first; if the migration hasn't been applied yet, retry without it
+    let account: { id: string } | null = null;
+    const { data: accountData, error: accountError } = await supabase
       .from('accounts')
       .insert({
         name: accountName,
@@ -117,8 +119,31 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (accountError || !account) {
-      console.error('Account creation error:', accountError);
+    if (accountError) {
+      console.error('Account creation error (with region):', accountError);
+      // Retry without region in case the column doesn't exist yet
+      const { data: retryData, error: retryError } = await supabase
+        .from('accounts')
+        .insert({
+          name: accountName,
+          slug: accountSlug + '-r',
+        })
+        .select()
+        .single();
+
+      if (retryError || !retryData) {
+        console.error('Account creation error (without region):', retryError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create account workspace. Please try again.' },
+          { status: 500 }
+        );
+      }
+      account = retryData;
+    } else {
+      account = accountData;
+    }
+
+    if (!account) {
       return NextResponse.json(
         { success: false, error: 'Failed to create account workspace. Please try again.' },
         { status: 500 }
