@@ -232,10 +232,14 @@ function DocumentationContent() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Need Help?</h2>
         <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
           <p className="text-gray-700">
-            Can&apos;t find what you&apos;re looking for? Reach out to our support team at{' '}
-            <a href="mailto:support@freshsegments.com" className="text-teal-600 hover:underline font-medium">
-              support@freshsegments.com
+            Can&apos;t find what you&apos;re looking for? Email us at{' '}
+            <a href="mailto:info@freshsegments.com" className="text-teal-600 hover:underline font-medium">
+              info@freshsegments.com
             </a>{' '}
+            or use our{' '}
+            <Link href="/contact" className="text-teal-600 hover:underline font-medium">
+              contact form
+            </Link>{' '}
             and we&apos;ll get back to you as soon as possible.
           </p>
         </div>
@@ -307,6 +311,10 @@ export default function DocumentationPage() {
             <div className="flex items-center gap-4 text-sm">
               <Link href="/documentation" className="hover:text-white transition-colors">
                 Documentation
+              </Link>
+              <span className="text-gray-500">|</span>
+              <Link href="/contact" className="hover:text-white transition-colors">
+                Contact Us
               </Link>
               <span className="text-gray-500">|</span>
               <Link href="/legal/privacy" className="hover:text-white transition-colors">
