@@ -18,7 +18,16 @@ function ComingSoonPage() {
       <p className="mt-4 text-lg text-gray-600 text-center max-w-md">
         We&apos;re building something great. Clean, validate, and prepare your data for HubSpot — effortlessly.
       </p>
-      <p className="mt-8 text-sm text-gray-400">
+      <div className="mt-8 flex items-center gap-4 text-sm text-gray-500">
+        <Link href="/contact" className="hover:text-gray-700 transition-colors">
+          Contact Us
+        </Link>
+        <span>|</span>
+        <Link href="/documentation" className="hover:text-gray-700 transition-colors">
+          Documentation
+        </Link>
+      </div>
+      <p className="mt-4 text-sm text-gray-400">
         &copy; {new Date().getFullYear()} FreshSegments. All rights reserved.
       </p>
     </div>
@@ -33,13 +42,21 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <FreshSegmentsLogo className="h-7" />
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium"
-              style={{ color: '#0B8377' }}
-            >
-              Sign In
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/contact"
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Contact Us
+              </Link>
+              <Link
+                href="/login"
+                className="px-4 py-2 text-sm font-medium"
+                style={{ color: '#0B8377' }}
+              >
+                Sign In
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
