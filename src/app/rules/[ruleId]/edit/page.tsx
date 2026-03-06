@@ -318,9 +318,6 @@ export default function EditRulePage() {
                 </div>
               </div>
             )}
-            <p className="text-xs text-gray-400 mt-1">
-              Source code is saved to the database and takes effect on the next import.
-            </p>
           </div>
         </div>
 
