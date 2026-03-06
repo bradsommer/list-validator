@@ -20,7 +20,7 @@ export function LogViewer() {
       case 'warning':
         return 'text-yellow-600 bg-yellow-50';
       default:
-        return 'text-blue-600 bg-blue-50';
+        return 'text-primary-600 bg-primary-50';
     }
   };
 

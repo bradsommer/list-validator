@@ -165,7 +165,7 @@ export function HubSpotSync() {
       case 'fuzzy_name':
         return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">Fuzzy Match</span>;
       case 'created_new':
-        return <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">New Company</span>;
+        return <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded">New Company</span>;
       case 'no_match':
         return <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">No Match</span>;
       default:
@@ -221,16 +221,16 @@ export function HubSpotSync() {
 
       {/* Progress */}
       {isSyncing && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-            <span className="text-blue-700">
+            <div className="animate-spin w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full" />
+            <span className="text-primary-700">
               Processing contact {syncProgress.completed} of {syncProgress.total}...
             </span>
           </div>
-          <div className="w-full bg-blue-200 rounded-full h-2">
+          <div className="w-full bg-primary-200 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className="bg-primary-600 h-2 rounded-full transition-all"
               style={{
                 width: `${
                   syncProgress.total > 0
@@ -259,11 +259,11 @@ export function HubSpotSync() {
               </div>
               <div className="text-sm text-yellow-600">Fuzzy Matches</div>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-700">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+              <div className="text-2xl font-bold text-primary-700">
                 {hubspotResults.filter((r) => r.matchType === 'created_new').length}
               </div>
-              <div className="text-sm text-blue-600">New Companies</div>
+              <div className="text-sm text-primary-600">New Companies</div>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div className="text-2xl font-bold text-gray-700">

@@ -410,7 +410,7 @@ export function ColumnMapper() {
                         </span>
                       )}
                       {detectedType && !isExcluded && !isFromQuestion && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-primary-50 text-primary-600 rounded-full">
                           {detectedType}
                         </span>
                       )}

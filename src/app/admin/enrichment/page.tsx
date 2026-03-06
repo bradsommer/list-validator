@@ -53,7 +53,7 @@ const OBJECT_TYPES: { value: HubSpotObjectType; label: string }[] = [
 ];
 
 const OBJECT_TYPE_COLORS: Record<HubSpotObjectType, string> = {
-  contacts: 'bg-blue-100 text-blue-700 border-blue-200',
+  contacts: 'bg-primary-100 text-primary-700 border-primary-200',
   companies: 'bg-purple-100 text-purple-700 border-purple-200',
   deals: 'bg-green-100 text-green-700 border-green-200',
 };

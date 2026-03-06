@@ -205,7 +205,7 @@ export function HeaderMapper() {
       </div>
 
       {/* Info banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 text-sm text-primary-700">
         <strong>Auto-Learning:</strong> Your header mappings are automatically saved for future imports.
         Next time you upload a file with similar headers, they&apos;ll be matched automatically.
       </div>
@@ -240,7 +240,7 @@ export function HeaderMapper() {
           <div className="flex flex-col items-end gap-1 text-sm shrink-0 ml-4">
             <Link
               href="/admin/required-properties"
-              className="text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-primary-600 hover:text-primary-800 hover:underline"
             >
               Edit Required Properties
             </Link>

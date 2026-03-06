@@ -169,7 +169,7 @@ export function RulesStep() {
                     <span
                       className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                         rule.ruleType === 'transform'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? 'bg-primary-100 text-primary-700'
                           : 'bg-amber-100 text-amber-700'
                       }`}
                     >

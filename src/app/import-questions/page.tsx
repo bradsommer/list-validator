@@ -51,7 +51,7 @@ export default function ImportQuestionsPage() {
   const getQuestionTypeBadgeClass = (type: QuestionType): string => {
     switch (type) {
       case 'text': return 'bg-gray-100 text-gray-700';
-      case 'dropdown': return 'bg-blue-100 text-blue-700';
+      case 'dropdown': return 'bg-primary-100 text-primary-700';
       case 'checkbox': return 'bg-purple-100 text-purple-700';
       case 'radio': return 'bg-green-100 text-green-700';
       case 'multiselect': return 'bg-orange-100 text-orange-700';

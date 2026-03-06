@@ -248,7 +248,7 @@ export function EnrichmentPanel() {
       {/* Available enrichment configs from database */}
       {isLoadingConfigs ? (
         <div className="text-center py-8 text-gray-500">
-          <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+          <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
           Loading enrichment configurations...
         </div>
       ) : dbConfigs.length === 0 ? (
@@ -275,7 +275,7 @@ export function EnrichmentPanel() {
                 onClick={() => toggleConfig(config.id)}
                 className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                   isSelected
-                    ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-400'
+                    ? 'border-primary-400 bg-primary-50 ring-1 ring-primary-400'
                     : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
               >
@@ -284,7 +284,7 @@ export function EnrichmentPanel() {
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleConfig(config.id)}
-                    className="w-4 h-4 text-blue-600 rounded mt-1 cursor-pointer"
+                    className="w-4 h-4 text-primary-600 rounded mt-1 cursor-pointer"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -319,16 +319,16 @@ export function EnrichmentPanel() {
 
       {/* Progress */}
       {isEnriching && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-            <span className="text-blue-700">
+            <div className="animate-spin w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full" />
+            <span className="text-primary-700">
               Processing row {enrichmentProgress.completed} of {enrichmentProgress.total}...
             </span>
           </div>
-          <div className="w-full bg-blue-200 rounded-full h-2">
+          <div className="w-full bg-primary-200 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className="bg-primary-600 h-2 rounded-full transition-all"
               style={{
                 width: `${
                   enrichmentProgress.total > 0
@@ -390,7 +390,7 @@ export function EnrichmentPanel() {
               className={`px-6 py-2 rounded-lg ${
                 isEnriching || selectedConfigIds.size === 0
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-primary-600 text-white hover:bg-primary-700'
               }`}
             >
               Run Enrichment ({selectedConfigIds.size} selected)
@@ -398,7 +398,7 @@ export function EnrichmentPanel() {
           ) : (
             <button
               onClick={nextStep}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               Continue to HubSpot Sync
             </button>

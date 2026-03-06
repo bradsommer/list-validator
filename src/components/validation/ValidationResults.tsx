@@ -293,9 +293,9 @@ export function ValidationResults() {
           <div className="text-2xl font-bold text-red-700">{validationResult.invalidRows}</div>
           <div className="text-sm text-red-600">Invalid Rows</div>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-700">{scriptSummary.totalChanges}</div>
-          <div className="text-sm text-blue-600">Auto-Fixed</div>
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-primary-700">{scriptSummary.totalChanges}</div>
+          <div className="text-sm text-primary-600">Auto-Fixed</div>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-red-700">{summary.totalErrors}</div>
@@ -368,7 +368,7 @@ export function ValidationResults() {
           <button
             onClick={() => setShowChanges(!showChanges)}
             className={`px-4 py-2 rounded-lg text-sm ${
-              showChanges ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+              showChanges ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
             }`}
           >
             {showChanges ? 'Hide' : 'Show'} Changes ({scriptSummary.totalChanges})
@@ -394,9 +394,9 @@ export function ValidationResults() {
 
       {/* Changes list */}
       {showChanges && scriptSummary.totalChanges > 0 && (
-        <div className="border border-blue-200 rounded-lg overflow-hidden">
-          <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
-            <h3 className="font-medium text-blue-700">Auto-Corrected Values</h3>
+        <div className="border border-primary-200 rounded-lg overflow-hidden">
+          <div className="bg-primary-50 px-4 py-2 border-b border-primary-200">
+            <h3 className="font-medium text-primary-700">Auto-Corrected Values</h3>
           </div>
           <div className="max-h-64 overflow-auto">
             <table className="w-full">
@@ -415,14 +415,14 @@ export function ValidationResults() {
                   .flatMap((r) => r.changes.map((c) => ({ ...c, scriptName: r.scriptName })))
                   .slice(0, 100)
                   .map((change, index) => (
-                    <tr key={index} className="hover:bg-blue-50">
+                    <tr key={index} className="hover:bg-primary-50">
                       <td className="px-4 py-2 text-sm">{change.rowIndex + 1}</td>
                       <td className="px-4 py-2 text-sm text-gray-700">{getColumnName(change.field)}</td>
                       <td className="px-4 py-2 text-sm font-medium">{change.field}</td>
                       <td className="px-4 py-2 text-sm text-gray-500 line-through">
                         {String(change.originalValue || '')}
                       </td>
-                      <td className="px-4 py-2 text-sm text-blue-700 font-medium">
+                      <td className="px-4 py-2 text-sm text-primary-700 font-medium">
                         {String(change.newValue || '')}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-600">{change.reason}</td>
@@ -571,7 +571,7 @@ function DataPreviewTable() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+          <span className="text-xs text-primary-600 bg-primary-50 px-2 py-1 rounded">
             Blue cells = auto-corrected
           </span>
           <svg
@@ -614,7 +614,7 @@ function DataPreviewTable() {
                           <td
                             key={header}
                             className={`px-3 py-1.5 whitespace-nowrap max-w-[200px] truncate ${
-                              isChanged ? 'bg-blue-50 text-blue-800 font-medium' : 'text-gray-700'
+                              isChanged ? 'bg-primary-50 text-primary-800 font-medium' : 'text-gray-700'
                             }`}
                             title={String(row[header] || '')}
                           >
@@ -683,8 +683,8 @@ function ScriptResultRow({
     }
     if (result.changes.length > 0) {
       return (
-        <span className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span className="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center">
+          <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </span>
@@ -722,7 +722,7 @@ function ScriptResultRow({
 
         <div className="flex items-center gap-4">
           {result.changes.length > 0 && (
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+            <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">
               {result.changes.length} changes
             </span>
           )}
@@ -771,7 +771,7 @@ function ScriptResultRow({
                       <tr key={i}>
                         <td className="px-3 py-1">{change.rowIndex + 1}</td>
                         <td className="px-3 py-1 text-gray-500 line-through">{String(change.originalValue || '')}</td>
-                        <td className="px-3 py-1 text-blue-700">{String(change.newValue || '')}</td>
+                        <td className="px-3 py-1 text-primary-700">{String(change.newValue || '')}</td>
                         <td className="px-3 py-1 text-gray-600">{change.reason}</td>
                       </tr>
                     ))}

@@ -22,8 +22,8 @@ interface ImportSession {
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
     completed: 'bg-green-100 text-green-700',
-    syncing: 'bg-blue-100 text-blue-700',
-    enriching: 'bg-blue-100 text-blue-700',
+    syncing: 'bg-primary-100 text-primary-700',
+    enriching: 'bg-primary-100 text-primary-700',
     enriched: 'bg-indigo-100 text-indigo-700',
     uploaded: 'bg-gray-100 text-gray-600',
     failed: 'bg-red-100 text-red-700',
@@ -348,14 +348,14 @@ export default function ImportHistoryPage() {
         )}
 
         {/* Retention info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex gap-3">
-            <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-primary-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <div className="text-sm text-blue-700">
+            <div className="text-sm text-primary-700">
               <p className="font-medium">15-day file retention</p>
-              <p className="mt-1 text-blue-600">
+              <p className="mt-1 text-primary-600">
                 Original uploaded files are stored for 15 days and then automatically deleted.
                 Download any files you need before they expire.
               </p>
