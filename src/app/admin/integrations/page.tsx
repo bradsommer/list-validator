@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -38,6 +38,16 @@ export default function IntegrationsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Auto-dismiss toast after 3.5s
+  useEffect(() => {
+    if (message) {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setMessage(null), 3500);
+      return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+    }
+  }, [message]);
 
   useEffect(() => {
     fetchIntegrations();
@@ -244,14 +254,24 @@ export default function IntegrationsPage() {
           )}
         </div>
 
-        {/* Status message */}
+        {/* Toast notification */}
         {message && (
-          <div className={`p-4 rounded-lg ${
-            message.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
+          <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white animate-in fade-in slide-in-from-top-2 ${
+            message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {message.type === 'success' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              )}
+            </svg>
             {message.text}
+            <button onClick={() => setMessage(null)} className={`ml-2 p-0.5 rounded ${message.type === 'success' ? 'hover:bg-green-500' : 'hover:bg-red-500'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         )}
 
