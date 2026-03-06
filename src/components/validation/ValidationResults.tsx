@@ -59,9 +59,17 @@ export function ValidationResults() {
     }
   }
 
-  // Build dynamic script sources for rules that have source code in the DB
+  // Build dynamic script sources for rules that have executable source code in the DB.
+  // Skip source code that looks like a full TypeScript module (has imports/exports/class
+  // definitions) — those are stored for display in the editor but can't run via new Function().
+  // Only plain JavaScript function bodies are executable at runtime.
+  const isExecutableSource = (code: string) => {
+    const trimmed = code.trimStart();
+    return !trimmed.startsWith('import ') && !trimmed.includes('export class ') && !trimmed.includes('implements IValidationScript');
+  };
+
   const dynamicScriptSources: DynamicScriptSource[] = accountRules
-    .filter((rule) => rule.sourceCode)
+    .filter((rule) => rule.sourceCode && isExecutableSource(rule.sourceCode))
     .map((rule) => ({
       id: rule.ruleId,
       name: rule.name,
