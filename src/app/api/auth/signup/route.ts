@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Check if user already exists with this email (multi-account support)
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id, password_hash')
+      .select('id, password_hash, stripe_customer_id')
       .eq('username', normalizedEmail)
       .limit(1)
       .single();
@@ -157,9 +157,12 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe checkout session with user ID metadata for webhook linking
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const checkoutSession = await stripe.checkout.sessions.create({
+
+    // Reuse existing Stripe customer if this email already has one
+    const existingStripeCustomerId = existingUser?.stripe_customer_id || null;
+
+    const checkoutParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
-      customer_email: normalizedEmail,
       payment_method_types: ['card'],
       line_items: [
         {
@@ -175,7 +178,17 @@ export async function POST(request: NextRequest) {
       success_url: `${baseUrl}/?welcome=true`,
       cancel_url: `${baseUrl}/?checkout=cancelled`,
       allow_promotion_codes: true,
-    });
+    };
+
+    if (existingStripeCustomerId) {
+      // Reuse the same Stripe customer so all subscriptions are under one customer
+      checkoutParams.customer = existingStripeCustomerId;
+    } else {
+      // New customer — pre-fill the email
+      checkoutParams.customer_email = normalizedEmail;
+    }
+
+    const checkoutSession = await stripe.checkout.sessions.create(checkoutParams);
 
     const response = NextResponse.json({
       success: true,

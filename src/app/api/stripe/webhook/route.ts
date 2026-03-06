@@ -54,12 +54,14 @@ export async function POST(req: NextRequest) {
         if (userId) {
           // Preferred: match by user ID from metadata
           await supabase.from('users').update(updateData).eq('id', userId);
-        } else if (customerEmail) {
-          // Fallback: match by email
+        } else if (customerEmail && customerId) {
+          // Fallback: match by email, but only for users without an existing
+          // stripe_customer_id to avoid overwriting other accounts' data
           await supabase
             .from('users')
             .update(updateData)
-            .eq('username', customerEmail.toLowerCase().trim());
+            .eq('username', customerEmail.toLowerCase().trim())
+            .is('stripe_customer_id', null);
         }
         break;
       }
