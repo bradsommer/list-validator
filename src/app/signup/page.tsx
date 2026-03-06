@@ -57,11 +57,17 @@ export default function SignupPage() {
 
       const data = await res.json();
 
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
       if (data.success && data.checkoutUrl) {
         // Redirect to Stripe checkout
         window.location.href = data.checkoutUrl;
       } else {
-        setError(data.error || 'Failed to create account');
+        setError(data.error || 'Something went wrong. Please try again.');
         setIsSubmitting(false);
       }
     } catch {
