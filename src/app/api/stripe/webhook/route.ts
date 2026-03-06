@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2026-01-28.clover',
 });
 
 const supabase = createClient(
@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
+        const subscriptionId = typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id;
         await supabase
           .from('users')
           .update({
