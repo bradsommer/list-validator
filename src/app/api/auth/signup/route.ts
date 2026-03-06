@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (hashError || !passwordHash) {
       console.error('Hash error:', hashError);
       return NextResponse.json(
-        { success: false, error: 'Failed to create account' },
+        { success: false, error: 'Failed to secure account credentials. Please try again.' },
         { status: 500 }
       );
     }
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     if (accountError || !account) {
       console.error('Account creation error:', accountError);
       return NextResponse.json(
-        { success: false, error: 'Failed to create account' },
+        { success: false, error: 'Failed to create account workspace. Please try again.' },
         { status: 500 }
       );
     }
@@ -147,9 +147,9 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      console.error('Create error:', createError);
+      console.error('User creation error:', createError);
       return NextResponse.json(
-        { success: false, error: 'Failed to create account' },
+        { success: false, error: 'Failed to create user profile. Please try again.' },
         { status: 500 }
       );
     }
@@ -210,11 +210,35 @@ export async function POST(request: NextRequest) {
       checkoutParams.customer_email = normalizedEmail;
     }
 
-    const checkoutSession = await stripe.checkout.sessions.create(checkoutParams);
+    let checkoutUrl: string | null = null;
+    try {
+      const checkoutSession = await stripe.checkout.sessions.create(checkoutParams);
+      checkoutUrl = checkoutSession.url;
+    } catch (stripeError) {
+      console.error('Stripe checkout error:', stripeError);
+      // If reusing an existing customer failed, retry without the customer ID
+      if (existingStripeCustomerId) {
+        console.log('Retrying Stripe checkout without existing customer ID');
+        delete checkoutParams.customer;
+        checkoutParams.customer_email = normalizedEmail;
+        const retrySession = await stripe.checkout.sessions.create(checkoutParams);
+        checkoutUrl = retrySession.url;
+      } else {
+        throw stripeError;
+      }
+    }
+
+    if (!checkoutUrl) {
+      console.error('Stripe returned null checkout URL');
+      return NextResponse.json(
+        { success: false, error: 'Failed to create checkout session. Please try again.' },
+        { status: 500 }
+      );
+    }
 
     const response = NextResponse.json({
       success: true,
-      checkoutUrl: checkoutSession.url,
+      checkoutUrl,
     });
 
     // Set auth cookie so user is logged in when they return from Stripe
