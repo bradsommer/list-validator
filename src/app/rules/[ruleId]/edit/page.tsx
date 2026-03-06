@@ -56,18 +56,22 @@ export default function EditRulePage() {
       setEditTargetFields(found.targetFields.join(', '));
       setEditObjectTypes(getObjectTypes(found));
 
-      // Load source code
+      // Load source code — prefer DB, fall back to file-based API
       setLoadingCode(true);
-      try {
-        const response = await fetch(`/api/rules/source?id=${encodeURIComponent(found.ruleId)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setEditCode(data.source);
-        } else {
-          setEditCode('// Source code not available');
+      if (found.sourceCode) {
+        setEditCode(found.sourceCode);
+      } else {
+        try {
+          const response = await fetch(`/api/rules/source?id=${encodeURIComponent(found.ruleId)}&accountId=${encodeURIComponent(accountId)}`);
+          if (response.ok) {
+            const data = await response.json();
+            setEditCode(data.source || '');
+          } else {
+            setEditCode('');
+          }
+        } catch {
+          setEditCode('');
         }
-      } catch {
-        setEditCode('// Failed to load source code');
       }
       setLoadingCode(false);
     }
@@ -129,18 +133,8 @@ export default function EditRulePage() {
       description: editDescription.trim() || null,
       targetFields,
       config: updatedConfig,
+      sourceCode: editCode || null,
     });
-
-    // Save source code if changed
-    try {
-      await fetch('/api/rules/source', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: rule.ruleId, source: editCode }),
-      });
-    } catch {
-      console.error('Failed to save source code');
-    }
 
     setIsSaving(false);
 
@@ -325,7 +319,7 @@ export default function EditRulePage() {
               </div>
             )}
             <p className="text-xs text-gray-400 mt-1">
-              Changes to source code require a server restart to take effect.
+              Source code is saved to the database and takes effect on the next import.
             </p>
           </div>
         </div>

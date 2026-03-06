@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { ParsedRow, HeaderMatch, ValidationResult, ScriptRunnerResult } from '@/types';
 import type { WorkerInput, WorkerOutputMessage } from '@/lib/validation.worker';
+import type { DynamicScriptSource } from '@/lib/scripts';
 
 export interface ValidationProgress {
   currentScript: number;
@@ -36,7 +37,8 @@ export function useValidationWorker() {
     headerMatches: HeaderMatch[],
     requiredFields: string[],
     enabledScriptIds?: string[],
-    targetFieldsOverrides?: Record<string, string[]>
+    targetFieldsOverrides?: Record<string, string[]>,
+    dynamicScriptSources?: DynamicScriptSource[]
   ): Promise<ValidationWorkerResult> => {
     return new Promise((resolve, reject) => {
       // Terminate any existing worker
@@ -104,6 +106,7 @@ export function useValidationWorker() {
         requiredFields,
         enabledScriptIds,
         targetFieldsOverrides,
+        dynamicScriptSources,
       };
 
       worker.postMessage(input);

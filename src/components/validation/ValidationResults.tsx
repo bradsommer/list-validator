@@ -7,6 +7,7 @@ import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import { useValidationWorker } from '@/hooks/useValidationWorker';
+import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults() {
@@ -57,6 +58,18 @@ export function ValidationResults() {
       targetFieldsOverrides[rule.ruleId] = rule.targetFields;
     }
   }
+
+  // Build dynamic script sources for rules that have source code in the DB
+  const dynamicScriptSources: DynamicScriptSource[] = accountRules
+    .filter((rule) => rule.sourceCode)
+    .map((rule) => ({
+      id: rule.ruleId,
+      name: rule.name,
+      type: rule.ruleType,
+      targetFields: rule.targetFields,
+      order: rule.displayOrder,
+      sourceCode: rule.sourceCode!,
+    }));
 
   // Load available scripts and rules, applying import-level overrides
   useEffect(() => {
@@ -111,7 +124,8 @@ export function ValidationResults() {
         headerMatches,
         requiredFields,
         enabledScripts.length > 0 ? enabledScripts : undefined,
-        targetFieldsOverrides
+        targetFieldsOverrides,
+        dynamicScriptSources.length > 0 ? dynamicScriptSources : undefined
       );
 
       setValidationResult(result.validationResult);

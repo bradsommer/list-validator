@@ -16,6 +16,7 @@ export interface AccountRule {
   targetFields: string[];
   config: Record<string, unknown>;
   displayOrder: number;
+  sourceCode: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +32,7 @@ interface DbAccountRule {
   target_fields: string[];
   config: Record<string, unknown>;
   display_order: number;
+  source_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +49,7 @@ function mapDbToAccountRule(row: DbAccountRule): AccountRule {
     targetFields: row.target_fields || [],
     config: row.config || {},
     displayOrder: row.display_order,
+    sourceCode: row.source_code,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -132,7 +135,7 @@ export async function toggleRuleEnabled(
 export async function updateRuleConfig(
   accountId: string,
   ruleId: string,
-  updates: Partial<Pick<AccountRule, 'name' | 'description' | 'targetFields' | 'config' | 'displayOrder'>>
+  updates: Partial<Pick<AccountRule, 'name' | 'description' | 'targetFields' | 'config' | 'displayOrder' | 'sourceCode'>>
 ): Promise<boolean> {
   try {
     const dbUpdates: Record<string, unknown> = {};
@@ -141,6 +144,7 @@ export async function updateRuleConfig(
     if (updates.targetFields !== undefined) dbUpdates.target_fields = updates.targetFields;
     if (updates.config !== undefined) dbUpdates.config = updates.config;
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
+    if (updates.sourceCode !== undefined) dbUpdates.source_code = updates.sourceCode;
 
     const { error } = await supabase
       .from('account_rules')
@@ -380,6 +384,7 @@ export async function createAccountRule(
     config?: Record<string, unknown>;
     displayOrder?: number;
     enabled?: boolean;
+    sourceCode?: string;
   }
 ): Promise<AccountRule | null> {
   try {
@@ -395,6 +400,7 @@ export async function createAccountRule(
         config: rule.config || {},
         display_order: rule.displayOrder ?? 100,
         enabled: rule.enabled ?? true,
+        source_code: rule.sourceCode || null,
       })
       .select()
       .single();

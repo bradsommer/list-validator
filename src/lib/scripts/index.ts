@@ -1,7 +1,56 @@
 import type { ParsedRow, HeaderMatch, ScriptResult, ScriptRunnerResult, ValidationScript } from '@/types';
-import type { IValidationScript, ScriptContext } from './types';
+import type { IValidationScript, ScriptContext, ScriptExecutionResult } from './types';
 
-// Import all scripts
+/**
+ * Dynamic script source info passed from the DB.
+ * The `sourceCode` is a JavaScript function body that receives a `context`
+ * parameter and must return { success, changes, errors, warnings, modifiedRows }.
+ */
+export interface DynamicScriptSource {
+  id: string;
+  name: string;
+  type: 'transform' | 'validate';
+  targetFields: string[];
+  order: number;
+  sourceCode: string;
+}
+
+/**
+ * Create an IValidationScript from a source code string stored in the DB.
+ * The source code is evaluated as a function body that receives `context`.
+ */
+function createDynamicScript(source: DynamicScriptSource): IValidationScript {
+  return {
+    id: source.id,
+    name: source.name,
+    description: 'Custom rule',
+    type: source.type,
+    targetFields: source.targetFields,
+    order: source.order,
+    execute(context: ScriptContext): ScriptExecutionResult {
+      try {
+        const fn = new Function('context', source.sourceCode) as (ctx: ScriptContext) => ScriptExecutionResult;
+        return fn(context);
+      } catch (err) {
+        return {
+          success: false,
+          changes: [],
+          errors: [{
+            rowIndex: -1,
+            field: '',
+            value: null,
+            errorType: 'script_error',
+            message: `Dynamic script "${source.name}" failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          }],
+          warnings: [],
+          modifiedRows: context.rows,
+        };
+      }
+    },
+  };
+}
+
+// Import all built-in scripts
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
@@ -133,17 +182,29 @@ export type ScriptProgressCallback = (current: number, total: number, scriptName
 
 // Run all enabled scripts in order
 // targetFieldsOverrides: optional map of scriptId → targetFields from database
+// dynamicScriptSources: optional array of DB-stored script sources to evaluate dynamically
 export function runAllScripts(
   rows: ParsedRow[],
   headerMatches: HeaderMatch[],
   requiredFields: string[],
   enabledScriptIds?: string[],
   targetFieldsOverrides?: Record<string, string[]>,
-  onProgress?: ScriptProgressCallback
+  onProgress?: ScriptProgressCallback,
+  dynamicScriptSources?: DynamicScriptSource[]
 ): ScriptRunnerResult {
+  // Build dynamic scripts from DB source code
+  const dynamicScripts = (dynamicScriptSources || []).map(createDynamicScript);
+
+  // Merge built-in + dynamic, with dynamic overriding built-in for same ID
+  const dynamicIds = new Set(dynamicScripts.map((s) => s.id));
+  const mergedScripts = [
+    ...ALL_SCRIPTS.filter((s) => !dynamicIds.has(s.id)),
+    ...dynamicScripts,
+  ].sort((a, b) => a.order - b.order);
+
   const scriptsToRun = enabledScriptIds
-    ? ALL_SCRIPTS.filter((s) => enabledScriptIds.includes(s.id))
-    : ALL_SCRIPTS;
+    ? mergedScripts.filter((s) => enabledScriptIds.includes(s.id))
+    : mergedScripts;
 
   const scriptResults: ScriptResult[] = [];
   let currentRows = [...rows];
@@ -226,7 +287,7 @@ export function runAllScripts(
   }
 
   return {
-    totalScripts: ALL_SCRIPTS.length,
+    totalScripts: mergedScripts.length,
     scriptsRun: scriptsToRun.length,
     scriptResults,
     totalChanges,
