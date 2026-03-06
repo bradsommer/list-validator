@@ -108,3 +108,65 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save source code' }, { status: 500 });
   }
 }
+
+/**
+ * POST /api/rules/source
+ * Backfill: copies built-in script file contents into the source_code column
+ * for all existing account_rules rows that have NULL source_code.
+ * Safe to run multiple times — only touches rows with NULL source_code.
+ */
+export async function POST() {
+  const scriptsDir = path.join(process.cwd(), 'src', 'lib', 'scripts');
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  // Fetch all rules with NULL source_code that have a built-in file
+  const { data: rules, error: fetchError } = await supabase
+    .from('account_rules')
+    .select('id, rule_id')
+    .is('source_code', null);
+
+  if (fetchError) {
+    console.error('[rules/source] Backfill fetch error:', fetchError);
+    return NextResponse.json({ error: 'Failed to fetch rules' }, { status: 500 });
+  }
+
+  for (const rule of rules || []) {
+    const fileName = RULE_FILES[rule.rule_id];
+    if (!fileName) {
+      skipped++;
+      continue;
+    }
+
+    const filePath = path.join(scriptsDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      skipped++;
+      continue;
+    }
+
+    try {
+      const source = fs.readFileSync(filePath, 'utf-8');
+      const { error: updateError } = await supabase
+        .from('account_rules')
+        .update({ source_code: source })
+        .eq('id', rule.id);
+
+      if (updateError) {
+        errors.push(`${rule.rule_id}: ${updateError.message}`);
+      } else {
+        updated++;
+      }
+    } catch (err) {
+      errors.push(`${rule.rule_id}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    updated,
+    skipped,
+    errors: errors.length > 0 ? errors : undefined,
+    total: (rules || []).length,
+  });
+}
