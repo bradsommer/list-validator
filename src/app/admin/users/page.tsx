@@ -327,18 +327,18 @@ export default function UsersPage() {
                   <td className="px-4 py-4">
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
-                        !user.password_hash
+                        !user.is_active
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-green-100 text-green-700'
                       }`}
                     >
-                      {!user.password_hash ? 'Pending Invite' : 'Active'}
+                      {!user.is_active ? 'Pending Invite' : 'Active'}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500">{formatDate(user.last_login)}</td>
                   <td className="px-4 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {!user.password_hash && (
+                      {!user.is_active && (
                         <button
                           onClick={() => resendInvite(user)}
                           disabled={resendingInvite === user.id}

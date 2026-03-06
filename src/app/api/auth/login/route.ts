@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: result.user,
+      accounts: result.accounts || undefined,
     });
 
     // Set HTTP-only cookie for security

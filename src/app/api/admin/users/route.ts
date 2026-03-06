@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { sendInviteEmail } from '@/lib/email';
+import { sendInviteEmail, sendAccountAcceptEmail } from '@/lib/email';
 import { validatePassword } from '@/lib/passwordValidation';
 
+function generateToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 /**
- * POST /api/admin/users — Create a new user (invite flow, no password)
+ * POST /api/admin/users — Create a new user (invite flow)
+ *
+ * If the email already exists in another account AND has a password set,
+ * the new user record copies the password_hash and receives an "accept invite"
+ * email instead of a "set up your account" email.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +28,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(username)) {
       return NextResponse.json(
@@ -27,17 +36,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build user insert — no password_hash; user sets password via invite link
+    const normalizedEmail = username.toLowerCase().trim();
+
+    // Check if this email already exists in another account with a password
+    const { data: existingUsers } = await supabase
+      .from('users')
+      .select('id, password_hash, display_name')
+      .eq('username', normalizedEmail);
+
+    const existingWithPassword = existingUsers?.find((u) => u.password_hash);
+    const isExistingUser = !!existingWithPassword;
+
+    // Build user insert
     const insertData: Record<string, unknown> = {
-      username: username.toLowerCase().trim(),
-      password_hash: null,
-      display_name: displayName || null,
+      username: normalizedEmail,
+      password_hash: isExistingUser ? existingWithPassword.password_hash : null,
+      display_name: displayName || existingWithPassword?.display_name || null,
       role: role || 'user',
       account_id: accountId || null,
-      is_active: false,
+      is_active: false, // Activated when user accepts invite / sets up account
     };
 
-    // Store custom permissions in config column if role is custom
     if (role === 'custom' && customPermissions) {
       insertData.config = { permissions: customPermissions };
     }
@@ -51,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (createError) {
       if (createError.code === '23505') {
         return NextResponse.json(
-          { success: false, error: 'A user with this email already exists' },
+          { success: false, error: 'This user has already been invited to this account' },
           { status: 409 }
         );
       }
@@ -62,10 +81,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate invite token (48-hour expiry)
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const token = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    // Generate invite/accept token (48-hour expiry)
+    const token = generateToken();
 
     const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
       user_id: user.id,
@@ -75,12 +92,17 @@ export async function POST(request: NextRequest) {
 
     if (tokenError) {
       console.error('Token error:', tokenError);
-      // Still created the user — admin can resend invite later
     }
 
-    // Send invite email
+    // Send appropriate email
     if (!tokenError) {
-      await sendInviteEmail(username.toLowerCase().trim(), displayName || '', token);
+      if (isExistingUser) {
+        // Existing user — send accept-only email (no password setup needed)
+        await sendAccountAcceptEmail(normalizedEmail, displayName || '', token);
+      } else {
+        // New user — send full invite to set up password
+        await sendInviteEmail(normalizedEmail, displayName || '', token);
+      }
     }
 
     return NextResponse.json({
@@ -132,9 +154,9 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (user.password_hash) {
+    if (user.is_active) {
       return NextResponse.json(
-        { success: false, error: 'User has already set up their account' },
+        { success: false, error: 'User has already accepted their invite' },
         { status: 400 }
       );
     }
@@ -143,9 +165,7 @@ export async function PATCH(request: NextRequest) {
     await supabase.from('password_reset_tokens').delete().eq('user_id', userId);
 
     // Generate new invite token (48-hour expiry)
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const token = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const token = generateToken();
 
     const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
       user_id: userId,
@@ -161,11 +181,11 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const emailSent = await sendInviteEmail(
-      user.username,
-      user.display_name || '',
-      token
-    );
+    // If user already has a password (existing user invited to new account),
+    // send accept email. Otherwise send full invite email.
+    const emailSent = user.password_hash
+      ? await sendAccountAcceptEmail(user.username, user.display_name || '', token)
+      : await sendInviteEmail(user.username, user.display_name || '', token);
 
     if (!emailSent) {
       return NextResponse.json(
@@ -243,6 +263,23 @@ export async function PUT(request: NextRequest) {
         { success: false, error: `Failed to update user: ${error.message}` },
         { status: 500 }
       );
+    }
+
+    // If password was changed, sync across all accounts for this email
+    if (updates.password_hash) {
+      const { data: thisUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', id)
+        .single();
+
+      if (thisUser) {
+        await supabase
+          .from('users')
+          .update({ password_hash: updates.password_hash as string })
+          .eq('username', thisUser.username)
+          .neq('id', id);
+      }
     }
 
     return NextResponse.json({ success: true });
