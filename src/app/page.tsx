@@ -8,6 +8,23 @@ import { ImportsChart } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { supabase } from '@/lib/supabase';
 
+function ComingSoonPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col items-center justify-center px-4">
+      <FreshSegmentsLogo className="h-10 mb-8" />
+      <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 text-center tracking-tight">
+        Coming Soon
+      </h1>
+      <p className="mt-4 text-lg text-gray-600 text-center max-w-md">
+        We&apos;re building something great. Clean, validate, and prepare your data for HubSpot — effortlessly.
+      </p>
+      <p className="mt-8 text-sm text-gray-400">
+        &copy; {new Date().getFullYear()} FreshSegments. All rights reserved.
+      </p>
+    </div>
+  );
+}
+
 function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -389,7 +406,7 @@ export default function HomePage() {
   }
 
   if (!isAuthenticated) {
-    return <LandingPage />;
+    return <ComingSoonPage />;
   }
 
   return <Dashboard />;
