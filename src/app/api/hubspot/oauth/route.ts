@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   const connected = await isConnected();
   const tokens = await getTokens(accountId);
-  const expiresAt = tokens?.expires_at || null;
+  const expiresAt = tokens?.expires_at ? String(tokens.expires_at) : null;
   const portalId = connected ? await getPortalId(accountId) : null;
 
   // Cache the connection status
