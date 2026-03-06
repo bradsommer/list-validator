@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255),
-  display_name VARCHAR(255),
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
   role VARCHAR(50) NOT NULL DEFAULT 'user'
     CHECK (role IN ('super_admin', 'company_admin', 'admin', 'billing', 'editor', 'user', 'custom')),
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
@@ -451,8 +452,8 @@ INSERT INTO accounts (id, name, slug) VALUES
 ON CONFLICT (slug) DO NOTHING;
 
 -- Insert default super admin user (password: admin123 - CHANGE IN PRODUCTION!)
-INSERT INTO users (username, password_hash, display_name, role, account_id) VALUES
-  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Administrator', 'super_admin', '00000000-0000-0000-0000-000000000001')
+INSERT INTO users (username, password_hash, first_name, last_name, role, account_id) VALUES
+  ('admin@example.com', crypt('admin123', gen_salt('bf', 12)), 'Admin', 'User', 'super_admin', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (username, account_id) DO NOTHING;
 
 -- Insert default HubSpot fields

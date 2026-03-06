@@ -19,7 +19,7 @@ function generateToken(): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, displayName, role, accountId, customPermissions } = body;
+    const { username, firstName, lastName, role, accountId, customPermissions } = body;
 
     if (!username) {
       return NextResponse.json(
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Check if this email already exists in any account
     const { data: existingUsers } = await supabase
       .from('users')
-      .select('id, password_hash, display_name, account_id')
+      .select('id, password_hash, first_name, last_name, account_id')
       .eq('username', normalizedEmail);
 
     // Block duplicate within the same account
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
     const insertData: Record<string, unknown> = {
       username: normalizedEmail,
       password_hash: isExistingUser ? existingWithPassword.password_hash : null,
-      display_name: displayName || existingWithPassword?.display_name || null,
+      first_name: firstName || existingWithPassword?.first_name || null,
+      last_name: lastName || existingWithPassword?.last_name || null,
       role: role || 'user',
       account_id: accountId || null,
       is_active: false, // Activated when user accepts invite / sets up account
@@ -113,12 +114,13 @@ export async function POST(request: NextRequest) {
 
     // Send appropriate email
     if (!tokenError) {
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
       if (isExistingUser) {
         // Existing user — send accept-only email (no password setup needed)
-        await sendAccountAcceptEmail(normalizedEmail, displayName || '', token);
+        await sendAccountAcceptEmail(normalizedEmail, fullName, token);
       } else {
         // New user — send full invite to set up password
-        await sendInviteEmail(normalizedEmail, displayName || '', token);
+        await sendInviteEmail(normalizedEmail, fullName, token);
       }
     }
 
@@ -127,7 +129,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         username: user.username,
-        displayName: user.display_name,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
         isActive: user.is_active,
       },
@@ -200,9 +203,10 @@ export async function PATCH(request: NextRequest) {
 
     // If user already has a password (existing user invited to new account),
     // send accept email. Otherwise send full invite email.
+    const resendName = [user.first_name, user.last_name].filter(Boolean).join(' ');
     const emailSent = user.password_hash
-      ? await sendAccountAcceptEmail(user.username, user.display_name || '', token)
-      : await sendInviteEmail(user.username, user.display_name || '', token);
+      ? await sendAccountAcceptEmail(user.username, resendName, token)
+      : await sendInviteEmail(user.username, resendName, token);
 
     if (!emailSent) {
       return NextResponse.json(
@@ -228,7 +232,7 @@ export async function PATCH(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, displayName, role, password, customPermissions } = body;
+    const { id, firstName, lastName, role, password, customPermissions } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -238,7 +242,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const updates: Record<string, unknown> = {};
-    if (displayName !== undefined) updates.display_name = displayName || null;
+    if (firstName !== undefined) updates.first_name = firstName || null;
+    if (lastName !== undefined) updates.last_name = lastName || null;
     if (role !== undefined) updates.role = role;
 
     if (role === 'custom' && customPermissions) {

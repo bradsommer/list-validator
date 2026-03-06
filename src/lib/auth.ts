@@ -4,7 +4,8 @@ import type { UserRole } from './permissions';
 export interface User {
   id: string;
   username: string;
-  displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
   role: UserRole;
   accountId: string | null;
   accountName: string | null;
@@ -93,7 +94,8 @@ export async function loginUser(username: string, password: string): Promise<Aut
         user: {
           id: firstUser.id,
           username: firstUser.username,
-          displayName: firstUser.display_name,
+          firstName: firstUser.first_name,
+        lastName: firstUser.last_name,
           role: firstUser.role,
           accountId: firstAccount?.id || null,
           accountName: firstAccount?.name || null,
@@ -159,7 +161,8 @@ export async function loginUser(username: string, password: string): Promise<Aut
       user: {
         id: user.id,
         username: user.username,
-        displayName: user.display_name,
+        firstName: user.first_name,
+      lastName: user.last_name,
         role: effectiveRole,
         accountId: account?.id || null,
         accountName: account?.name || null,
@@ -228,7 +231,8 @@ export async function selectAccount(
       user: {
         id: targetUser.id,
         username: targetUser.username,
-        displayName: targetUser.display_name,
+        firstName: targetUser.first_name,
+        lastName: targetUser.last_name,
         role: targetUser.role,
         accountId: account?.id || null,
         accountName: account?.name || null,
@@ -272,7 +276,8 @@ export async function validateSession(token: string): Promise<User | null> {
     return {
       id: user.id,
       username: user.username,
-      displayName: user.display_name,
+      firstName: user.first_name,
+      lastName: user.last_name,
       role: user.role,
       accountId: account?.id || null,
       accountName: account?.name || null,
@@ -289,7 +294,8 @@ export async function validateSession(token: string): Promise<User | null> {
 export async function createUser(
   username: string,
   password: string,
-  displayName: string,
+  firstName: string,
+  lastName: string,
   role: UserRole,
   createdById?: string
 ): Promise<AuthResult> {
@@ -309,7 +315,8 @@ export async function createUser(
       .insert({
         username: username.toLowerCase().trim(),
         password_hash: passwordHash,
-        display_name: displayName,
+        first_name: firstName,
+        last_name: lastName,
         role,
         created_by: createdById,
       })
@@ -328,7 +335,8 @@ export async function createUser(
       user: {
         id: user.id,
         username: user.username,
-        displayName: user.display_name,
+        firstName: user.first_name,
+      lastName: user.last_name,
         role: user.role,
         accountId: user.account_id || null,
         accountName: null,
@@ -393,7 +401,8 @@ export async function getAllUsers(): Promise<User[]> {
     return users.map((user) => ({
       id: user.id,
       username: user.username,
-      displayName: user.display_name,
+      firstName: user.first_name,
+      lastName: user.last_name,
       role: user.role,
       accountId: user.account_id || null,
       accountName: null,

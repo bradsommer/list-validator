@@ -17,7 +17,8 @@ import {
 interface User {
   id: string;
   username: string;
-  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   role: UserRole;
   is_active: boolean;
   password_hash: string | null;
@@ -57,7 +58,8 @@ export default function UsersPage() {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    display_name: '',
+    first_name: '',
+    last_name: '',
     role: 'user' as UserRole,
     customPermissions: defaultCustomPermissions(),
   });
@@ -101,7 +103,8 @@ export default function UsersPage() {
     setFormData({
       username: '',
       password: '',
-      display_name: '',
+      first_name: '',
+      last_name: '',
       role: 'user',
       customPermissions: defaultCustomPermissions(),
     });
@@ -119,7 +122,8 @@ export default function UsersPage() {
     setFormData({
       username: user.username,
       password: '',
-      display_name: user.display_name || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
       role: user.role,
       customPermissions: user.config?.permissions
         ? { ...defaultCustomPermissions(), ...user.config.permissions }
@@ -161,7 +165,8 @@ export default function UsersPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: editingUser.id,
-            displayName: formData.display_name,
+            firstName: formData.first_name,
+            lastName: formData.last_name,
             role: formData.role,
             password: formData.password || undefined,
             customPermissions: formData.role === 'custom' ? formData.customPermissions : undefined,
@@ -186,7 +191,8 @@ export default function UsersPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: formData.username,
-            displayName: formData.display_name,
+            firstName: formData.first_name,
+            lastName: formData.last_name,
             role: formData.role,
             accountId: currentUser?.accountId,
             customPermissions: formData.role === 'custom' ? formData.customPermissions : undefined,
@@ -320,7 +326,7 @@ export default function UsersPage() {
                   <td className="px-4 py-4">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {user.display_name || user.username}
+                        {[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}
                         {user.id === currentUser?.id && (
                           <span className="ml-2 text-xs text-gray-500">(you)</span>
                         )}
@@ -420,16 +426,28 @@ export default function UsersPage() {
                     )}
                   </div>
 
-                  {/* Display Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                    <input
-                      type="text"
-                      value={formData.display_name}
-                      onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      placeholder="Enter display name"
-                    />
+                  {/* First Name / Last Name */}
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="First name"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="Last name"
+                      />
+                    </div>
                   </div>
 
                   {/* Password — only shown when editing */}

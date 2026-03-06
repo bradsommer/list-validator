@@ -12,7 +12,8 @@ export default function SignupPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -54,7 +55,8 @@ export default function SignupPage() {
         body: JSON.stringify({
           email,
           password,
-          displayName: displayName || undefined,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
           country,
         }),
       });
@@ -133,19 +135,35 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Name <span className="text-gray-400">(optional)</span>
-                </label>
-                <input
-                  id="displayName"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="Enter your name"
-                  autoComplete="name"
-                />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    placeholder="First name"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                  />
+                </div>
               </div>
 
               <div>
