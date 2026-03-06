@@ -133,22 +133,22 @@ export async function loginUser(username: string, password: string): Promise<Aut
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id);
 
-    // Bootstrap: if this user is an admin and no company_admin exists,
-    // auto-promote them to company_admin so there's always a super admin.
+    // Bootstrap: if this user is an admin and no super_admin exists,
+    // auto-promote them to super_admin so there's always a system admin.
     let effectiveRole = user.role;
     if (user.role === 'admin') {
-      const { data: companyAdmins } = await supabase
+      const { data: superAdmins } = await supabase
         .from('users')
         .select('id')
-        .eq('role', 'company_admin')
+        .eq('role', 'super_admin')
         .limit(1);
 
-      if (!companyAdmins || companyAdmins.length === 0) {
+      if (!superAdmins || superAdmins.length === 0) {
         await supabase
           .from('users')
-          .update({ role: 'company_admin' })
+          .update({ role: 'super_admin' })
           .eq('id', user.id);
-        effectiveRole = 'company_admin';
+        effectiveRole = 'super_admin';
       }
     }
 

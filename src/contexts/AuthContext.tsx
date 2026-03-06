@@ -28,8 +28,12 @@ interface AuthContextType {
   accounts: AccountOption[] | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True for admin, company_admin, or super_admin */
   isAdmin: boolean;
+  /** True for company_admin or super_admin (cross-account access) */
   isCompanyAdmin: boolean;
+  /** True for super_admin only (FreshSegments internal) */
+  isSuperAdmin: boolean;
   permissions: PermissionMap;
   canView: (area: PermissionArea) => boolean;
   canEdit: (area: PermissionArea) => boolean;
@@ -57,8 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.user) {
         setUser(data.user);
+        if (data.accounts && data.accounts.length > 1) {
+          setAccounts(data.accounts);
+        }
       } else {
         setUser(null);
+        setAccounts(null);
       }
     } catch {
       setUser(null);
@@ -176,8 +184,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accounts,
         isLoading,
         isAuthenticated: !!user,
-        isAdmin: activeRole === 'admin' || activeRole === 'company_admin',
-        isCompanyAdmin: activeRole === 'company_admin',
+        isAdmin: activeRole === 'admin' || activeRole === 'company_admin' || activeRole === 'super_admin',
+        isCompanyAdmin: activeRole === 'company_admin' || activeRole === 'super_admin',
+        isSuperAdmin: activeRole === 'super_admin',
         permissions,
         canView: (area: PermissionArea) => canView(permissions, area),
         canEdit: (area: PermissionArea) => canEdit(permissions, area),

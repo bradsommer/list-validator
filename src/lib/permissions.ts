@@ -22,6 +22,7 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionMap = Record<PermissionArea, PermissionLevel>;
 
 export type UserRole =
+  | 'super_admin'
   | 'company_admin'
   | 'admin'
   | 'billing'
@@ -37,13 +38,20 @@ export const PERMISSION_AREAS: { key: PermissionArea; label: string }[] = [
   { key: 'rules', label: 'Rules' },
 ];
 
+/**
+ * Role hierarchy:
+ *   super_admin  — FreshSegments internal. Full access to all accounts.
+ *   company_admin — Assigned by super admin. Cross-account view/login.
+ *   admin        — Standard company admin. Own account only.
+ */
 export const ROLE_OPTIONS: { value: UserRole; label: string; description: string }[] = [
-  { value: 'admin', label: 'Admin', description: 'Full access to everything' },
+  { value: 'admin', label: 'Admin', description: 'Full access to their own account' },
   { value: 'billing', label: 'Billing', description: 'Billing access only' },
   { value: 'user', label: 'Standard User', description: 'Upload only, no admin features' },
   { value: 'editor', label: 'Editor', description: 'Everything except integrations and billing' },
   { value: 'custom', label: 'Custom', description: 'Custom permission set' },
-  { value: 'company_admin', label: 'Company Admin', description: 'Cross-account admin access' },
+  { value: 'company_admin', label: 'Company Admin', description: 'Cross-account view and management' },
+  { value: 'super_admin', label: 'Super Admin', description: 'FreshSegments internal — full system access' },
 ];
 
 const EDIT_ALL: PermissionMap = {
@@ -64,6 +72,7 @@ const NONE_ALL: PermissionMap = {
 
 /** Permissions granted by each built-in role */
 const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'custom'>, PermissionMap> = {
+  super_admin: EDIT_ALL,
   company_admin: EDIT_ALL,
   admin: EDIT_ALL,
   billing: {

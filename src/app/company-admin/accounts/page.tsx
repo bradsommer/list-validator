@@ -83,7 +83,9 @@ export default function CompanyAdminAccountsPage() {
   };
 
   const getUsersForAccount = (accountId: string) => {
-    return users.filter((u) => u.account_id === accountId);
+    // Filter out super_admin users — they are FreshSegments-internal and
+    // should not appear in any company account's user list.
+    return users.filter((u) => u.account_id === accountId && u.role !== 'super_admin');
   };
 
   const handleCopyConfig = async (targetAccountId: string) => {
@@ -114,7 +116,7 @@ export default function CompanyAdminAccountsPage() {
     }
   };
 
-  const unassignedUsers = users.filter((u) => !u.account_id);
+  const unassignedUsers = users.filter((u) => !u.account_id && u.role !== 'super_admin');
 
   if (authLoading || (!isCompanyAdmin && !authLoading)) {
     return null;
@@ -232,7 +234,7 @@ export default function CompanyAdminAccountsPage() {
                                       ? 'bg-purple-100 text-purple-700'
                                       : 'bg-gray-100 text-gray-700'
                                   }`}>
-                                    {u.role === 'company_admin' ? 'Company Admin' : u.role}
+                                    {u.role === 'super_admin' ? 'Super Admin' : u.role === 'company_admin' ? 'Company Admin' : u.role}
                                   </span>
                                 </td>
                                 <td className="px-5 py-3">

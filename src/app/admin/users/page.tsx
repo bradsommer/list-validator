@@ -27,6 +27,7 @@ interface User {
 }
 
 const ROLE_BADGE_CLASS: Record<string, string> = {
+  super_admin: 'bg-red-100 text-red-700',
   company_admin: 'bg-indigo-100 text-indigo-700',
   admin: 'bg-purple-100 text-purple-700',
   billing: 'bg-emerald-100 text-emerald-700',
@@ -36,6 +37,7 @@ const ROLE_BADGE_CLASS: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
   company_admin: 'Company Admin',
   admin: 'Admin',
   billing: 'Billing',
@@ -45,7 +47,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { user: currentUser, isCompanyAdmin } = useAuth();
+  const { user: currentUser, isCompanyAdmin, isSuperAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -74,13 +76,20 @@ export default function UsersPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Company admins see all users; account admins see only their account's users
+      // Super/company admins see all users; account admins see only their account's users
       if (!isCompanyAdmin && currentUser?.accountId) {
         query = query.eq('account_id', currentUser.accountId);
       }
 
       const { data } = await query;
-      setUsers(((data || []) as User[]).filter((u) => isCompanyAdmin || u.role !== 'company_admin'));
+      // Filter out roles the current user shouldn't see:
+      // - super_admin users are FreshSegments-internal; only visible to other super_admins
+      // - company_admin users are only visible to super_admins
+      setUsers(((data || []) as User[]).filter((u) => {
+        if (u.role === 'super_admin') return isSuperAdmin;
+        if (u.role === 'company_admin') return isSuperAdmin;
+        return true;
+      }));
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
@@ -451,7 +460,13 @@ export default function UsersPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     >
                       {ROLE_OPTIONS
-                        .filter((opt) => isCompanyAdmin || opt.value !== 'company_admin')
+                        .filter((opt) => {
+                          // super_admin can only be assigned by other super_admins
+                          if (opt.value === 'super_admin') return isSuperAdmin;
+                          // company_admin can only be assigned from within the super admin account
+                          if (opt.value === 'company_admin') return isSuperAdmin;
+                          return true;
+                        })
                         .map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
