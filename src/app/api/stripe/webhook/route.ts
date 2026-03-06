@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           subscription_status: 'active',
+          subscription_cancelled_at: null,
           subscription_trial_end: session.subscription
             ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
             : null,
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
           .update({
             subscription_status: 'cancelled',
             stripe_subscription_id: null,
+            subscription_cancelled_at: new Date().toISOString(),
           })
           .eq('stripe_subscription_id', subscription.id);
         break;

@@ -53,20 +53,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Check subscription status for non-admin users
+    let subscriptionInactive = false;
     if (user.role !== 'super_admin' && user.role !== 'company_admin' && user.role !== 'admin') {
       const { data: dbUser } = await supabase
         .from('users')
-        .select('subscription_status')
+        .select('subscription_status, subscription_cancelled_at')
         .eq('id', user.id)
         .single();
 
       if (dbUser?.subscription_status === 'canceled' || dbUser?.subscription_status === 'cancelled') {
-        const response = NextResponse.json(
-          { success: false, error: 'Your subscription has been cancelled.' },
-          { status: 403 }
-        );
-        response.cookies.delete('auth_token');
-        return response;
+        // If cancelled more than 45 days ago, block access entirely
+        if (dbUser.subscription_cancelled_at) {
+          const cancelledAt = new Date(dbUser.subscription_cancelled_at);
+          const daysSinceCancelled = (Date.now() - cancelledAt.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysSinceCancelled > 45) {
+            const response = NextResponse.json(
+              { success: false, error: 'Your account has been deactivated. Please contact support.' },
+              { status: 403 }
+            );
+            response.cookies.delete('auth_token');
+            return response;
+          }
+        }
+        subscriptionInactive = true;
       }
     }
 
@@ -92,7 +101,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, user, accounts: accounts.length > 1 ? accounts : undefined });
+    return NextResponse.json({ success: true, user, accounts: accounts.length > 1 ? accounts : undefined, subscriptionInactive });
   } catch (error) {
     console.error('Auth check error:', error);
     return NextResponse.json(

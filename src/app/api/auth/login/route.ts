@@ -23,19 +23,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Admins can always log in. For other users, check subscription status.
+    // Check subscription status for non-admin users
+    let subscriptionInactive = false;
     if (result.user && result.user.role !== 'super_admin' && result.user.role !== 'company_admin' && result.user.role !== 'admin') {
       const { data: dbUser } = await supabase
         .from('users')
-        .select('subscription_status')
+        .select('subscription_status, subscription_cancelled_at')
         .eq('id', result.user.id)
         .single();
 
       if (dbUser?.subscription_status === 'canceled' || dbUser?.subscription_status === 'cancelled') {
-        return NextResponse.json(
-          { success: false, error: 'Your subscription has been cancelled. Please contact support or resubscribe.' },
-          { status: 403 }
-        );
+        // If cancelled more than 45 days ago, block login entirely
+        if (dbUser.subscription_cancelled_at) {
+          const cancelledAt = new Date(dbUser.subscription_cancelled_at);
+          const daysSinceCancelled = (Date.now() - cancelledAt.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysSinceCancelled > 45) {
+            return NextResponse.json(
+              { success: false, error: 'Your account has been deactivated. Please contact support.' },
+              { status: 403 }
+            );
+          }
+        }
+        subscriptionInactive = true;
       }
     }
 
@@ -44,6 +53,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: result.user,
       accounts: result.accounts || undefined,
+      subscriptionInactive,
     });
 
     // Set HTTP-only cookie for security
