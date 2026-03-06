@@ -158,10 +158,10 @@ export function ImportsChart() {
               <Line
                 type="monotone"
                 dataKey="count"
-                stroke="#4f46e5"
+                stroke="#0B8377"
                 strokeWidth={2}
-                dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
-                activeDot={{ r: 6, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
+                dot={{ r: 4, fill: '#0B8377', strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 6, fill: '#0B8377', strokeWidth: 2, stroke: '#fff' }}
               />
             </LineChart>
           </ResponsiveContainer>

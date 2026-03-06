@@ -24,7 +24,7 @@ function statusBadge(status: string) {
     completed: 'bg-green-100 text-green-700',
     syncing: 'bg-primary-100 text-primary-700',
     enriching: 'bg-primary-100 text-primary-700',
-    enriched: 'bg-indigo-100 text-indigo-700',
+    enriched: 'bg-primary-100 text-primary-700',
     uploaded: 'bg-gray-100 text-gray-600',
     failed: 'bg-red-100 text-red-700',
     expired: 'bg-yellow-100 text-yellow-700',

@@ -170,7 +170,7 @@ export default function CompanyAdminAccountsPage() {
                               handleCopyConfig(account.id);
                             }}
                             disabled={copyingConfigTo === account.id}
-                            className="px-2.5 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                            className="px-2.5 py-1 text-xs font-medium rounded-md bg-primary-50 text-primary-600 hover:bg-primary-100 disabled:opacity-50 transition-colors"
                           >
                             {copyingConfigTo === account.id ? 'Copying...' : 'Apply My Rules & Questions'}
                           </button>
@@ -230,7 +230,7 @@ export default function CompanyAdminAccountsPage() {
                                 <td className="px-5 py-3">
                                   <span className={`px-2 py-0.5 text-xs rounded-full ${
                                     u.role === 'company_admin'
-                                      ? 'bg-indigo-100 text-indigo-700'
+                                      ? 'bg-primary-100 text-primary-700'
                                       : u.role === 'admin'
                                       ? 'bg-purple-100 text-purple-700'
                                       : 'bg-gray-100 text-gray-700'
@@ -294,7 +294,7 @@ export default function CompanyAdminAccountsPage() {
                         <td className="px-5 py-3">
                           <span className={`px-2 py-0.5 text-xs rounded-full ${
                             u.role === 'company_admin'
-                              ? 'bg-indigo-100 text-indigo-700'
+                              ? 'bg-primary-100 text-primary-700'
                               : u.role === 'admin'
                               ? 'bg-purple-100 text-purple-700'
                               : 'bg-gray-100 text-gray-700'
