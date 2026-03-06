@@ -97,13 +97,16 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
   }, []);
 
   // Build main nav items based on permissions
+  const isBillingRole = user?.role === 'billing';
   const mainNavItems = useMemo(() => {
+    // Billing users only see Dashboard (Import is excluded)
+    if (isBillingRole) return [baseNavItems[0]];
     const items = [...baseNavItems];
     if (isAdmin || userCanView('rules')) items.push(rulesItem);
     if (isAdmin || userCanView('questions')) items.push(questionsItem);
     if (isAdmin || userCanView('column_headings')) items.push(headingsItem);
     return items;
-  }, [isAdmin, userCanView]);
+  }, [isAdmin, isBillingRole, userCanView]);
 
   // Build settings nav items based on permissions
   const visibleSettingsItems = useMemo(() => {

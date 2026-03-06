@@ -16,7 +16,7 @@ type SortKey = 'name' | 'hubspotObjectType' | 'source' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 export default function ColumnHeadingsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin, canEdit: userCanEdit } = useAuth();
   const [headings, setHeadings] = useState<ColumnHeading[]>([]);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -28,6 +28,7 @@ export default function ColumnHeadingsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  const canEditHeadings = isAdmin || userCanEdit('column_headings');
   const accountId = user?.accountId || '';
 
   // Check HubSpot connection status
@@ -256,23 +257,25 @@ export default function ColumnHeadingsPage() {
         )}
 
         {/* Add new heading */}
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, handleAdd)}
-            placeholder="Enter an output heading name..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!newName.trim()}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add
-          </button>
-        </div>
+        {canEditHeadings && (
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, handleAdd)}
+              placeholder="Enter an output heading name..."
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim()}
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+          </div>
+        )}
 
         {/* Headings list */}
         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -360,38 +363,42 @@ export default function ColumnHeadingsPage() {
                         {new Date(heading.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {editingId === heading.id ? (
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={handleSaveEdit}
-                              className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end gap-2">
-                            {!isHubSpot && (
-                              <button
-                                onClick={() => handleStartEdit(heading)}
-                                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                              >
-                                Edit
-                              </button>
+                        {canEditHeadings && (
+                          <>
+                            {editingId === heading.id ? (
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={handleSaveEdit}
+                                  className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end gap-2">
+                                {!isHubSpot && (
+                                  <button
+                                    onClick={() => handleStartEdit(heading)}
+                                    className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleRemove(heading.id)}
+                                  className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             )}
-                            <button
-                              onClick={() => handleRemove(heading.id)}
-                              className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
-                            >
-                              Remove
-                            </button>
-                          </div>
+                          </>
                         )}
                       </td>
                     </tr>
