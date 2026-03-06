@@ -19,6 +19,14 @@ body {
   min-height: 100vh;
 }
 
+/* Fixed overlays inside space-y containers should not inherit margin */
+.space-y-6 > .fixed,
+.space-y-4 > .fixed,
+.space-y-3 > .fixed,
+.space-y-2 > .fixed {
+  margin-top: 0px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
