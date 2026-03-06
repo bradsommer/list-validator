@@ -339,11 +339,13 @@ function Dashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
-          <ImportsChart />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <ImportsChart />
+          </div>
 
           {importCount !== null && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center md:w-56">
+            <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center">
               <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
