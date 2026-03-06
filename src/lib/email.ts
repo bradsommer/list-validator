@@ -28,7 +28,7 @@ function wrapHtml(body: string): string {
           <tr>
             <td style="padding: 24px 32px; border-top: 1px solid #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; color: #9ca3af; text-align: center;">
               <p style="margin: 0 0 4px;">FreshSegments &mdash; List validation and enrichment for HubSpot</p>
-              <p style="margin: 0;">FreshSegments, Inc. &bull; 30 N Gould St, Ste R, Sheridan, WY 82801</p>
+              <p style="margin: 0;">FreshSegments, Inc. &bull; 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105</p>
             </td>
           </tr>
         </table>
@@ -65,7 +65,7 @@ export async function sendWelcomeEmail(
         'If you did not expect this email, please ignore it.',
         '',
         '---',
-        'FreshSegments, Inc. | 30 N Gould St, Ste R, Sheridan, WY 82801',
+        'FreshSegments, Inc. | 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105',
       ].join('\n'),
       html: wrapHtml(`
         <h2 style="margin: 0 0 16px; font-size: 22px; color: #111827;">Welcome to FreshSegments${displayName ? `, ${displayName}` : ''}!</h2>
@@ -112,7 +112,7 @@ export async function sendInviteEmail(
         'This link expires in 48 hours. If you did not expect this email, please ignore it.',
         '',
         '---',
-        'FreshSegments, Inc. | 30 N Gould St, Ste R, Sheridan, WY 82801',
+        'FreshSegments, Inc. | 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105',
       ].join('\n'),
       html: wrapHtml(`
         <h2 style="margin: 0 0 16px; font-size: 22px; color: #111827;">Welcome to FreshSegments${displayName ? `, ${displayName}` : ''}!</h2>
@@ -156,7 +156,7 @@ export async function sendAccountAcceptEmail(
         'This link expires in 48 hours. If you did not expect this email, please ignore it.',
         '',
         '---',
-        'FreshSegments, Inc. | 30 N Gould St, Ste R, Sheridan, WY 82801',
+        'FreshSegments, Inc. | 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105',
       ].join('\n'),
       html: wrapHtml(`
         <h2 style="margin: 0 0 16px; font-size: 22px; color: #111827;">New Account Invitation${displayName ? `, ${displayName}` : ''}!</h2>
@@ -198,7 +198,7 @@ export async function sendPasswordResetEmail(
         'This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.',
         '',
         '---',
-        'FreshSegments, Inc. | 30 N Gould St, Ste R, Sheridan, WY 82801',
+        'FreshSegments, Inc. | 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105',
       ].join('\n'),
       html: wrapHtml(`
         <h2 style="margin: 0 0 16px; font-size: 22px; color: #111827;">Password Reset Request</h2>
@@ -238,7 +238,7 @@ export async function sendUsernameReminderEmail(
         `Sign in: ${APP_URL}/login`,
         '',
         '---',
-        'FreshSegments, Inc. | 30 N Gould St, Ste R, Sheridan, WY 82801',
+        'FreshSegments, Inc. | 519 W 22nd St, Suite 100, PMB 92955, Sioux Falls, SD 57105',
       ].join('\n'),
       html: wrapHtml(`
         <h2 style="margin: 0 0 16px; font-size: 22px; color: #111827;">Username Reminder</h2>
