@@ -252,7 +252,7 @@ export default function SignupPage() {
                 disabled={isSubmitting}
                 className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed transition-colors font-medium"
               >
-                {isSubmitting ? 'Creating Account...' : 'Create Account & Start Trial'}
+                {isSubmitting ? 'Creating Account...' : 'Start Free Trial'}
               </button>
 
               <p className="text-center text-xs text-gray-500">

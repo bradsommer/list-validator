@@ -20,7 +20,7 @@ const OBJECT_TYPE_LABELS: Record<ObjectType, string> = {
 };
 
 const OBJECT_TYPE_COLORS: Record<ObjectType, string> = {
-  contacts: 'bg-blue-100 text-blue-700',
+  contacts: 'bg-primary-100 text-primary-700',
   companies: 'bg-purple-100 text-purple-700',
   deals: 'bg-green-100 text-green-700',
 };
@@ -123,7 +123,7 @@ export default function RequiredPropertiesPage() {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
         </div>
       </AdminLayout>
     );
@@ -146,7 +146,7 @@ export default function RequiredPropertiesPage() {
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
               isSaving
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
@@ -311,7 +311,7 @@ export default function RequiredPropertiesPage() {
                             type="checkbox"
                             checked={false}
                             onChange={() => toggleField(key)}
-                            className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                            className="w-4 h-4 text-primary-600 rounded cursor-pointer"
                           />
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">

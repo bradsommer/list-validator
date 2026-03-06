@@ -149,9 +149,9 @@ export function AuditReview() {
           <div className="text-2xl font-bold text-yellow-700">{summary.flaggedRows}</div>
           <div className="text-sm text-yellow-600">Flagged for Review</div>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-700">{summary.autoResolved}</div>
-          <div className="text-sm text-blue-600">Auto-Resolved</div>
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-primary-700">{summary.autoResolved}</div>
+          <div className="text-sm text-primary-600">Auto-Resolved</div>
         </div>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-gray-700">{summary.totalRows}</div>

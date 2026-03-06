@@ -32,7 +32,7 @@ const ROLE_BADGE_CLASS: Record<string, string> = {
   company_admin: 'bg-indigo-100 text-indigo-700',
   admin: 'bg-purple-100 text-purple-700',
   billing: 'bg-emerald-100 text-emerald-700',
-  editor: 'bg-blue-100 text-blue-700',
+  editor: 'bg-primary-100 text-primary-700',
   custom: 'bg-orange-100 text-orange-700',
   user: 'bg-gray-100 text-gray-700',
 };

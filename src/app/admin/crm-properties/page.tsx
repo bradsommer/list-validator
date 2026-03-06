@@ -287,7 +287,7 @@ export default function CrmPropertiesPage() {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {prop.is_system ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">System</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700">System</span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">Custom</span>
                       )}

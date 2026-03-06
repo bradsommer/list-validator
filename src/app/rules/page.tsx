@@ -390,7 +390,7 @@ export default function RulesPage() {
                             <span
                               className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${
                                 rule.ruleType === 'transform'
-                                  ? 'bg-blue-100 text-blue-700'
+                                  ? 'bg-primary-100 text-primary-700'
                                   : 'bg-purple-100 text-purple-700'
                               }`}
                             >

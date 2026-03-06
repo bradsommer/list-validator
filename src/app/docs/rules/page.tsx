@@ -100,11 +100,11 @@ const sections: DocSection[] = [
         </ol>
 
         <h4 className="font-medium text-gray-900 mt-4">Examples</h4>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 space-y-2">
           <p className="text-sm"><strong>Default value:</strong> <code className="bg-white px-1.5 py-0.5 rounded text-sm">state</code></p>
           <p className="text-sm">Matches columns named &ldquo;State&rdquo;, &ldquo;State/Province&rdquo;, &ldquo;State Region&rdquo;, &ldquo;Province&rdquo;, etc.</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2 mt-2">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 space-y-2 mt-2">
           <p className="text-sm"><strong>Custom value:</strong> <code className="bg-white px-1.5 py-0.5 rounded text-sm">Address 1: State/Province</code></p>
           <p className="text-sm">Matches a column with that exact name in your spreadsheet (useful when your file has a non-standard header).</p>
         </div>
@@ -115,7 +115,7 @@ const sections: DocSection[] = [
           both <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">firstname</code> and <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">lastname</code>.
           Enter multiple values separated by commas:
         </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <p className="text-sm"><strong>Target Fields:</strong> <code className="bg-white px-1.5 py-0.5 rounded text-sm">First Name, Last Name</code></p>
         </div>
         <p className="text-sm text-gray-500 mt-1">
@@ -402,12 +402,12 @@ const header = findColumnHeader('state', headerMatches, rows);`}</CodeBlock>
           <tbody className="divide-y divide-gray-100">
             <tr>
               <td className="px-4 py-2">1&ndash;20</td>
-              <td className="px-4 py-2"><span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">Transform</span></td>
+              <td className="px-4 py-2"><span className="px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-700">Transform</span></td>
               <td className="px-4 py-2 text-gray-600">Whitespace cleanup, name capitalization, state normalization</td>
             </tr>
             <tr>
               <td className="px-4 py-2">20&ndash;40</td>
-              <td className="px-4 py-2"><span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">Transform</span></td>
+              <td className="px-4 py-2"><span className="px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-700">Transform</span></td>
               <td className="px-4 py-2 text-gray-600">Phone normalization, date standardization, company cleanup</td>
             </tr>
             <tr>
@@ -534,7 +534,7 @@ const header = findColumnHeader('state', headerMatches, rows);`}</CodeBlock>
           <li>The transformed/exported data</li>
         </ul>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mt-3">
           <p className="text-sm">
             <strong>In short:</strong> Your spreadsheet data never leaves your browser. The application stores only
             configuration (rules, headings, questions) and account settings &mdash; never your actual import data.

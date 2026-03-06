@@ -42,7 +42,7 @@ const OBJECT_TYPE_LABELS: Record<ObjectType, string> = {
 };
 
 const OBJECT_TYPE_COLORS: Record<ObjectType, string> = {
-  contacts: 'bg-blue-100 text-blue-700',
+  contacts: 'bg-primary-100 text-primary-700',
   companies: 'bg-purple-100 text-purple-700',
   deals: 'bg-green-100 text-green-700',
 };
