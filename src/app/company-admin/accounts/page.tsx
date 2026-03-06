@@ -17,7 +17,8 @@ interface Account {
 interface AccountUser {
   id: string;
   username: string;
-  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   role: string;
   is_active: boolean;
   last_login: string | null;
@@ -49,7 +50,7 @@ export default function CompanyAdminAccountsPage() {
       try {
         const [{ data: acctData }, { data: userData }] = await Promise.all([
           supabase.from('accounts').select('*').order('name'),
-          supabase.from('users').select('id, username, display_name, role, is_active, last_login, account_id').order('created_at', { ascending: false }),
+          supabase.from('users').select('id, username, first_name, last_name, role, is_active, last_login, account_id').order('created_at', { ascending: false }),
         ]);
 
         setAccounts(acctData || []);
@@ -223,7 +224,7 @@ export default function CompanyAdminAccountsPage() {
                             {acctUsers.map((u) => (
                               <tr key={u.id} className="hover:bg-gray-50">
                                 <td className="px-5 py-3">
-                                  <div className="font-medium text-gray-900 text-sm">{u.display_name || u.username}</div>
+                                  <div className="font-medium text-gray-900 text-sm">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</div>
                                   <div className="text-xs text-gray-400">{u.username}</div>
                                 </td>
                                 <td className="px-5 py-3">
@@ -287,7 +288,7 @@ export default function CompanyAdminAccountsPage() {
                     {unassignedUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50">
                         <td className="px-5 py-3">
-                          <div className="font-medium text-gray-900 text-sm">{u.display_name || u.username}</div>
+                          <div className="font-medium text-gray-900 text-sm">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</div>
                           <div className="text-xs text-gray-400">{u.username}</div>
                         </td>
                         <td className="px-5 py-3">

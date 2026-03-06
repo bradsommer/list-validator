@@ -201,7 +201,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
             <span>
-              Viewing as <strong>{user?.displayName || user?.username}</strong>
+              Viewing as <strong>{[user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username}</strong>
               {user?.accountName && <span> ({user.accountName})</span>}
             </span>
           </div>
@@ -209,7 +209,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             onClick={stopImpersonating}
             className="px-3 py-1 text-sm bg-white text-amber-700 rounded-md hover:bg-amber-50 font-medium"
           >
-            Back to {impersonating.displayName || impersonating.username}
+            Back to {[impersonating.firstName, impersonating.lastName].filter(Boolean).join(' ') || impersonating.username}
           </button>
         </div>
       )}
@@ -234,7 +234,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 </svg>
               </div>
               <span className="text-sm font-medium text-gray-700">
-                {user?.displayName || user?.username}
+                {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username}
               </span>
               <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -246,9 +246,9 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
               <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.displayName || user?.username}
+                    {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username}
                   </p>
-                  {user?.username && user?.displayName && (
+                  {user?.username && (user?.firstName || user?.lastName) && (
                     <p className="text-xs text-gray-500 truncate">{user.username}</p>
                   )}
                   {user?.accountName && (

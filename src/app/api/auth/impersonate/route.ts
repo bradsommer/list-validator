@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: targetUser.id,
         username: targetUser.username,
-        displayName: targetUser.display_name,
+        firstName: targetUser.first_name,
+        lastName: targetUser.last_name,
         role: targetUser.role,
         accountId: targetUser.account_id,
         accountName: account?.name || null,

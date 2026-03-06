@@ -27,8 +27,9 @@ export async function GET(request: NextRequest) {
     // Auto-create an account for users who don't have one
     if (!user.accountId) {
       try {
-        const accountName = user.displayName
-          ? `${user.displayName}'s Account`
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        const accountName = fullName
+          ? `${fullName}'s Account`
           : user.username.split('@')[0] + "'s Account";
         const slug = user.username.split('@')[0] + '-' + Date.now();
 

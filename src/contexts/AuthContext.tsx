@@ -6,7 +6,8 @@ import { getPermissions, type PermissionMap, type PermissionArea, type UserRole,
 export interface User {
   id: string;
   username: string;
-  displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
   role: UserRole;
   accountId: string | null;
   accountName: string | null;
