@@ -20,6 +20,12 @@ const docCards: DocCard[] = [
     icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   },
   {
+    title: 'Contact Us',
+    description: 'Have a question, need help, or want to share feedback? Get in touch with our team via our contact form or email us at info@freshsegments.com.',
+    href: '/contact',
+    icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  },
+  {
     title: 'Privacy Policy',
     description: 'How we handle, store, and protect your data. Your spreadsheet data is processed in your browser and never stored on our servers.',
     href: '/legal/privacy',
