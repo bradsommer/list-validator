@@ -392,14 +392,6 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
 
-                {/* Additional details when connected */}
-                {connected && integration.provider === 'hubspot' && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
-                      <span>Features: Contact sync, Company matching, Property management</span>
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
