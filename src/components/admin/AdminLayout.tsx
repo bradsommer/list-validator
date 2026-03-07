@@ -104,7 +104,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
     if (subscriptionInactive) return [];
     // Billing users only see Dashboard (Import is excluded)
     if (isBillingRole) return [baseNavItems[0]];
-    const items = [...baseNavItems];
+    return [...baseNavItems];
+  }, [isBillingRole, subscriptionInactive]);
+
+  const configureNavItems = useMemo(() => {
+    if (subscriptionInactive || isBillingRole) return [];
+    const items: NavItem[] = [];
     if (isAdmin || userCanView('rules')) items.push(rulesItem);
     if (isAdmin || userCanView('questions')) items.push(questionsItem);
     if (isAdmin || userCanView('column_headings')) items.push(headingsItem);
@@ -317,6 +322,25 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 />
               ))}
             </ul>
+
+            {/* Configure section */}
+            {configureNavItems.length > 0 && (
+              <>
+                <hr className="my-4 border-gray-200" />
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Configure
+                </div>
+                <ul className="space-y-1">
+                  {configureNavItems.map((item) => (
+                    <SidebarNavItem
+                      key={item.href}
+                      {...item}
+                      isActive={pathname === item.href || pathname.startsWith(item.href)}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
 
             {/* Settings section (admin / permission-gated) */}
             {visibleSettingsItems.length > 0 && (
