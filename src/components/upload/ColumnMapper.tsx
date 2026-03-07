@@ -72,7 +72,9 @@ function HeadingDropdown({
   const displayValue =
     value === DO_NOT_USE
       ? 'Do not use'
-      : value || 'Choose a column heading';
+      : value === ''
+        ? 'Keep original'
+        : value;
 
   const handleSelect = (val: string) => {
     onSelect(val);
@@ -102,7 +104,13 @@ function HeadingDropdown({
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+        <span className={
+          value === DO_NOT_USE
+            ? 'text-red-600'
+            : value === ''
+              ? 'text-gray-500 italic'
+              : 'text-gray-900'
+        }>
           {displayValue}
         </span>
         <svg
