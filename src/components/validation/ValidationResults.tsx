@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
 import { getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
@@ -11,6 +12,7 @@ import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
+  const router = useRouter();
   const { user } = useAuth();
   const {
     sessionId,
@@ -233,6 +235,9 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     a.download = `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+
+    // Redirect to dashboard after download starts
+    router.push('/');
   };
 
   if (isValidating) {
