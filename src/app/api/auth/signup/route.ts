@@ -24,7 +24,7 @@ function countryToRegion(countryCode: string): 'us' | 'eu' | 'ch' {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, firstName, lastName, country } = await request.json();
+    const { email, password, firstName, lastName, companyName, country } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -100,9 +100,8 @@ export async function POST(request: NextRequest) {
 
     // Create a new account (tenant) for this signup
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
-    const accountName = fullName
-      ? `${fullName}'s Account`
-      : normalizedEmail.split('@')[0] + "'s Account";
+    const accountName = companyName?.trim()
+      || (fullName ? `${fullName}'s Account` : normalizedEmail.split('@')[0] + "'s Account");
     const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
     const region = countryToRegion(country || '');

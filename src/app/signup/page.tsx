@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,6 +52,7 @@ export default function SignupPage() {
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
+          companyName: companyName || undefined,
           country,
         }),
       });
@@ -171,6 +173,21 @@ export default function SignupPage() {
                     autoComplete="family-name"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Company Name
+                </label>
+                <input
+                  id="companyName"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="Your company name"
+                  autoComplete="organization"
+                />
               </div>
 
               <div>
