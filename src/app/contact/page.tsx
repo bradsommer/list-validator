@@ -210,15 +210,6 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="bg-teal-50 border border-teal-200 rounded-lg p-5">
-            <h3 className="font-medium text-gray-900 text-sm mb-2">Mailing Address</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              FreshSegments, Inc.<br />
-              519 W 22nd St, Suite 100<br />
-              PMB 92955<br />
-              Sioux Falls, SD 57105
-            </p>
-          </div>
         </div>
       </div>
     </PublicLayout>
