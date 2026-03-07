@@ -316,6 +316,8 @@ function toInputDate(d: Date): string {
 }
 
 function Dashboard() {
+  const { user } = useAuth();
+
   // Date range state (shared between chart and time-saved card)
   const defaultRange = RANGE_PRESETS[DEFAULT_RANGE_INDEX].getRange();
   const [startDate, setStartDate] = useState<Date>(defaultRange.start);
@@ -333,31 +335,44 @@ function Dashboard() {
   // Raw import rows (shared between chart and time-saved card)
   const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
   const [isLoadingRows, setIsLoadingRows] = useState(true);
+  const [enabledRuleCount, setEnabledRuleCount] = useState(0);
 
-  // Fetch all import sessions once (3-year window)
+  // Fetch import sessions and enabled rule count
   useEffect(() => {
     const fetchData = async () => {
       setIsLoadingRows(true);
       try {
         const wideStart = new Date();
         wideStart.setFullYear(wideStart.getFullYear() - 3);
-        const { data, error } = await supabase
-          .from('upload_sessions')
-          .select('created_at')
-          .gte('created_at', wideStart.toISOString())
-          .order('created_at', { ascending: true });
+        const [sessionsResult, rulesResult] = await Promise.all([
+          supabase
+            .from('upload_sessions')
+            .select('created_at')
+            .gte('created_at', wideStart.toISOString())
+            .order('created_at', { ascending: true }),
+          user?.accountId
+            ? supabase
+                .from('account_rules')
+                .select('id', { count: 'exact', head: true })
+                .eq('account_id', user.accountId)
+                .eq('enabled', true)
+            : Promise.resolve({ count: 0, error: null }),
+        ]);
 
-        if (!error && data) {
-          setRawRows(data);
+        if (!sessionsResult.error && sessionsResult.data) {
+          setRawRows(sessionsResult.data);
+        }
+        if (!rulesResult.error && rulesResult.count != null) {
+          setEnabledRuleCount(rulesResult.count);
         }
       } catch (err) {
-        console.error('Failed to fetch import counts:', err);
+        console.error('Failed to fetch dashboard data:', err);
       } finally {
         setIsLoadingRows(false);
       }
     };
     fetchData();
-  }, []);
+  }, [user?.accountId]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -409,7 +424,7 @@ function Dashboard() {
     return count;
   })();
 
-  const minutesSaved = filteredImportCount * 10;
+  const minutesSaved = filteredImportCount * enabledRuleCount * 5;
   const hoursSaved = Math.floor(minutesSaved / 60);
   const remainingMinutes = minutesSaved % 60;
   const timeSavedDisplay = hoursSaved > 0
@@ -604,7 +619,7 @@ function Dashboard() {
             </div>
             <p className="mt-3 text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
             <p className="text-sm text-gray-500">Estimated time saved across {filteredImportCount} import{filteredImportCount !== 1 ? 's' : ''}</p>
-            <p className="mt-2 text-xs text-gray-400">Based on 10 minutes saved per import</p>
+            <p className="mt-2 text-xs text-gray-400">Based on 5 minutes saved per rule per import</p>
           </div>
         </div>
       </div>
