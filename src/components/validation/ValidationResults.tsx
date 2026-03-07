@@ -8,6 +8,7 @@ import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import { useValidationWorker } from '@/hooks/useValidationWorker';
+import { supabase } from '@/lib/supabase';
 import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
@@ -26,6 +27,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     availableScripts,
     questionColumnValues,
     importRuleOverrides,
+    columnMapping,
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
@@ -200,7 +202,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     runValidation();
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (processedData.length === 0) return;
 
     // Use all headers from the data (original column names + question columns)
@@ -228,6 +230,38 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     );
 
     const csv = [csvHeaders, ...csvRows].join('\n');
+
+    // Save import session to history
+    const fileName = parsedFile?.fileName || `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
+    const csvBytes = new Blob([csv]).size;
+    const fieldMappings: Record<string, string> = {};
+    for (const match of headerMatches) {
+      if (match.isMatched && match.matchedField) {
+        fieldMappings[match.originalHeader] = match.matchedField.name;
+      }
+    }
+
+    try {
+      await supabase.from('upload_sessions').insert({
+        account_id: user?.accountId || null,
+        user_id: user?.id || null,
+        file_name: fileName,
+        status: 'completed',
+        total_rows: processedData.length,
+        processed_rows: processedData.length,
+        synced_rows: processedData.length,
+        failed_rows: 0,
+        field_mappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
+        file_content: btoa(csv),
+        file_type: 'text/csv',
+        file_size: csvBytes,
+        completed_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Failed to save import history:', err);
+    }
+
+    // Trigger download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
