@@ -242,7 +242,14 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     }
 
     try {
-      await supabase.from('upload_sessions').insert({
+      // Use Unicode-safe base64 encoding (btoa only supports Latin1)
+      const encodedContent = btoa(
+        new Uint8Array(new TextEncoder().encode(csv)).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      const { error: insertError } = await supabase.from('upload_sessions').insert({
         account_id: user?.accountId || null,
         user_id: user?.id || null,
         file_name: fileName,
@@ -252,11 +259,14 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         synced_rows: processedData.length,
         failed_rows: 0,
         field_mappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
-        file_content: btoa(csv),
+        file_content: encodedContent,
         file_type: 'text/csv',
         file_size: csvBytes,
         completed_at: new Date().toISOString(),
       });
+      if (insertError) {
+        console.error('Failed to save import history:', insertError.message);
+      }
     } catch (err) {
       console.error('Failed to save import history:', err);
     }
