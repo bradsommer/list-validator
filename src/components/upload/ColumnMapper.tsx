@@ -98,7 +98,7 @@ function HeadingDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-white text-sm text-left outline-none transition-colors ${
           isOpen
-            ? 'border-primary-500 ring-2 ring-primary-200'
+            ? 'border-primary-500'
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
@@ -127,7 +127,7 @@ function HeadingDropdown({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search"
-                className="w-full px-3 py-2 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                className="w-full px-3 py-2 pr-8 border border-gray-300 rounded text-sm focus:border-primary-500 outline-none"
               />
               <svg
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -207,7 +207,7 @@ function HeadingDropdown({
                       }
                     }}
                     placeholder="Column heading name..."
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:border-primary-500 outline-none"
                   />
                   <button
                     type="button"

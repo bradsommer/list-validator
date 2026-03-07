@@ -104,7 +104,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
     if (subscriptionInactive) return [];
     // Billing users only see Dashboard (Import is excluded)
     if (isBillingRole) return [baseNavItems[0]];
-    const items = [...baseNavItems];
+    return [...baseNavItems];
+  }, [isBillingRole, subscriptionInactive]);
+
+  const configureNavItems = useMemo(() => {
+    if (subscriptionInactive || isBillingRole) return [];
+    const items: NavItem[] = [];
     if (isAdmin || userCanView('rules')) items.push(rulesItem);
     if (isAdmin || userCanView('questions')) items.push(questionsItem);
     if (isAdmin || userCanView('column_headings')) items.push(headingsItem);
@@ -135,7 +140,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
+        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -274,10 +279,10 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                         >
                           <span className="truncate">{account.accountName}</span>
                           {switchingAccount === account.userId && (
-                            <div className="animate-spin w-3 h-3 border-2 border-t-transparent rounded-full shrink-0 ml-2" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
+                            <div className="animate-spin w-3 h-3 border-2 border-t-transparent rounded-full shrink-0 ml-2" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
                           )}
                           {account.userId === user?.id && switchingAccount !== account.userId && (
-                            <svg className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: '#14b8a6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: '#0b8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           )}
@@ -317,6 +322,25 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 />
               ))}
             </ul>
+
+            {/* Configure section */}
+            {configureNavItems.length > 0 && (
+              <>
+                <hr className="my-4 border-gray-200" />
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Configure
+                </div>
+                <ul className="space-y-1">
+                  {configureNavItems.map((item) => (
+                    <SidebarNavItem
+                      key={item.href}
+                      {...item}
+                      isActive={pathname === item.href || pathname.startsWith(item.href)}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
 
             {/* Settings section (admin / permission-gated) */}
             {visibleSettingsItems.length > 0 && (

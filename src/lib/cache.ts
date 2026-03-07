@@ -50,7 +50,7 @@ export const cache = new MemoryCache();
 // Common TTLs
 export const CACHE_TTL = {
   OWNERS: 10 * 60 * 1000,        // 10 minutes
-  CONNECTION: 5 * 60 * 1000,     // 5 minutes
+  CONNECTION: 60 * 1000,          // 1 minute
   COMPANY_SEARCH: 60 * 1000,     // 1 minute (during sync batches)
 } as const;
 

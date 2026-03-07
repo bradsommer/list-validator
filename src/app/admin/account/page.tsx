@@ -52,10 +52,10 @@ export default function AccountSettingsPage() {
         .eq('id', user.accountId);
 
       if (error) {
-        setSaveMessage({ type: 'error', text: 'Failed to update account name.' });
+        setSaveMessage({ type: 'error', text: 'Failed to update company name.' });
       } else {
         setOriginalName(accountName.trim());
-        setSaveMessage({ type: 'success', text: 'Account name updated.' });
+        setSaveMessage({ type: 'success', text: 'Company name updated.' });
         // Refresh session so the header reflects the new name
         await checkSession();
       }
@@ -90,7 +90,7 @@ export default function AccountSettingsPage() {
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
                 <input
                   type="text"
                   value={accountName}
@@ -99,7 +99,7 @@ export default function AccountSettingsPage() {
                     setSaveMessage(null);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="Enter account name"
+                  placeholder="Enter company name"
                 />
               </div>
 

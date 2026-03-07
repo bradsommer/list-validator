@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const tokens = await exchangeCodeForTokens(code);
     const accountId = state || '';
 
-    // Fetch the portal ID (hub_id) from HubSpot token info
+    // Fetch the portal ID (hub_id) and verify scopes from HubSpot token info
     let portalId: string | undefined;
     try {
       const tokenInfoResponse = await fetch(
@@ -57,6 +57,25 @@ export async function GET(request: NextRequest) {
         const tokenInfo = await tokenInfoResponse.json();
         portalId = tokenInfo.hub_id?.toString();
         console.log('HubSpot portal ID fetched:', portalId);
+
+        // Verify that required CRM scopes were granted.
+        // For unapproved HubSpot apps the consent flow has two screens;
+        // if the user only completes the first one, the token is issued
+        // without CRM scopes. Reject early so the user knows to re-try.
+        const requiredScopes = [
+          'crm.schemas.contacts.read',
+          'crm.schemas.companies.read',
+          'crm.schemas.deals.read',
+        ];
+        const grantedScopes: string[] = tokenInfo.scopes || [];
+        const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
+        if (missingScopes.length > 0) {
+          console.error('HubSpot OAuth missing scopes:', missingScopes, 'granted:', grantedScopes);
+          return oauthResultPage({
+            success: false,
+            error: 'Authorization incomplete. Please re-connect and approve all requested permissions on the second screen.',
+          });
+        }
       } else {
         console.error('Failed to fetch HubSpot token info:', tokenInfoResponse.status);
       }
