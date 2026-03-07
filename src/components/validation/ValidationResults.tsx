@@ -31,7 +31,6 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
-    setAvailableScripts,
     setEnabledScripts,
     toggleScript,
     prevStep,
@@ -87,9 +86,13 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
   // Load available scripts and rules, applying import-level overrides
   useEffect(() => {
     const loadScriptsAndRules = async () => {
+      // Populate availableScripts for display purposes only.
+      // Don't use setAvailableScripts here because it also overwrites
+      // enabledScripts to ALL scripts, which would trigger the auto-run
+      // validation effect before the DB fetch below can filter by overrides.
       if (availableScripts.length === 0) {
         const scripts = getAvailableScripts();
-        setAvailableScripts(scripts);
+        useAppStore.setState({ availableScripts: scripts });
       }
 
       // Fetch all rules from database (per-account) with full config
@@ -103,13 +106,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         );
 
         setAccountRules(enabledRules);
-        if (enabledRules.length > 0) {
-          setEnabledScripts(enabledRules.map((r) => r.ruleId));
-        } else {
-          // Fallback: if no rules enabled, enable all available scripts
-          const scripts = getAvailableScripts();
-          setEnabledScripts(scripts.map((s) => s.id));
-        }
+        setEnabledScripts(enabledRules.map((r) => r.ruleId));
       } catch {
         // On error, enable all scripts as fallback
         const scripts = getAvailableScripts();
@@ -118,7 +115,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     };
 
     loadScriptsAndRules();
-  }, [accountId, availableScripts.length, importRuleOverrides, setAvailableScripts, setEnabledScripts]);
+  }, [accountId, availableScripts.length, importRuleOverrides, setEnabledScripts]);
 
   const runValidation = async () => {
     // Always use original data from parsedFile to ensure scripts see fresh data
