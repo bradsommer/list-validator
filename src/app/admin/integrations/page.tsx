@@ -407,8 +407,7 @@ export default function IntegrationsPage() {
               <h4 className="text-sm font-medium text-primary-900">About Integrations</h4>
               <p className="text-sm text-primary-700 mt-1">
                 Integrations are connected at the account level and shared by all users in your organization.
-                Only administrators can add or remove integrations. Connected services allow the platform to
-                sync data, pull properties, and push validated contacts.
+                Only administrators can add or remove integrations. Our integrations allow FreshSegments to access properties from your CRM. We intentionally do not view or store your Contacts, Companies, or Deals, and only retrieve the names of your properties.
               </p>
             </div>
           </div>
