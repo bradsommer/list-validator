@@ -1,16 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getHubSpotOwners } from '@/lib/hubspot';
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const accountId = request.headers.get('x-account-id') || '';
   try {
-    const cached = cache.get<{ id: string; name: string; email: string }[]>(CACHE_KEYS.HUBSPOT_OWNERS);
+    const cacheKey = CACHE_KEYS.hubspotOwners(accountId);
+    const cached = cache.get<{ id: string; name: string; email: string }[]>(cacheKey);
     if (cached) {
       return NextResponse.json({ owners: cached });
     }
 
     const owners = await getHubSpotOwners();
-    cache.set(CACHE_KEYS.HUBSPOT_OWNERS, owners, CACHE_TTL.OWNERS);
+    cache.set(cacheKey, owners, CACHE_TTL.OWNERS);
     return NextResponse.json({ owners });
   } catch (error) {
     console.error('Error fetching HubSpot owners:', error);
