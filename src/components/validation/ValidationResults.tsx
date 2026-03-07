@@ -242,14 +242,20 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     }
 
     try {
-      // Use Unicode-safe base64 encoding (btoa only supports Latin1)
-      const encodedContent = btoa(
-        new Uint8Array(new TextEncoder().encode(csv)).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ''
-        )
-      );
-      const { error: insertError } = await supabase.from('upload_sessions').insert({
+      // Unicode-safe base64 encoding (btoa only supports Latin1)
+      let encodedContent: string | undefined;
+      try {
+        encodedContent = btoa(
+          new Uint8Array(new TextEncoder().encode(csv)).reduce(
+            (data, byte) => data + String.fromCharCode(byte),
+            ''
+          )
+        );
+      } catch {
+        // If encoding fails, skip file content but still record the session
+      }
+
+      const sessionRecord: Record<string, unknown> = {
         account_id: user?.accountId || null,
         user_id: user?.id || null,
         file_name: fileName,
@@ -259,12 +265,29 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         synced_rows: processedData.length,
         failed_rows: 0,
         field_mappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
-        file_content: encodedContent,
-        file_type: 'text/csv',
-        file_size: csvBytes,
         completed_at: new Date().toISOString(),
-      });
-      if (insertError) {
+      };
+
+      // Include file content columns only when content is available
+      if (encodedContent) {
+        sessionRecord.file_content = encodedContent;
+        sessionRecord.file_type = 'text/csv';
+        sessionRecord.file_size = csvBytes;
+      }
+
+      const { error: insertError } = await supabase.from('upload_sessions').insert(sessionRecord);
+
+      // If the full insert fails (e.g. file_content column missing), retry without file columns
+      if (insertError && encodedContent) {
+        console.warn('Insert with file content failed, retrying without:', insertError.message);
+        delete sessionRecord.file_content;
+        delete sessionRecord.file_type;
+        delete sessionRecord.file_size;
+        const { error: retryError } = await supabase.from('upload_sessions').insert(sessionRecord);
+        if (retryError) {
+          console.error('Failed to save import history:', retryError.message);
+        }
+      } else if (insertError) {
         console.error('Failed to save import history:', insertError.message);
       }
     } catch (err) {
