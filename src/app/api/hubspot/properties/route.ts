@@ -115,7 +115,7 @@ export async function fetchAndStoreProperties(accountId: string): Promise<{
   total: number;
   counts: Record<string, number>;
 }> {
-  const accessToken = await getValidAccessToken();
+  const accessToken = await getValidAccessToken(accountId);
   if (!accessToken) {
     throw new Error('HubSpot not connected');
   }

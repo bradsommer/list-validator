@@ -374,7 +374,7 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
     console.log('[HubSpot Auth] Token expired or missing expiry, attempting refresh...');
     try {
       const refreshed = await refreshAccessToken(tokens.refresh_token);
-      await setTokens(refreshed);
+      await setTokens(refreshed, acctId);
       tokens = refreshed;
       // Reset the cached client so it picks up the new token
       hubspotClient = null;
@@ -428,10 +428,10 @@ export async function isConnected(accountId?: string): Promise<boolean> {
 let hubspotClient: Client | null = null;
 let hubspotClientToken: string | null = null;
 
-export async function getHubSpotClient(): Promise<Client> {
+export async function getHubSpotClient(accountId?: string): Promise<Client> {
   // Always get a valid token first — this handles refresh and DB re-reads.
   // If the token changed (due to refresh or re-auth), recreate the client.
-  const accessToken = await getValidAccessToken();
+  const accessToken = await getValidAccessToken(accountId);
   if (!accessToken) {
     throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
   }
