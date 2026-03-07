@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTokens, clearTokens, getAuthorizeUrl } from '@/lib/hubspot';
-import { cache, CACHE_KEYS } from '@/lib/cache';
+import { getTokens, getAuthorizeUrl } from '@/lib/hubspot';
 
-// POST - Revoke any existing HubSpot authorization, then return a fresh authorize URL.
-// This forces HubSpot to show the full consent flow (both screens) for unapproved apps,
-// instead of auto-redirecting based on a cached previous grant.
+// POST - Revoke any existing HubSpot authorization at HubSpot's end, then return a
+// fresh authorize URL.  This forces HubSpot to show the full consent flow (both
+// screens) for unapproved apps instead of auto-redirecting based on a cached grant.
+//
+// IMPORTANT: We do NOT clear local tokens here.  The user's existing connection
+// should stay active until the new OAuth flow completes successfully — the callback
+// handler will overwrite the tokens when it receives the new code.  This prevents
+// the integration from appearing "disconnected" if the user cancels the popup or
+// the flow otherwise fails partway through.
 export async function POST(request: NextRequest) {
   const accountId = request.headers.get('x-account-id') || '';
 
   try {
-    // Check for existing tokens and revoke at HubSpot before clearing locally
+    // Revoke existing refresh token at HubSpot so the consent screens are shown again
     const tokens = await getTokens(accountId);
     if (tokens?.refresh_token) {
       try {
@@ -23,11 +28,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Clear local tokens so isConnected() returns false
-    await clearTokens(accountId);
-    cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
-
-    // Generate fresh authorize URL
+    // Generate fresh authorize URL (tokens are NOT cleared locally)
     const authorizeUrl = await getAuthorizeUrl(accountId);
 
     return NextResponse.json({ success: true, authorizeUrl });
