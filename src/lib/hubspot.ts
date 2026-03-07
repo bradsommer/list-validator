@@ -176,37 +176,8 @@ export async function refreshAccessToken(refreshToken: string): Promise<HubSpotT
   };
 }
 
-// Token persistence - Supabase as primary, file as fallback
-import * as fs from 'fs';
-import * as path from 'path';
+// Token persistence - Supabase (database) is the sole persistent store
 import { supabase } from '@/lib/supabase';
-
-const TOKEN_FILE = path.join(process.cwd(), '.hubspot-tokens.json');
-
-// --- File-based fallback ---
-
-function saveTokensToFile(tokens: HubSpotTokens | null) {
-  try {
-    if (tokens) {
-      fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
-    } else {
-      if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
-    }
-  } catch {
-    // Silently fail
-  }
-}
-
-function loadTokensFromFile(): HubSpotTokens | null {
-  try {
-    if (fs.existsSync(TOKEN_FILE)) {
-      return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
-    }
-  } catch {
-    // Silently fail
-  }
-  return null;
-}
 
 // --- Supabase storage ---
 
@@ -309,25 +280,17 @@ let storedTokens: HubSpotTokens | null = null;
 
 export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
   storedTokens = tokens;
-  saveTokensToFile(tokens);
   await saveTokensToDb(tokens, accountId || '', portalId);
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
   if (storedTokens) return storedTokens;
 
-  // Try database first
+  // Load from database (the sole persistent store)
   const dbTokens = await loadTokensFromDb(accountId || '');
   if (dbTokens) {
     storedTokens = dbTokens;
     return dbTokens;
-  }
-
-  // Fall back to file
-  const fileTokens = loadTokensFromFile();
-  if (fileTokens) {
-    storedTokens = fileTokens;
-    return fileTokens;
   }
 
   return null;
@@ -337,7 +300,6 @@ export async function clearTokens(accountId?: string) {
   storedTokens = null;
   hubspotClient = null;
   hubspotClientToken = null;
-  saveTokensToFile(null);
   await clearTokensFromDb(accountId || '');
 }
 
@@ -358,7 +320,7 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
 
   let tokens = storedTokens || await getTokens(acctId);
   if (!tokens) {
-    console.log('[HubSpot Auth] No tokens found in DB, memory, or file');
+    console.log('[HubSpot Auth] No tokens found in DB or memory');
     return null;
   }
 
