@@ -73,8 +73,10 @@ export async function GET(request: NextRequest) {
           console.error('HubSpot OAuth missing scopes:', missingScopes, 'granted:', grantedScopes);
           // Scopes are missing — the user only completed the first consent
           // screen (unapproved-app flow has two screens). Revoke the partial
-          // token so HubSpot clears the cached grant, then redirect back so
-          // the user sees both screens again and can complete the second one.
+          // token so HubSpot clears the cached grant, then return an error to
+          // the popup. The user can click "Connect" again to retry cleanly.
+          // (Previously this redirected back to authorize, but that created a
+          // loop that could close the popup and falsely show "connected".)
           if (tokens.refresh_token) {
             try {
               await fetch(
@@ -85,8 +87,10 @@ export async function GET(request: NextRequest) {
               console.error('Failed to revoke partial HubSpot token:', revokeErr);
             }
           }
-          const retryUrl = await getAuthorizeUrl(accountId);
-          return NextResponse.redirect(retryUrl);
+          return oauthResultPage({
+            success: false,
+            error: 'Please approve both authorization screens when connecting. Click "Connect HubSpot" to try again.',
+          });
         }
       } else {
         console.error('Failed to fetch HubSpot token info:', tokenInfoResponse.status);

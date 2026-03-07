@@ -58,9 +58,24 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// DELETE - disconnect HubSpot (invalidates cache and removes HubSpot headings)
+// DELETE - disconnect HubSpot (revokes at HubSpot, clears local tokens, removes headings)
 export async function DELETE(request: NextRequest) {
   const accountId = request.headers.get('x-account-id') || '';
+
+  // Revoke the refresh token at HubSpot so the app is fully disconnected there too.
+  // This must happen before clearTokens() wipes the local copy of the token.
+  const tokens = await getTokens(accountId);
+  if (tokens?.refresh_token) {
+    try {
+      await fetch(
+        `https://api.hubapi.com/oauth/v1/refresh-tokens/${tokens.refresh_token}`,
+        { method: 'DELETE' }
+      );
+    } catch (err) {
+      console.error('Failed to revoke HubSpot refresh token during disconnect:', err);
+    }
+  }
+
   await clearTokens(accountId);
   const removedHeadings = await removeAllHubSpotHeadingsAsync(accountId);
   cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
