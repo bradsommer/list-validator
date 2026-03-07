@@ -72,7 +72,9 @@ function HeadingDropdown({
   const displayValue =
     value === DO_NOT_USE
       ? 'Do not use'
-      : value || 'Choose a column heading';
+      : value === ''
+        ? 'Keep original'
+        : value;
 
   const handleSelect = (val: string) => {
     onSelect(val);
@@ -102,7 +104,13 @@ function HeadingDropdown({
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+        <span className={
+          value === DO_NOT_USE
+            ? 'text-red-600'
+            : value === ''
+              ? 'text-gray-500 italic'
+              : 'text-gray-900'
+        }>
           {displayValue}
         </span>
         <svg
@@ -235,7 +243,7 @@ function HeadingDropdown({
   );
 }
 
-export function ColumnMapper() {
+export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
   const {
     parsedFile,
     headerMatches,
@@ -453,12 +461,19 @@ export function ColumnMapper() {
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <button
-          onClick={prevStep}
-          className="px-6 py-2 text-gray-600 hover:text-gray-800"
-        >
-          Back
-        </button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={prevStep}
+            className="px-6 py-2 text-gray-600 hover:text-gray-800"
+          >
+            Back
+          </button>
+        </div>
         <button
           onClick={handleContinue}
           className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"

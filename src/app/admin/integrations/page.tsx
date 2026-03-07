@@ -50,6 +50,8 @@ export default function IntegrationsPage() {
   }, [message]);
 
   useEffect(() => {
+    if (!user?.accountId) return;
+
     fetchIntegrations();
     checkHubSpotConnection();
 
@@ -63,7 +65,7 @@ export default function IntegrationsPage() {
       setMessage({ type: 'error', text: `HubSpot connection failed: ${params.get('hubspot_error')}` });
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [user?.accountId]);
 
   const fetchIntegrations = async () => {
     setIsLoading(true);
@@ -167,7 +169,12 @@ export default function IntegrationsPage() {
       if (result.success) {
         setMessage({ type: 'success', text: 'HubSpot connected successfully!' });
         setHubspotConnected(true);
-        checkHubSpotConnection();
+        // Small delay before re-checking — gives the server time to persist tokens
+        // and invalidate the connection cache before we query status again.
+        setTimeout(() => {
+          fetchIntegrations();
+          checkHubSpotConnection();
+        }, 1500);
       } else {
         setMessage({ type: 'error', text: `HubSpot connection failed: ${result.error || 'unknown'}` });
       }

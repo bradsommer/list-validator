@@ -19,7 +19,7 @@ const OBJECT_TYPE_OPTIONS: { value: HubSpotObjectType; label: string; descriptio
   { value: 'deals', label: 'Deals', description: 'Sales opportunities and transactions' },
 ];
 
-export function FileUpload() {
+export function FileUpload({ onCancel }: { onCancel?: () => void }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowLimitWarning, setRowLimitWarning] = useState<string | null>(null);
@@ -198,6 +198,18 @@ export function FileUpload() {
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Cancel */}
+      {onCancel && (
+        <div className="flex pt-2">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
