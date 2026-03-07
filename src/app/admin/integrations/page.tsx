@@ -18,7 +18,7 @@ const AVAILABLE_INTEGRATIONS = [
   {
     provider: 'hubspot',
     name: 'HubSpot',
-    description: 'Sync contacts, companies, and properties with HubSpot CRM.',
+    description: 'Sync all HubSpot property labels to FreshSegments to make it easier to map spreadsheet data to the corresponding HubSpot properties.',
     color: '#ff7a59',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
@@ -315,9 +315,9 @@ export default function IntegrationsPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {integration.name}
-                          {connected && integration.provider === 'hubspot' && hubspotPortalId && (
+                          {connected && integration.provider === 'hubspot' && (hubspotPortalId || data?.portal_id) && (
                             <span className="text-sm font-normal text-gray-500 ml-2">
-                              (Hub {hubspotPortalId})
+                              (Hub {hubspotPortalId || data?.portal_id})
                             </span>
                           )}
                         </h3>
@@ -392,14 +392,6 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
 
-                {/* Additional details when connected */}
-                {connected && integration.provider === 'hubspot' && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
-                      <span>Features: Contact sync, Company matching, Property management</span>
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -415,8 +407,7 @@ export default function IntegrationsPage() {
               <h4 className="text-sm font-medium text-primary-900">About Integrations</h4>
               <p className="text-sm text-primary-700 mt-1">
                 Integrations are connected at the account level and shared by all users in your organization.
-                Only administrators can add or remove integrations. Connected services allow the platform to
-                sync data, pull properties, and push validated contacts.
+                Only administrators can add or remove integrations. Our integrations allow FreshSegments to access properties from your CRM. We intentionally do not view or store your Contacts, Companies, or Deals, and only retrieve the names of your properties.
               </p>
             </div>
           </div>

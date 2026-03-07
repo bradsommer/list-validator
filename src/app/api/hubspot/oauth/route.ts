@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthorizeUrl, getHubSpotClientIdAsync, isConnected, getTokens, getPortalId, clearTokens } from '@/lib/hubspot';
+import { getAuthorizeUrl, getHubSpotClientIdAsync, isConnected, getTokens, getValidAccessToken, getPortalId, clearTokens } from '@/lib/hubspot';
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 import { removeAllHubSpotHeadingsAsync } from '@/lib/columnHeadings';
 
@@ -58,9 +58,45 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// DELETE - disconnect HubSpot (invalidates cache and removes HubSpot headings)
+// DELETE - disconnect HubSpot (revokes at HubSpot, clears local tokens, removes headings)
 export async function DELETE(request: NextRequest) {
   const accountId = request.headers.get('x-account-id') || '';
+
+  // Uninstall the app from HubSpot portal, then revoke tokens.
+  // The uninstall endpoint requires a valid access token and fully removes the
+  // app from the portal (not just token revocation). This allows the user to
+  // re-install cleanly via the Connect button without manually uninstalling
+  // from HubSpot's installed-apps page first.
+  const accessToken = await getValidAccessToken(accountId);
+  if (accessToken) {
+    try {
+      const uninstallResponse = await fetch(
+        'https://api.hubapi.com/appinstalls/v3/external-install',
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+      console.log('HubSpot app uninstall status:', uninstallResponse.status);
+    } catch (err) {
+      console.error('Failed to uninstall HubSpot app from portal:', err);
+    }
+  }
+
+  // Also revoke the refresh token as a fallback (in case the uninstall endpoint
+  // didn't fully clean up, or if the access token was already expired).
+  const tokens = await getTokens(accountId);
+  if (tokens?.refresh_token) {
+    try {
+      await fetch(
+        `https://api.hubapi.com/oauth/v1/refresh-tokens/${tokens.refresh_token}`,
+        { method: 'DELETE' }
+      );
+    } catch (err) {
+      console.error('Failed to revoke HubSpot refresh token during disconnect:', err);
+    }
+  }
+
   await clearTokens(accountId);
   const removedHeadings = await removeAllHubSpotHeadingsAsync(accountId);
   cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
