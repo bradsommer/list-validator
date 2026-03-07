@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -10,7 +10,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { supabase } from '@/lib/supabase';
 
 interface ChartPoint {
   key: string;
@@ -122,12 +121,11 @@ interface ImportsChartProps {
   startDate: Date;
   endDate: Date;
   granularity: Granularity;
-  onRawRowsChange?: (rows: { created_at: string }[]) => void;
+  rawRows: { created_at: string }[];
+  isLoading: boolean;
 }
 
-export function ImportsChart({ startDate, endDate, granularity, onRawRowsChange }: ImportsChartProps) {
-  const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function ImportsChart({ startDate, endDate, granularity, rawRows, isLoading }: ImportsChartProps) {
   const [chartWidth, setChartWidth] = useState(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -142,33 +140,6 @@ export function ImportsChart({ startDate, endDate, granularity, onRawRowsChange 
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
-
-  // Fetch all data once (wide range)
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const wideStart = new Date();
-        wideStart.setFullYear(wideStart.getFullYear() - 3);
-        const { data, error } = await supabase
-          .from('upload_sessions')
-          .select('created_at')
-          .gte('created_at', wideStart.toISOString())
-          .order('created_at', { ascending: true });
-
-        if (!error && data) {
-          setRawRows(data);
-          onRawRowsChange?.(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch import counts:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Aggregate data based on range + granularity

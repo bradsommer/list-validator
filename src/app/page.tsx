@@ -7,6 +7,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ImportsChart, RANGE_PRESETS, DEFAULT_RANGE_INDEX } from '@/components/dashboard/ImportsChart';
 import type { Granularity, RangePreset } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { supabase } from '@/lib/supabase';
 
 function ComingSoonPage() {
   return (
@@ -329,8 +330,34 @@ function Dashboard() {
   const datePickerRef = useRef<HTMLDivElement>(null);
   const granularityRef = useRef<HTMLDivElement>(null);
 
-  // Raw import rows (shared for time-saved calculation)
+  // Raw import rows (shared between chart and time-saved card)
   const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
+  const [isLoadingRows, setIsLoadingRows] = useState(true);
+
+  // Fetch all import sessions once (3-year window)
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingRows(true);
+      try {
+        const wideStart = new Date();
+        wideStart.setFullYear(wideStart.getFullYear() - 3);
+        const { data, error } = await supabase
+          .from('upload_sessions')
+          .select('created_at')
+          .gte('created_at', wideStart.toISOString())
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          setRawRows(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch import counts:', err);
+      } finally {
+        setIsLoadingRows(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -367,10 +394,6 @@ function Dashboard() {
       setCustomPickerOpen(false);
     }
   }, [customStart, customEnd]);
-
-  const handleRawRowsChange = useCallback((rows: { created_at: string }[]) => {
-    setRawRows(rows);
-  }, []);
 
   // Compute filtered import count for time-saved card
   const filteredImportCount = (() => {
@@ -568,7 +591,8 @@ function Dashboard() {
               startDate={startDate}
               endDate={endDate}
               granularity={granularity}
-              onRawRowsChange={handleRawRowsChange}
+              rawRows={rawRows}
+              isLoading={isLoadingRows}
             />
           </div>
 
