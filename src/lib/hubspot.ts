@@ -246,6 +246,9 @@ async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null
 }
 
 export async function getPortalId(accountId?: string): Promise<string | null> {
+  // Check in-memory first (set during setTokens after OAuth callback)
+  if (storedPortalId) return storedPortalId;
+
   try {
     const { data, error } = await supabase
       .from('account_integrations')
@@ -256,6 +259,7 @@ export async function getPortalId(accountId?: string): Promise<string | null> {
       .single();
 
     if (error || !data?.portal_id) return null;
+    storedPortalId = data.portal_id;
     return data.portal_id;
   } catch {
     return null;
@@ -274,12 +278,14 @@ async function clearTokensFromDb(accountId: string): Promise<void> {
   }
 }
 
-// --- Combined token management (in-memory + DB + file) ---
+// --- Combined token management (in-memory + DB) ---
 
 let storedTokens: HubSpotTokens | null = null;
+let storedPortalId: string | null = null;
 
 export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
   storedTokens = tokens;
+  if (portalId) storedPortalId = portalId;
   await saveTokensToDb(tokens, accountId || '', portalId);
 }
 
@@ -298,6 +304,7 @@ export async function getTokens(accountId?: string): Promise<HubSpotTokens | nul
 
 export async function clearTokens(accountId?: string) {
   storedTokens = null;
+  storedPortalId = null;
   hubspotClient = null;
   hubspotClientToken = null;
   await clearTokensFromDb(accountId || '');
