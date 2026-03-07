@@ -284,7 +284,7 @@ export default function ColumnHeadingsPage() {
         )}
 
         {/* Headings list */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2" />
@@ -295,7 +295,7 @@ export default function ColumnHeadingsPage() {
               No output headings added yet. Add your first one above.
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {([
@@ -307,7 +307,7 @@ export default function ColumnHeadingsPage() {
                     <th
                       key={col.key}
                       onClick={() => handleSort(col.key)}
-                      className="text-left px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900"
+                      className={`text-left px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900 ${col.key === 'name' ? 'max-w-[200px]' : ''}`}
                     >
                       <span className="inline-flex items-center gap-1">
                         {col.label}
@@ -330,7 +330,7 @@ export default function ColumnHeadingsPage() {
 
                   return (
                     <tr key={heading.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 max-w-[200px]">
                         {editingId === heading.id ? (
                           <input
                             type="text"
@@ -338,10 +338,10 @@ export default function ColumnHeadingsPage() {
                             onChange={(e) => setEditingName(e.target.value)}
                             onKeyDown={(e) => handleKeyDown(e, handleSaveEdit)}
                             autoFocus
-                            className="px-3 py-1 border border-primary-300 rounded focus:ring-2 focus:ring-primary-500 outline-none w-full max-w-sm"
+                            className="px-3 py-1 border border-primary-300 rounded focus:ring-2 focus:ring-primary-500 outline-none w-full"
                           />
                         ) : (
-                          <span className="font-medium text-gray-900">{heading.name}</span>
+                          <span className="font-medium text-gray-900 break-words">{heading.name}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
