@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -18,14 +18,9 @@ interface ChartPoint {
   count: number;
 }
 
-type Granularity = 'day' | 'month' | 'year';
+export type Granularity = 'day' | 'month' | 'year';
 
 // ── Date helpers ──────────────────────────────────────────────────────
-
-function formatDateRange(start: Date, end: Date): string {
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-  return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
-}
 
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -51,14 +46,14 @@ function yearLabel(d: Date): string {
   return `${d.getFullYear()}`;
 }
 
-// ── Preset ranges ─────────────────────────────────────────────────────
+// ── Preset ranges (exported for use in Dashboard) ────────────────────
 
-interface RangePreset {
+export interface RangePreset {
   label: string;
   getRange: () => { start: Date; end: Date };
 }
 
-const RANGE_PRESETS: RangePreset[] = [
+export const RANGE_PRESETS: RangePreset[] = [
   {
     label: 'Last 7 days',
     getRange: () => {
@@ -119,36 +114,22 @@ const RANGE_PRESETS: RangePreset[] = [
   },
 ];
 
+export const DEFAULT_RANGE_INDEX = 4; // Last 12 months
+
 // ── Component ─────────────────────────────────────────────────────────
 
-export function ImportsChart() {
-  // Default: last 12 months
-  const defaultRange = RANGE_PRESETS[4].getRange();
-  const [startDate, setStartDate] = useState<Date>(defaultRange.start);
-  const [endDate, setEndDate] = useState<Date>(defaultRange.end);
-  const [granularity, setGranularity] = useState<Granularity>('month');
+interface ImportsChartProps {
+  startDate: Date;
+  endDate: Date;
+  granularity: Granularity;
+  onRawRowsChange?: (rows: { created_at: string }[]) => void;
+}
+
+export function ImportsChart({ startDate, endDate, granularity, onRawRowsChange }: ImportsChartProps) {
   const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [granularityOpen, setGranularityOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const datePickerRef = useRef<HTMLDivElement>(null);
-  const granularityRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
-        setDatePickerOpen(false);
-      }
-      if (granularityRef.current && !granularityRef.current.contains(e.target as Node)) {
-        setGranularityOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   // Track chart container width for responsive tick calculation
   useEffect(() => {
@@ -178,6 +159,7 @@ export function ImportsChart() {
 
         if (!error && data) {
           setRawRows(data);
+          onRawRowsChange?.(data);
         }
       } catch (err) {
         console.error('Failed to fetch import counts:', err);
@@ -186,11 +168,11 @@ export function ImportsChart() {
       }
     };
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Aggregate data based on range + granularity
   const chartData: ChartPoint[] = useMemo(() => {
-    // Filter rows to the selected date range
     const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     rangeStart.setHours(0, 0, 0, 0);
     const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
@@ -204,7 +186,6 @@ export function ImportsChart() {
       counts[k] = (counts[k] || 0) + 1;
     }
 
-    // Build all buckets (fill gaps with 0)
     const points: ChartPoint[] = [];
 
     if (granularity === 'day') {
@@ -239,92 +220,18 @@ export function ImportsChart() {
     [chartData],
   );
 
-  // Calculate tick interval based on chart width and number of data points.
-  // Uses a consistent step so the gap between every visible label is the same.
   const tickInterval = useMemo(() => {
     const numPoints = chartData.length;
     if (numPoints <= 1) return 0;
-    // Estimate ~80px per label for comfortable spacing
-    const effectiveWidth = chartWidth || 600; // sensible default before ResizeObserver fires
+    const effectiveWidth = chartWidth || 600;
     const fittable = Math.max(1, Math.floor(effectiveWidth / 80));
-    if (numPoints <= fittable) return 0; // show all
-    // interval N means show every (N+1)th tick — pick a consistent step
+    if (numPoints <= fittable) return 0;
     return Math.ceil(numPoints / fittable) - 1;
   }, [chartData.length, chartWidth]);
 
-  const handlePresetSelect = useCallback((preset: RangePreset) => {
-    const { start, end } = preset.getRange();
-    setStartDate(start);
-    setEndDate(end);
-    setDatePickerOpen(false);
-  }, []);
-
-  const granularityLabel = granularity.charAt(0).toUpperCase() + granularity.slice(1);
-
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-5">
-      {/* Header with controls */}
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h3 className="text-sm font-semibold text-gray-900">Imports</h3>
-
-        <div className="flex items-center gap-2">
-          {/* Date range picker */}
-          <div ref={datePickerRef} className="relative">
-            <button
-              onClick={() => { setDatePickerOpen(!datePickerOpen); setGranularityOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-gray-400 bg-white"
-            >
-              <span>{formatDateRange(startDate, endDate)}</span>
-              <svg className={`w-4 h-4 text-gray-400 transition-transform ${datePickerOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {datePickerOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]">
-                {RANGE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    onClick={() => handlePresetSelect(preset)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Granularity dropdown */}
-          <div ref={granularityRef} className="relative">
-            <button
-              onClick={() => { setGranularityOpen(!granularityOpen); setDatePickerOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-gray-400 bg-white min-w-[90px]"
-            >
-              <span>{granularityLabel}</span>
-              <svg className={`w-4 h-4 text-gray-400 transition-transform ${granularityOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {granularityOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[110px]">
-                {(['day', 'month', 'year'] as Granularity[]).map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => { setGranularity(g); setGranularityOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                      granularity === g ? 'text-gray-900 font-medium' : 'text-gray-700'
-                    }`}
-                  >
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <h3 className="text-sm font-semibold text-gray-900 mb-4">Imports</h3>
 
       {/* Chart */}
       {isLoading ? (
