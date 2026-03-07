@@ -40,6 +40,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
   const [showChanges, setShowChanges] = useState(true);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
   const [accountRules, setAccountRules] = useState<AccountRule[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
   const accountId = user?.accountId || 'default';
 
@@ -153,8 +154,14 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
       setProcessedData(finalData);
 
       if (result.validationResult.isValid) {
+        const changes = result.scriptRunnerResult.totalChanges;
+        setToast(
+          changes > 0
+            ? `All data is valid! (${changes} values auto-corrected)`
+            : 'All data is valid!'
+        );
         logSuccess('validate', 'Validation passed', sessionId, {
-          changes: result.scriptRunnerResult.totalChanges,
+          changes,
         });
       } else {
         logError('validate', `Validation found ${result.validationResult.errors.length} errors`, sessionId, {
@@ -307,17 +314,23 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         </div>
       </div>
 
-      {/* Status banner */}
-      {validationResult.isValid ? (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white bg-green-600 animate-in fade-in slide-in-from-top-2">
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span className="text-green-700 font-medium">
-            All data is valid! {scriptSummary.totalChanges > 0 && `(${scriptSummary.totalChanges} values auto-corrected)`}
-          </span>
+          {toast}
+          <button onClick={() => setToast(null)} className="ml-2 p-0.5 rounded hover:bg-green-500">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      ) : (
+      )}
+
+      {/* Status banner (errors only) */}
+      {!validationResult.isValid && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -512,17 +525,17 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
       {/* Navigation */}
       <div className="flex justify-between pt-4">
         <div className="flex items-center gap-2">
-          {onCancel && (
-            <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
-              Cancel
-            </button>
-          )}
           <button
             onClick={prevStep}
             className="px-6 py-2 text-gray-600 hover:text-gray-800"
           >
             Back
           </button>
+          {onCancel && (
+            <button onClick={onCancel} className="px-4 py-2 text-sm" style={{ color: '#0b8377' }}>
+              Cancel
+            </button>
+          )}
         </div>
         <button
           onClick={handleExportCSV}

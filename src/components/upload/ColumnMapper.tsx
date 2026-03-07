@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { ColumnMapping } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -262,6 +262,7 @@ export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [headingsLoaded, setHeadingsLoaded] = useState(false);
   const [hubspotConnected, setHubspotConnected] = useState(false);
+  const mappingInitialized = useRef(false);
 
   // Check HubSpot connection status
   useEffect(() => {
@@ -282,12 +283,12 @@ export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
 
   // Filter headings by object type: show manual headings always,
   // but only show HubSpot-sourced headings if connected and matching the selected object type
-  const headings = allHeadingsRaw.filter((h) => {
+  const headings = useMemo(() => allHeadingsRaw.filter((h) => {
     if (h.source !== 'hubspot') return true;
     if (!hubspotConnected) return false;
     if (!objectType) return true;
     return h.hubspotObjectType === objectType;
-  });
+  }), [allHeadingsRaw, hubspotConnected, objectType]);
 
   // Get all headers: spreadsheet headers + question column headers (that don't already exist)
   const questionHeaders = Object.keys(questionColumnValues).filter(
@@ -312,9 +313,10 @@ export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
     loadHeadings();
   }, [loadHeadings]);
 
-  // Build initial mapping once headings are loaded
+  // Build initial mapping once headings are loaded (runs only once)
   useEffect(() => {
-    if (!headingsLoaded || !parsedFile) return;
+    if (!headingsLoaded || !parsedFile || mappingInitialized.current) return;
+    mappingInitialized.current = true;
 
     const headingNames = headings.map((h) => h.name);
     const history = getMappingHistory();
@@ -462,17 +464,17 @@ export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
       {/* Navigation */}
       <div className="flex justify-between pt-4">
         <div className="flex items-center gap-2">
-          {onCancel && (
-            <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
-              Cancel
-            </button>
-          )}
           <button
             onClick={prevStep}
             className="px-6 py-2 text-gray-600 hover:text-gray-800"
           >
             Back
           </button>
+          {onCancel && (
+            <button onClick={onCancel} className="px-4 py-2 text-sm" style={{ color: '#0b8377' }}>
+              Cancel
+            </button>
+          )}
         </div>
         <button
           onClick={handleContinue}
