@@ -23,8 +23,10 @@ async function loadOAuthCredentialsFromDb(): Promise<{ clientId: string; clientS
     return { clientId: cachedClientId, clientSecret: cachedClientSecret || '' };
   }
   try {
-    const { supabase } = await import('@/lib/supabase');
-    const { data } = await supabase
+    const { getServerSupabase, supabase } = await import('@/lib/supabase');
+    let db;
+    try { db = getServerSupabase(); } catch { db = supabase; }
+    const { data } = await db
       .from('app_settings')
       .select('key, value')
       .in('key', ['hubspot_client_id', 'hubspot_client_secret', 'hubspot_app_id']);
@@ -177,12 +179,22 @@ export async function refreshAccessToken(refreshToken: string): Promise<HubSpotT
 }
 
 // Token persistence - Supabase (database) is the sole persistent store
-import { supabase } from '@/lib/supabase';
+import { supabase, getServerSupabase } from '@/lib/supabase';
+
+// Helper: use service-role client on the server (bypasses RLS) with anon fallback
+function getDbClient() {
+  try {
+    return getServerSupabase();
+  } catch {
+    return supabase;
+  }
+}
 
 // --- Supabase storage ---
 
 async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId?: string): Promise<boolean> {
   try {
+    const db = getDbClient();
     const upsertData: Record<string, unknown> = {
       account_id: accountId,
       provider: 'hubspot',
@@ -196,7 +208,7 @@ async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId
     if (portalId) {
       upsertData.portal_id = portalId;
     }
-    const { error } = await supabase
+    const { error } = await db
       .from('account_integrations')
       .upsert(upsertData, {
         onConflict: 'account_id,provider',
@@ -215,7 +227,8 @@ async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId
 
 async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null> {
   try {
-    const { data, error } = await supabase
+    const db = getDbClient();
+    const { data, error } = await db
       .from('account_integrations')
       .select('access_token, refresh_token, token_expires_at')
       .eq('account_id', accountId)
@@ -257,7 +270,8 @@ export async function getPortalId(accountId?: string): Promise<string | null> {
   if (storedPortalId) return storedPortalId;
 
   try {
-    const { data, error } = await supabase
+    const db = getDbClient();
+    const { data, error } = await db
       .from('account_integrations')
       .select('portal_id')
       .eq('account_id', accountId || '')
@@ -275,7 +289,8 @@ export async function getPortalId(accountId?: string): Promise<string | null> {
 
 async function clearTokensFromDb(accountId: string): Promise<void> {
   try {
-    await supabase
+    const db = getDbClient();
+    await db
       .from('account_integrations')
       .delete()
       .eq('account_id', accountId)
