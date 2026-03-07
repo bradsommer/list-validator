@@ -10,7 +10,7 @@ import { useValidationWorker } from '@/hooks/useValidationWorker';
 import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
-export function ValidationResults() {
+export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
   const { user } = useAuth();
   const {
     sessionId,
@@ -511,12 +511,19 @@ export function ValidationResults() {
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <button
-          onClick={prevStep}
-          className="px-6 py-2 text-gray-600 hover:text-gray-800"
-        >
-          Back
-        </button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={prevStep}
+            className="px-6 py-2 text-gray-600 hover:text-gray-800"
+          >
+            Back
+          </button>
+        </div>
         <button
           onClick={handleExportCSV}
           className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StepIndicator } from '@/components/layout/StepIndicator';
@@ -13,6 +14,7 @@ import { ValidationResults } from '@/components/validation/ValidationResults';
 
 export default function ImportPage() {
   const { currentStep, reset } = useAppStore();
+  const router = useRouter();
 
   // Reset import state on mount so the page always starts fresh.
   // Also clean up any legacy localStorage keys from older code versions.
@@ -27,37 +29,43 @@ export default function ImportPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleCancel = () => {
+    router.push('/');
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <FileUpload />;
+        return <FileUpload onCancel={handleCancel} />;
       case 1:
-        return <ImportQuestionsStep />;
+        return <ImportQuestionsStep onCancel={handleCancel} />;
       case 2:
-        return <RulesStep />;
+        return <RulesStep onCancel={handleCancel} />;
       case 3:
-        return <ColumnMapper />;
+        return <ColumnMapper onCancel={handleCancel} />;
       case 4:
-        return <ValidationResults />;
+        return <ValidationResults onCancel={handleCancel} />;
       default:
-        return <FileUpload />;
+        return <FileUpload onCancel={handleCancel} />;
     }
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout hideChrome>
       {/* Step indicator */}
-      <div className="mb-6">
-        <StepIndicator />
-      </div>
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6">
+          <StepIndicator />
+        </div>
 
-      {/* Main content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        {renderStep()}
-      </div>
+        {/* Main content */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          {renderStep()}
+        </div>
 
-      {/* Log viewer */}
-      <LogViewer />
+        {/* Log viewer */}
+        <LogViewer />
+      </div>
     </AdminLayout>
   );
 }

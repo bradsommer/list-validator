@@ -243,7 +243,7 @@ function HeadingDropdown({
   );
 }
 
-export function ColumnMapper() {
+export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
   const {
     parsedFile,
     headerMatches,
@@ -461,12 +461,19 @@ export function ColumnMapper() {
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <button
-          onClick={prevStep}
-          className="px-6 py-2 text-gray-600 hover:text-gray-800"
-        >
-          Back
-        </button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={prevStep}
+            className="px-6 py-2 text-gray-600 hover:text-gray-800"
+          >
+            Back
+          </button>
+        </div>
         <button
           onClick={handleContinue}
           className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
