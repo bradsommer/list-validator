@@ -18,7 +18,7 @@ const AVAILABLE_INTEGRATIONS = [
   {
     provider: 'hubspot',
     name: 'HubSpot',
-    description: 'Sync contacts, companies, and properties with HubSpot CRM.',
+    description: 'Sync all HubSpot property labels to FreshSegments to make it easier to map spreadsheet data to the corresponding HubSpot properties. (Note: We don\'t see or store your HubSpot contacts, companies, or deals)',
     color: '#ff7a59',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
