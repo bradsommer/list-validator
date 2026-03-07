@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin/AdminLayout';
 import Link from 'next/link';
+import { DocsLayout } from '@/components/docs/DocsLayout';
 
 interface DocSection {
   id: string;
@@ -1175,76 +1175,27 @@ const header = findColumnHeader('state', headerMatches, rows);`}</CodeBlock>
 ];
 
 export default function RulesDocsPage() {
-  const [activeSection, setActiveSection] = useState('overview');
-
   return (
-    <AdminLayout>
-      <div className="flex gap-8">
-        {/* Sidebar TOC */}
-        <nav className="w-56 shrink-0 hidden lg:block">
-          <div className="sticky top-0">
-            <Link
-              href="/rules"
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Rules
-            </Link>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contents</h3>
-            <ul className="space-y-1">
-              {sections.map((section) => (
-                <li key={section.id}>
-                  <a
-                    href={`#${section.id}`}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`block px-3 py-1.5 text-sm rounded transition-colors ${
-                      activeSection === section.id
-                        ? 'bg-primary-50 text-primary-700 font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    {section.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </nav>
-
-        {/* Main content */}
-        <div className="flex-1 min-w-0 max-w-3xl">
-          <div className="mb-6">
-            <Link
-              href="/rules"
-              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 lg:hidden mb-4"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Rules
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Rules Configuration Guide</h1>
-            <p className="text-gray-600 mt-1">
-              Learn how to configure, customize, and write validation rules for your data imports.
-            </p>
-          </div>
-
-          <div className="space-y-10">
-            {sections.map((section) => (
-              <section key={section.id} id={section.id} className="scroll-mt-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
-                  {section.title}
-                </h2>
-                <div className="text-gray-700 leading-relaxed">
-                  {section.content}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
+    <DocsLayout>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Rules Configuration Guide</h1>
+        <p className="text-gray-600 mt-1">
+          Learn how to configure, customize, and write validation rules for your data imports.
+        </p>
       </div>
-    </AdminLayout>
+
+      <div className="space-y-10">
+        {sections.map((section) => (
+          <section key={section.id} id={section.id} className="scroll-mt-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
+              {section.title}
+            </h2>
+            <div className="text-gray-700 leading-relaxed">
+              {section.content}
+            </div>
+          </section>
+        ))}
+      </div>
+    </DocsLayout>
   );
 }

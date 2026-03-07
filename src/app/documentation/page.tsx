@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import { AdminLayout } from '@/components/admin/AdminLayout';
-import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { DocsLayout } from '@/components/docs/DocsLayout';
 
 interface DocCard {
   title: string;
@@ -20,22 +18,22 @@ const docCards: DocCard[] = [
     icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   },
   {
-    title: 'Contact Us',
-    description: 'Have a question, need help, or want to share feedback? Get in touch with our team via our contact form or email us at info@freshsegments.com.',
-    href: '/contact',
-    icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    title: 'Import Questions Guide',
+    description: 'Collect context from users during import and add answers as columns in the exported data. Covers question types, options, and output values.',
+    href: '/docs/import-questions',
+    icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   },
   {
-    title: 'Privacy Policy',
-    description: 'How we handle, store, and protect your data. Your spreadsheet data is processed in your browser and never stored on our servers.',
-    href: '/legal/privacy',
-    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+    title: 'Output Headings Guide',
+    description: 'Configure the column headings used when exporting cleaned data for HubSpot import. Includes manual headings and HubSpot property sync.',
+    href: '/docs/output-headings',
+    icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
   },
   {
-    title: 'Terms of Use',
-    description: 'Our terms of service covering account usage, data processing, subscription billing, and your rights as a user.',
-    href: '/legal/terms',
-    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    title: 'Integrations Guide',
+    description: 'Connect FreshSegments to HubSpot to sync properties and streamline your import workflow. Covers setup, permissions, and troubleshooting.',
+    href: '/docs/integrations',
+    icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
   },
 ];
 
@@ -62,9 +60,9 @@ function DocCardComponent({ card }: { card: DocCard }) {
   );
 }
 
-function DocumentationContent() {
+export default function DocumentationPage() {
   return (
-    <>
+    <DocsLayout>
       {/* Header */}
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-gray-900">Documentation</h1>
@@ -170,9 +168,9 @@ function DocumentationContent() {
         </div>
       </section>
 
-      {/* Detailed Guides & Legal */}
+      {/* Guides */}
       <section className="mb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Guides &amp; Policies</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Guides</h2>
         <div className="grid gap-4">
           {docCards.map((card) => (
             <DocCardComponent key={card.href} card={card} />
@@ -250,91 +248,6 @@ function DocumentationContent() {
           </p>
         </div>
       </section>
-    </>
-  );
-}
-
-export default function DocumentationPage() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
-      </div>
-    );
-  }
-
-  // Logged-in users see the page within the admin layout
-  if (isAuthenticated) {
-    return (
-      <AdminLayout>
-        <DocumentationContent />
-      </AdminLayout>
-    );
-  }
-
-  // Pre-login: standalone page with nav and footer
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/">
-              <FreshSegmentsLogo className="h-7" />
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium"
-                style={{ color: '#0B8377' }}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/signup"
-                className="px-4 py-2 text-sm font-medium text-white rounded-lg"
-                style={{ backgroundColor: '#0B8377' }}
-              >
-                Start Free Trial
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
-        <DocumentationContent />
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <FreshSegmentsLogo className="h-6" dark />
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/documentation" className="hover:text-white transition-colors">
-                Documentation
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/contact" className="hover:text-white transition-colors">
-                Contact Us
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">
-                Terms of Use
-              </Link>
-            </div>
-            <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </DocsLayout>
   );
 }
