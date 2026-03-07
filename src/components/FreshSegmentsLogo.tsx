@@ -27,10 +27,10 @@ export function FreshSegmentsLogo({ className = '', iconOnly = false, dark = fal
         className={className}
         aria-label="FreshSegments"
       >
-        {/* Three horizontal bars — stacked, decreasing width */}
-        <rect x="4" y="8" width="32" height="6" rx="3" fill="#0D9488" />
+        {/* Three horizontal bars — stacked, increasing width */}
+        <rect x="4" y="8" width="16" height="6" rx="3" fill="#5EEAD4" />
         <rect x="4" y="17" width="24" height="6" rx="3" fill="#14B8A6" />
-        <rect x="4" y="26" width="16" height="6" rx="3" fill="#5EEAD4" />
+        <rect x="4" y="26" width="32" height="6" rx="3" fill="#0D9488" />
       </svg>
     );
   }
@@ -43,10 +43,10 @@ export function FreshSegmentsLogo({ className = '', iconOnly = false, dark = fal
       className={className}
       aria-label="FreshSegments"
     >
-      {/* Icon: three horizontal bars */}
-      <rect x="4" y="8" width="32" height="6" rx="3" fill="#0D9488" />
+      {/* Icon: three horizontal bars — increasing width */}
+      <rect x="4" y="8" width="16" height="6" rx="3" fill="#5EEAD4" />
       <rect x="4" y="17" width="24" height="6" rx="3" fill="#14B8A6" />
-      <rect x="4" y="26" width="16" height="6" rx="3" fill="#5EEAD4" />
+      <rect x="4" y="26" width="32" height="6" rx="3" fill="#0D9488" />
 
       {/* Wordmark */}
       <text
