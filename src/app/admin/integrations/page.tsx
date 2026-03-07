@@ -161,7 +161,19 @@ export default function IntegrationsPage() {
     }
   };
 
-  // Listen for OAuth popup result
+  // Listen for OAuth popup result.
+  // We use a ref to always call the latest fetchIntegrations/checkHubSpotConnection
+  // without needing them in the useCallback dependency array (which would cause
+  // the listener to be re-attached on every render).
+  const oauthSuccessRef = useRef(() => {
+    fetchIntegrations();
+    checkHubSpotConnection();
+  });
+  oauthSuccessRef.current = () => {
+    fetchIntegrations();
+    checkHubSpotConnection();
+  };
+
   const handleOAuthMessage = useCallback((event: MessageEvent) => {
     if (event.origin !== window.location.origin) return;
     try {
@@ -171,10 +183,7 @@ export default function IntegrationsPage() {
         setHubspotConnected(true);
         // Small delay before re-checking — gives the server time to persist tokens
         // and invalidate the connection cache before we query status again.
-        setTimeout(() => {
-          fetchIntegrations();
-          checkHubSpotConnection();
-        }, 1500);
+        setTimeout(() => oauthSuccessRef.current(), 1500);
       } else {
         setMessage({ type: 'error', text: `HubSpot connection failed: ${result.error || 'unknown'}` });
       }
