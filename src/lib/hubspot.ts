@@ -341,20 +341,22 @@ export async function clearTokens(accountId?: string) {
   await clearTokensFromDb(accountId || '');
 }
 
-export async function getValidAccessToken(): Promise<string | null> {
+export async function getValidAccessToken(accountId?: string): Promise<string | null> {
   // First check for env var fallback
   if (process.env.HUBSPOT_ACCESS_TOKEN) {
     return process.env.HUBSPOT_ACCESS_TOKEN;
   }
 
+  const acctId = accountId || '';
+
   // Always check DB for the latest tokens — the in-memory cache may be stale
   // if the user re-authenticated in another request or the token was refreshed.
-  const dbTokens = await loadTokensFromDb('');
+  const dbTokens = await loadTokensFromDb(acctId);
   if (dbTokens) {
     storedTokens = dbTokens;
   }
 
-  let tokens = storedTokens || await getTokens();
+  let tokens = storedTokens || await getTokens(acctId);
   if (!tokens) {
     console.log('[HubSpot Auth] No tokens found in DB, memory, or file');
     return null;
@@ -382,7 +384,7 @@ export async function getValidAccessToken(): Promise<string | null> {
       console.error('[HubSpot Auth] Token refresh failed:', refreshErr);
       // Don't clear tokens — the user may have re-authenticated and the DB
       // has fresh tokens. Re-read from DB as a last resort.
-      const freshDbTokens = await loadTokensFromDb('');
+      const freshDbTokens = await loadTokensFromDb(acctId);
       if (freshDbTokens && freshDbTokens.access_token !== tokens.access_token) {
         const freshExpiry = Number(freshDbTokens.expires_at) || 0;
         // Only use the DB tokens if they're actually newer/valid
@@ -413,9 +415,9 @@ export async function getValidAccessToken(): Promise<string | null> {
   return tokens.access_token;
 }
 
-export async function isConnected(): Promise<boolean> {
+export async function isConnected(accountId?: string): Promise<boolean> {
   if (process.env.HUBSPOT_ACCESS_TOKEN) return true;
-  const tokens = await getTokens();
+  const tokens = await getTokens(accountId);
   return !!tokens;
 }
 
