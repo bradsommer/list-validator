@@ -315,9 +315,9 @@ export default function IntegrationsPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {integration.name}
-                          {connected && integration.provider === 'hubspot' && hubspotPortalId && (
+                          {connected && integration.provider === 'hubspot' && (hubspotPortalId || data?.portal_id) && (
                             <span className="text-sm font-normal text-gray-500 ml-2">
-                              (Hub {hubspotPortalId})
+                              (Hub {hubspotPortalId || data?.portal_id})
                             </span>
                           )}
                         </h3>
