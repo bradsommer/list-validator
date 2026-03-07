@@ -239,15 +239,16 @@ export function ImportsChart() {
     [chartData],
   );
 
-  // Calculate tick interval based on chart width and number of data points
+  // Calculate tick interval based on chart width and number of data points.
+  // Uses a consistent step so the gap between every visible label is the same.
   const tickInterval = useMemo(() => {
     const numPoints = chartData.length;
     if (numPoints <= 1) return 0;
-    // Before ResizeObserver fires, default to "preserveStartEnd" to show labels
-    if (chartWidth === 0) return 'preserveStartEnd' as const;
     // Estimate ~80px per label for comfortable spacing
-    const fittable = Math.max(1, Math.floor(chartWidth / 80));
+    const effectiveWidth = chartWidth || 600; // sensible default before ResizeObserver fires
+    const fittable = Math.max(1, Math.floor(effectiveWidth / 80));
     if (numPoints <= fittable) return 0; // show all
+    // interval N means show every (N+1)th tick — pick a consistent step
     return Math.ceil(numPoints / fittable) - 1;
   }, [chartData.length, chartWidth]);
 
