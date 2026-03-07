@@ -7,7 +7,7 @@
   --background-start-rgb: 249, 250, 251;
   --background-end-rgb: 255, 255, 255;
   /* Override Tailwind default ring color (blue) with primary teal */
-  --tw-ring-color: rgb(20 184 166 / 0.5);
+  --tw-ring-color: rgb(11 131 119 / 0.5);
   accent-color: #0B8377;
 }
 
@@ -50,13 +50,13 @@ body {
   background: #a1a1a1;
 }
 
-/* Primary color overrides — ensure teal (#0B8377) is used everywhere */
-.bg-primary-50 { background-color: #f0fdfa !important; }
-.bg-primary-100 { background-color: #ccfbf1 !important; }
+/* Primary color overrides */
+.bg-primary-50 { background-color: #0d948824 !important; }
+.bg-primary-100 { background-color: #F2F2F2 !important; }
 .bg-primary-200 { background-color: #99f6e4 !important; }
 .bg-primary-300 { background-color: #5eead4 !important; }
 .bg-primary-400 { background-color: #2dd4bf !important; }
-.bg-primary-500 { background-color: #14b8a6 !important; }
+.bg-primary-500 { background-color: #0b8377 !important; }
 .bg-primary-600 { background-color: #0B8377 !important; }
 .bg-primary-700 { background-color: #0a7469 !important; }
 .bg-primary-800 { background-color: #08655b !important; }
@@ -67,24 +67,28 @@ body {
 .text-primary-200 { color: #99f6e4 !important; }
 .text-primary-300 { color: #5eead4 !important; }
 .text-primary-400 { color: #2dd4bf !important; }
-.text-primary-500 { color: #14b8a6 !important; }
-.text-primary-600 { color: #0B8377 !important; }
-.text-primary-700 { color: #0a7469 !important; }
-.text-primary-800 { color: #08655b !important; }
+.text-primary-500 { color: #0b8377 !important; }
+.text-primary-600 { color: rgb(17 24 39) !important; }
+.text-primary-700 { color: rgb(75 85 99) !important; }
+.text-primary-800 { color: rgb(55 65 81) !important; }
 .text-primary-900 { color: #064e47 !important; }
 
-.border-primary-200 { border-color: #99f6e4 !important; }
+.border-primary-200 { border-color: #ededed !important; }
 .border-primary-300 { border-color: #5eead4 !important; }
 .border-primary-400 { border-color: #2dd4bf !important; }
-.border-primary-500 { border-color: #14b8a6 !important; }
+.border-primary-500 { border-color: #0b8377 !important; }
 .border-primary-600 { border-color: #0B8377 !important; }
 
 .ring-primary-200 { --tw-ring-color: #99f6e4 !important; }
 .ring-primary-400 { --tw-ring-color: #2dd4bf !important; }
-.ring-primary-500 { --tw-ring-color: #14b8a6 !important; }
+.ring-primary-500 { --tw-ring-color: #0b8377 !important; }
 
 .hover\:bg-primary-700:hover { background-color: #0a7469 !important; }
-.hover\:text-primary-700:hover { color: #0a7469 !important; }
-.focus\:ring-primary-500:focus { --tw-ring-color: #14b8a6 !important; }
-.focus\:border-primary-500:focus { border-color: #14b8a6 !important; }
+.hover\:text-primary-700:hover { color: rgb(75 85 99) !important; }
+.focus\:ring-primary-500:focus { --tw-ring-color: #0b8377 !important; }
+.focus\:border-primary-500:focus { border-color: #0b8377 !important; }
 .disabled\:bg-primary-400:disabled { background-color: #2dd4bf !important; }
+
+/* Override green-500 to use brand teal */
+.bg-green-500 { background-color: #0b8377 !important; }
+.hover\:bg-green-500:hover { background-color: #0b8377 !important; }

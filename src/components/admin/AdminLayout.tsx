@@ -135,7 +135,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
+        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -274,10 +274,10 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                         >
                           <span className="truncate">{account.accountName}</span>
                           {switchingAccount === account.userId && (
-                            <div className="animate-spin w-3 h-3 border-2 border-t-transparent rounded-full shrink-0 ml-2" style={{ borderColor: '#14b8a6', borderTopColor: 'transparent' }} />
+                            <div className="animate-spin w-3 h-3 border-2 border-t-transparent rounded-full shrink-0 ml-2" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
                           )}
                           {account.userId === user?.id && switchingAccount !== account.userId && (
-                            <svg className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: '#14b8a6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: '#0b8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           )}

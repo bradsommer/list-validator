@@ -98,7 +98,7 @@ function HeadingDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-white text-sm text-left outline-none transition-colors ${
           isOpen
-            ? 'border-primary-500 ring-2 ring-primary-200'
+            ? 'border-primary-500'
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
