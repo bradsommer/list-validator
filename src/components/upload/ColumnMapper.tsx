@@ -69,6 +69,9 @@ function HeadingDropdown({
     h.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const selectedHeading = headings.find((h) => h.name === value);
+  const isHubSpotSelected = selectedHeading && (selectedHeading.source === 'hubspot' || selectedHeading.hubspotFieldName);
+
   const displayValue =
     value === DO_NOT_USE
       ? 'Do not use'
@@ -104,17 +107,22 @@ function HeadingDropdown({
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <span className={
+        <span className={`flex-1 truncate ${
           value === DO_NOT_USE
             ? 'text-red-600'
             : value === ''
               ? 'text-gray-500 italic'
               : 'text-gray-900'
-        }>
+        }`}>
           {displayValue}
         </span>
+        {isHubSpotSelected && (
+          <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 mr-1">
+            HubSpot
+          </span>
+        )}
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
