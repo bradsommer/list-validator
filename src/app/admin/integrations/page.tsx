@@ -312,7 +312,14 @@ export default function IntegrationsPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{integration.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {integration.name}
+                          {connected && integration.provider === 'hubspot' && hubspotPortalId && (
+                            <span className="text-sm font-normal text-gray-500 ml-2">
+                              (Hub {hubspotPortalId})
+                            </span>
+                          )}
+                        </h3>
                         {connected ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -325,11 +332,6 @@ export default function IntegrationsPage() {
                         )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1">{integration.description}</p>
-                      {connected && integration.provider === 'hubspot' && hubspotPortalId && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          Portal ID: <span className="font-mono font-medium">{hubspotPortalId}</span>
-                        </p>
-                      )}
                       {connected && data?.connected_at && (
                         <p className="text-xs text-gray-400 mt-1">
                           Connected {new Date(data.connected_at).toLocaleDateString()}
