@@ -191,23 +191,12 @@ export async function syncHubSpotPropertiesAsHeadings(
 
   if (!hubspotProps || hubspotProps.length === 0) {
     console.warn('[columnHeadings] No HubSpot properties found in hubspot_properties table for account:', accountId);
-    // No HubSpot properties — remove all hubspot-sourced headings
-    const { data: existing } = await db
-      .from('column_headings')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('source', 'hubspot');
-
-    const removedCount = existing?.length || 0;
-    if (removedCount > 0) {
-      await db
-        .from('column_headings')
-        .delete()
-        .eq('account_id', accountId)
-        .eq('source', 'hubspot');
-    }
-
-    return { added: 0, updated: 0, removed: removedCount, total: 0 };
+    // No HubSpot properties in the cache table. This can happen if:
+    //   - The hubspot_properties table was dropped/recreated (migration issue)
+    //   - The initial property fetch failed during OAuth callback
+    // Do NOT delete existing headings — they may still be valid and useful.
+    // The user can Re-Sync after reconnecting to refresh them.
+    return { added: 0, updated: 0, removed: 0, total: 0 };
   }
 
   console.log(`[columnHeadings] Found ${hubspotProps.length} HubSpot properties to sync for account: ${accountId}`);

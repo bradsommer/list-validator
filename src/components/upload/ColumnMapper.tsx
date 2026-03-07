@@ -290,13 +290,14 @@ export function ColumnMapper({ onCancel }: { onCancel?: () => void }) {
   }, [accountId]);
 
   // Filter headings by object type: show manual headings always,
-  // but only show HubSpot-sourced headings if connected and matching the selected object type
+  // and filter HubSpot-sourced headings by object type when one is selected.
+  // Always show HubSpot headings regardless of connection status — they persist
+  // in the DB and should remain available even after server restarts.
   const headings = useMemo(() => allHeadingsRaw.filter((h) => {
     if (h.source !== 'hubspot') return true;
-    if (!hubspotConnected) return false;
     if (!objectType) return true;
     return h.hubspotObjectType === objectType;
-  }), [allHeadingsRaw, hubspotConnected, objectType]);
+  }), [allHeadingsRaw, objectType]);
 
   // Get all headers: spreadsheet headers + question column headers (that don't already exist)
   const questionHeaders = Object.keys(questionColumnValues).filter(
