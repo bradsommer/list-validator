@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         // Force a fresh token check before starting the sync batch.
         // This ensures we pick up any re-authenticated tokens from the DB.
         resetClient();
-        const token = await getValidAccessToken();
+        const token = await getValidAccessToken(accountId);
         if (!token) {
           const errMsg = 'HubSpot OAuth token is missing or expired. Please reconnect HubSpot in Admin > Integrations.';
           await logError('hubspot', errMsg, sessionId);
