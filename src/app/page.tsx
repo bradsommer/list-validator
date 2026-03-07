@@ -339,7 +339,7 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/import" className="bg-white rounded-lg p-5 border border-teal-300 hover:bg-gray-50 transition-colors">
+          <Link href="/import" className="bg-white rounded-lg p-5 border border-gray-200 hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-teal-100">
                 <svg className="w-5 h-5 text-teal-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,7 +353,7 @@ function Dashboard() {
             </div>
           </Link>
 
-          <Link href="/rules" className="bg-white rounded-lg p-5 border border-purple-300 hover:bg-gray-50 transition-colors">
+          <Link href="/rules" className="bg-white rounded-lg p-5 border border-gray-200 hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,7 +367,7 @@ function Dashboard() {
             </div>
           </Link>
 
-          <Link href="/column-headings" className="bg-white rounded-lg p-5 border border-green-300 hover:bg-gray-50 transition-colors">
+          <Link href="/column-headings" className="bg-white rounded-lg p-5 border border-gray-200 hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +381,7 @@ function Dashboard() {
             </div>
           </Link>
 
-          <Link href="/import-questions" className="bg-white rounded-lg p-5 border border-orange-300 hover:bg-gray-50 transition-colors">
+          <Link href="/import-questions" className="bg-white rounded-lg p-5 border border-gray-200 hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

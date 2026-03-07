@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
 import { getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import { useValidationWorker } from '@/hooks/useValidationWorker';
+import { supabase } from '@/lib/supabase';
 import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
 export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
+  const router = useRouter();
   const { user } = useAuth();
   const {
     sessionId,
@@ -24,6 +27,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     availableScripts,
     questionColumnValues,
     importRuleOverrides,
+    columnMapping,
     setValidationResult,
     setScriptRunnerResult,
     setProcessedData,
@@ -198,7 +202,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     runValidation();
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (processedData.length === 0) return;
 
     // Use all headers from the data (original column names + question columns)
@@ -226,6 +230,38 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     );
 
     const csv = [csvHeaders, ...csvRows].join('\n');
+
+    // Save import session to history
+    const fileName = parsedFile?.fileName || `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
+    const csvBytes = new Blob([csv]).size;
+    const fieldMappings: Record<string, string> = {};
+    for (const match of headerMatches) {
+      if (match.isMatched && match.matchedField) {
+        fieldMappings[match.originalHeader] = match.matchedField.name;
+      }
+    }
+
+    try {
+      await supabase.from('upload_sessions').insert({
+        account_id: user?.accountId || null,
+        user_id: user?.id || null,
+        file_name: fileName,
+        status: 'completed',
+        total_rows: processedData.length,
+        processed_rows: processedData.length,
+        synced_rows: processedData.length,
+        failed_rows: 0,
+        field_mappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
+        file_content: btoa(csv),
+        file_type: 'text/csv',
+        file_size: csvBytes,
+        completed_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Failed to save import history:', err);
+    }
+
+    // Trigger download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -233,6 +269,9 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     a.download = `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+
+    // Redirect to dashboard after download starts
+    router.push('/');
   };
 
   if (isValidating) {
@@ -527,8 +566,11 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         <div className="flex items-center gap-2">
           <button
             onClick={prevStep}
-            className="px-6 py-2 text-gray-600 hover:text-gray-800"
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
             Back
           </button>
           {onCancel && (
