@@ -303,10 +303,10 @@ export default function IntegrationsPage() {
                 key={integration.provider}
                 className="bg-white rounded-lg border border-gray-200 p-6"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4" style={{ flex: '2 1 0%' }}>
                     <div
-                      className="p-3 rounded-lg"
+                      className="p-3 rounded-lg flex-shrink-0"
                       style={{ backgroundColor: `${integration.color}15`, color: integration.color }}
                     >
                       {integration.icon}
@@ -341,7 +341,7 @@ export default function IntegrationsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {connected ? (
                       <>
                         {integration.provider === 'hubspot' && (
@@ -382,7 +382,7 @@ export default function IntegrationsPage() {
                         className="px-5 py-2.5 text-sm font-medium rounded-lg text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                         style={{ backgroundColor: integration.color }}
                       >
-                        {isConnecting ? 'Connecting...' : `Connect ${integration.name}`}
+                        {isConnecting ? 'Connecting...' : 'Connect'}
                       </button>
                     ) : integration.provider === 'hubspot' ? (
                       <span className="text-sm text-gray-500">
