@@ -330,11 +330,6 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
 
         <div className="flex items-center justify-between pt-4 border-t">
           <div className="flex items-center gap-2">
-            {onCancel && (
-              <button onClick={onCancel} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
-                Cancel
-              </button>
-            )}
             <button
               onClick={prevStep}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2"
@@ -344,6 +339,11 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
               </svg>
               Back
             </button>
+            {onCancel && (
+              <button onClick={onCancel} className="px-4 py-2 text-sm" style={{ color: '#0b8377' }}>
+                Cancel
+              </button>
+            )}
           </div>
           <button
             onClick={handleContinue}
