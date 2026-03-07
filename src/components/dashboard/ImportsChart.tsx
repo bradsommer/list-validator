@@ -243,8 +243,10 @@ export function ImportsChart() {
   const tickInterval = useMemo(() => {
     const numPoints = chartData.length;
     if (numPoints <= 1) return 0;
-    // Estimate ~70px per label for comfortable spacing
-    const fittable = Math.max(1, Math.floor(chartWidth / 70));
+    // Before ResizeObserver fires, default to "preserveStartEnd" to show labels
+    if (chartWidth === 0) return 'preserveStartEnd' as const;
+    // Estimate ~80px per label for comfortable spacing
+    const fittable = Math.max(1, Math.floor(chartWidth / 80));
     if (numPoints <= fittable) return 0; // show all
     return Math.ceil(numPoints / fittable) - 1;
   }, [chartData.length, chartWidth]);
@@ -339,6 +341,7 @@ export function ImportsChart() {
                 tickLine={false}
                 axisLine={{ stroke: '#e5e7eb' }}
                 interval={tickInterval}
+                dy={8}
               />
               <YAxis
                 allowDecimals={false}

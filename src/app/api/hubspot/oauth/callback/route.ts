@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForTokens, setTokens, resetClient } from '@/lib/hubspot';
+import { exchangeCodeForTokens, setTokens, resetClient, getAuthorizeUrl } from '@/lib/hubspot';
 import { cache, CACHE_KEYS } from '@/lib/cache';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
@@ -71,10 +71,12 @@ export async function GET(request: NextRequest) {
         const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
         if (missingScopes.length > 0) {
           console.error('HubSpot OAuth missing scopes:', missingScopes, 'granted:', grantedScopes);
-          return oauthResultPage({
-            success: false,
-            error: 'Authorization incomplete. Please re-connect and approve all requested permissions on the second screen.',
-          });
+          // Scopes are missing — the user likely only completed the first
+          // consent screen (unapproved-app flow has two screens).
+          // Redirect back to HubSpot so they can complete the second screen
+          // instead of closing the popup.
+          const retryUrl = await getAuthorizeUrl(accountId);
+          return NextResponse.redirect(retryUrl);
         }
       } else {
         console.error('Failed to fetch HubSpot token info:', tokenInfoResponse.status);
