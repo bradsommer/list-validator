@@ -21,8 +21,9 @@ const AVAILABLE_INTEGRATIONS = [
     description: 'Sync contacts, companies, and properties with HubSpot CRM.',
     color: '#ff7a59',
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
-        <path d="M17.83 11.14V7.52a2.12 2.12 0 0 0 1.23-1.92 2.14 2.14 0 0 0-2.14-2.14 2.14 2.14 0 0 0-2.14 2.14c0 .84.5 1.57 1.21 1.92v3.62a4.93 4.93 0 0 0-2.31 1.19l-6.1-4.75a2.07 2.07 0 0 0 .06-.48 2.07 2.07 0 1 0-2.07 2.07c.35 0 .68-.09.97-.25l5.99 4.66a4.94 4.94 0 0 0-.49 2.14 5 5 0 0 0 5 5 5 5 0 0 0 5-5 4.99 4.99 0 0 0-4.21-4.94zm-.91 7.44a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
       </svg>
     ),
   },
