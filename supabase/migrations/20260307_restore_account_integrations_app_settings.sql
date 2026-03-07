@@ -1,7 +1,8 @@
--- Migration: Restore account_integrations and app_settings tables
--- These were incorrectly dropped in 20260204_remove_unused_tables.sql
--- but are still actively used for HubSpot OAuth token persistence and
--- OAuth credential storage.
+-- Migration: Restore tables incorrectly dropped in 20260204_remove_unused_tables.sql
+-- These tables are still actively used:
+--   app_settings          — OAuth credentials (hubspot_client_id, etc.)
+--   account_integrations  — Per-account OAuth tokens (HubSpot access/refresh tokens)
+--   hubspot_properties    — Cached HubSpot property definitions used by Re-Sync
 
 -- ============================================================================
 -- APP SETTINGS (stores OAuth credentials like hubspot_client_id)
@@ -82,4 +83,50 @@ CREATE TRIGGER update_app_settings_updated_at
 DROP TRIGGER IF EXISTS update_account_integrations_updated_at ON account_integrations;
 CREATE TRIGGER update_account_integrations_updated_at
   BEFORE UPDATE ON account_integrations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- HUBSPOT PROPERTIES (cached property definitions for Re-Sync)
+-- Also dropped in 20260204 but still required by syncHubSpotPropertiesAsHeadings
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS hubspot_properties (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  field_name VARCHAR(255) NOT NULL,
+  field_label VARCHAR(500) NOT NULL,
+  field_type VARCHAR(100) NOT NULL,
+  group_name VARCHAR(255),
+  object_type VARCHAR(50) NOT NULL,
+  description TEXT,
+  hubspot_type VARCHAR(100),
+  options JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_hubspot_properties_unique
+  ON hubspot_properties(account_id, object_type, field_name);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_properties_account
+  ON hubspot_properties(account_id);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_properties_object_type
+  ON hubspot_properties(account_id, object_type);
+
+ALTER TABLE hubspot_properties ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hubspot_properties' AND policyname = 'Allow all for authenticated') THEN
+    CREATE POLICY "Allow all for authenticated" ON hubspot_properties FOR ALL TO authenticated USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'hubspot_properties' AND policyname = 'Allow all for anon') THEN
+    CREATE POLICY "Allow all for anon" ON hubspot_properties FOR ALL TO anon USING (true);
+  END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS update_hubspot_properties_updated_at ON hubspot_properties;
+CREATE TRIGGER update_hubspot_properties_updated_at
+  BEFORE UPDATE ON hubspot_properties
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

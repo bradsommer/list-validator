@@ -173,11 +173,11 @@ export default function ColumnHeadingsPage() {
     }
   };
 
-  // Filter out HubSpot headings when HubSpot is not connected
-  const visibleHeadings = useMemo(() => {
-    if (hubspotConnected) return headings;
-    return headings.filter((h) => h.source !== 'hubspot');
-  }, [headings, hubspotConnected]);
+  // Always show all headings (including HubSpot-sourced ones) regardless
+  // of connection status. HubSpot headings persist in the DB and should
+  // remain visible even if the connection check temporarily fails (e.g.,
+  // after a server restart / deployment).
+  const visibleHeadings = headings;
 
   const sortedHeadings = useMemo(() => {
     const sorted = [...visibleHeadings].sort((a, b) => {

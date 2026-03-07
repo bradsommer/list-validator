@@ -223,7 +223,14 @@ async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null
       .eq('is_active', true)
       .single();
 
-    if (error || !data?.access_token) return null;
+    if (error) {
+      console.warn('[HubSpot] loadTokensFromDb error for account', accountId, ':', error.message, '(code:', error.code, ')');
+      return null;
+    }
+    if (!data?.access_token) {
+      console.warn('[HubSpot] loadTokensFromDb: no access_token found for account', accountId);
+      return null;
+    }
 
     // Supabase may return BIGINT as string — ensure it's a number
     let expiresAt = 0;
