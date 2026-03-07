@@ -233,9 +233,10 @@ export async function POST(request: NextRequest) {
       counts: result.counts,
     });
   } catch (error) {
-    console.error('Error syncing HubSpot properties:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error syncing HubSpot properties:', message);
     return NextResponse.json(
-      { success: false, error: 'Failed to sync HubSpot properties' },
+      { success: false, error: `Failed to sync HubSpot properties: ${message}` },
       { status: 500 }
     );
   }
