@@ -385,7 +385,7 @@ function RulesContent() {
 
                           {/* Name + description */}
                           <td className="px-2 py-3">
-                            <div className="font-medium text-gray-900 text-sm">{rule.name}</div>
+                            <Link href={`/rules/${encodeURIComponent(rule.ruleId)}/edit`} className="font-medium text-gray-900 text-sm hover:text-primary-600 hover:underline">{rule.name}</Link>
                             {rule.description && (
                               <p className="text-xs text-gray-500 mt-0.5 max-w-xs truncate" title={rule.description}>
                                 {rule.description}

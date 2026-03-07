@@ -246,9 +246,9 @@ function ImportQuestionsContent() {
     }
   });
 
-  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+  const SortHeader = ({ field, children, className = '' }: { field: SortField; children: React.ReactNode; className?: string }) => (
     <th
-      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+      className={`px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap ${className}`}
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center gap-1">
@@ -290,8 +290,8 @@ function ImportQuestionsContent() {
           </button>
         </div>
       )}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-8 py-3 sm:py-0">
+      <div className="space-y-6 -mx-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-8 py-3 sm:py-0 px-3">
           <p className="text-gray-600">
             Configure questions shown during list import. Answers will add columns to the imported data.
           </p>
@@ -315,17 +315,17 @@ function ImportQuestionsContent() {
           </div>
         ) : questions.length > 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-            <table className="w-full min-w-[800px]">
+            <table className="w-full min-w-[700px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-2 py-3 w-8"></th>
-                  <SortHeader field="enabled">Enabled</SortHeader>
+                  <th className="px-1 py-3 w-8"></th>
+                  <SortHeader field="enabled" className="w-[52px]">On</SortHeader>
                   <SortHeader field="questionText">Question</SortHeader>
                   <SortHeader field="columnHeader">Column</SortHeader>
                   <SortHeader field="questionType">Type</SortHeader>
                   <SortHeader field="isRequired">Required</SortHeader>
                   <SortHeader field="objectTypes">Object Types</SortHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Actions
                   </th>
                 </tr>
@@ -354,9 +354,9 @@ function ImportQuestionsContent() {
                         }
                       >
                         {/* Drag handle */}
-                        <td className="px-2 py-3 w-8">
+                        <td className="px-1 py-3 w-8">
                           <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600" title="Drag to reorder">
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <circle cx="9" cy="6" r="1.5" />
                               <circle cx="15" cy="6" r="1.5" />
                               <circle cx="9" cy="12" r="1.5" />
@@ -368,7 +368,7 @@ function ImportQuestionsContent() {
                         </td>
 
                         {/* Enabled toggle */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           <button
                             onClick={() => handleToggleEnabled(question)}
                             className={`relative w-10 h-5 rounded-full transition-colors ${
@@ -384,17 +384,17 @@ function ImportQuestionsContent() {
                         </td>
 
                         {/* Question Text */}
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900 text-sm">{question.questionText}</div>
+                        <td className="px-2 py-3">
+                          <Link href={`/import-questions/${encodeURIComponent(question.id)}/edit`} className="font-medium text-gray-900 text-sm hover:text-primary-600 hover:underline">{question.questionText}</Link>
                         </td>
 
                         {/* Column Header */}
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-2 py-3 text-sm text-gray-600">
                           {question.columnHeader}
                         </td>
 
                         {/* Type */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           <span
                             className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${getQuestionTypeBadgeClass(question.questionType)}`}
                           >
@@ -403,7 +403,7 @@ function ImportQuestionsContent() {
                         </td>
 
                         {/* Required */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           {question.isRequired ? (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">Yes</span>
                           ) : (
@@ -412,7 +412,7 @@ function ImportQuestionsContent() {
                         </td>
 
                         {/* Object Types */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           {question.objectTypes && question.objectTypes.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {question.objectTypes.map((ot) => (
@@ -427,7 +427,7 @@ function ImportQuestionsContent() {
                         </td>
 
                         {/* Actions */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           <div className="flex items-center gap-1">
                             <Link
                               href={`/import-questions/${encodeURIComponent(question.id)}/edit`}
