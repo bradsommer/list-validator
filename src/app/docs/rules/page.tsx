@@ -152,6 +152,121 @@ const sections: DocSection[] = [
           <strong>Default target field:</strong> <code className="bg-gray-100 px-1.5 py-0.5 rounded">state</code><br />
           Change this if your spreadsheet uses a different column name, e.g. <code className="bg-gray-100 px-1.5 py-0.5 rounded">State/Province</code> or <code className="bg-gray-100 px-1.5 py-0.5 rounded">Region</code>.
         </p>
+        <h4 className="font-medium text-gray-900 mt-4">Source Code</h4>
+        <CodeBlock>{`import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange } from './types';
+import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
+
+// US State abbreviation to full name mapping
+const STATE_MAP: Record<string, string> = {
+  'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+  'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+  'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+  'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+  'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+  'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+  'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+  'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+  'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+  'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+  'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+  'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+  'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
+  'PR': 'Puerto Rico', 'VI': 'Virgin Islands', 'GU': 'Guam',
+  'AS': 'American Samoa', 'MP': 'Northern Mariana Islands',
+};
+
+// Common misspellings and variations
+const STATE_VARIANTS: Record<string, string> = {
+  'CALI': 'California', 'CALIF': 'California', 'CALIFRONIA': 'California',
+  'CLAIFORNIA': 'California', 'NEWYORK': 'New York', 'NEW YORK CITY': 'New York',
+  'NYC': 'New York', 'TEXS': 'Texas', 'FLORDA': 'Florida', 'FLORDIA': 'Florida',
+  'GEORIGA': 'Georgia', 'ILLNOIS': 'Illinois', 'ILLINIOS': 'Illinois',
+  'MASSACHUSETS': 'Massachusetts', 'MASSACHUSSETTS': 'Massachusetts',
+  'MICHGAN': 'Michigan', 'MINNESOTTA': 'Minnesota', 'MISSIPPI': 'Mississippi',
+  'MISSISIPPI': 'Mississippi', 'MISOURI': 'Missouri', 'MISSOURRI': 'Missouri',
+  'CONNETICUT': 'Connecticut', 'CONNECTICUTT': 'Connecticut',
+  'PENNSLVANIA': 'Pennsylvania', 'PENSYLVANIA': 'Pennsylvania',
+  'TENNESSE': 'Tennessee', 'TENNESEE': 'Tennessee', 'VIRGINA': 'Virginia',
+  'WASHINTON': 'Washington', 'WISCONSON': 'Wisconsin', 'WISCONSN': 'Wisconsin',
+};
+
+const VALID_STATE_NAMES = new Set(Object.values(STATE_MAP));
+
+export class StateNormalizationScript implements IValidationScript {
+  id = 'state-normalization';
+  name = 'State Normalization';
+  description = 'Converts state abbreviations to full names and fixes common misspellings';
+  type: 'transform' = 'transform';
+  targetFields = ['state'];
+  order = 10;
+
+  execute(context: ScriptContext): ScriptExecutionResult {
+    const { rows, headerMatches } = context;
+    const changes: ScriptChange[] = [];
+    const modifiedRows: ParsedRow[] = [];
+
+    const targetField = context.targetFields?.[0] || 'state';
+    const stateHeader = findColumnHeader(targetField, headerMatches, rows);
+
+    if (!stateHeader) {
+      return { success: true, changes: [], errors: [], warnings: [], modifiedRows: [...rows] };
+    }
+
+    rows.forEach((row, index) => {
+      const newRow = { ...row };
+      const originalValue = row[stateHeader];
+
+      if (originalValue !== null && originalValue !== undefined) {
+        const valueStr = String(originalValue).trim();
+        const upperValue = valueStr.toUpperCase();
+
+        if (VALID_STATE_NAMES.has(valueStr)) {
+          modifiedRows.push(newRow);
+          return;
+        }
+
+        if (STATE_MAP[upperValue]) {
+          const newValue = STATE_MAP[upperValue];
+          newRow[stateHeader] = newValue;
+          changes.push({
+            rowIndex: index, field: 'state', originalValue, newValue,
+            reason: \`Converted abbreviation "\${valueStr}" to full state name\`,
+          });
+        } else if (STATE_VARIANTS[upperValue]) {
+          const newValue = STATE_VARIANTS[upperValue];
+          newRow[stateHeader] = newValue;
+          changes.push({
+            rowIndex: index, field: 'state', originalValue, newValue,
+            reason: \`Fixed misspelling "\${valueStr}" to "\${newValue}"\`,
+          });
+        } else {
+          const normalized = this.fuzzyMatchState(valueStr);
+          if (normalized && normalized !== valueStr) {
+            newRow[stateHeader] = normalized;
+            changes.push({
+              rowIndex: index, field: 'state', originalValue, newValue: normalized,
+              reason: \`Normalized "\${valueStr}" to "\${normalized}"\`,
+            });
+          }
+        }
+      }
+
+      modifiedRows.push(newRow);
+    });
+
+    return { success: true, changes, errors: [], warnings: [], modifiedRows };
+  }
+
+  private fuzzyMatchState(value: string): string | null {
+    const normalized = value.trim();
+    const upper = normalized.toUpperCase();
+    for (const stateName of VALID_STATE_NAMES) {
+      if (stateName.toUpperCase() === upper) return stateName;
+    }
+    return null;
+  }
+}`}</CodeBlock>
       </div>
     ),
   },
@@ -183,6 +298,169 @@ const sections: DocSection[] = [
           This matches columns like &ldquo;Date&rdquo;, &ldquo;Close Date&rdquo;, &ldquo;Start Date&rdquo;, &ldquo;Birthday&rdquo;, etc.
           If your spreadsheet has a specific date column like <code className="bg-gray-100 px-1.5 py-0.5 rounded">Contract Start</code>, set that as the target field.
         </p>
+        <h4 className="font-medium text-gray-900 mt-4">Source Code</h4>
+        <CodeBlock>{`import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning, ScriptError } from './types';
+
+function parseDate(value: string): { month: number; day: number; year: number; format: string } | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // ISO format: YYYY-MM-DD
+  const isoMatch = trimmed.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return { year: parseInt(y), month: parseInt(m), day: parseInt(d), format: 'YYYY-MM-DD' };
+  }
+
+  // MM/DD/YYYY or M/D/YYYY
+  const usMatch = trimmed.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);
+  if (usMatch) {
+    const [, m, d, y] = usMatch;
+    return { year: parseInt(y), month: parseInt(m), day: parseInt(d), format: 'MM/DD/YYYY' };
+  }
+
+  // MM/DD/YY or M/D/YY
+  const usShortMatch = trimmed.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2})$/);
+  if (usShortMatch) {
+    const [, m, d, y] = usShortMatch;
+    const fullYear = parseInt(y) > 50 ? 1900 + parseInt(y) : 2000 + parseInt(y);
+    return { year: fullYear, month: parseInt(m), day: parseInt(d), format: 'MM/DD/YY' };
+  }
+
+  // DD-MM-YYYY or DD.MM.YYYY
+  const euMatch = trimmed.match(/^(\\d{1,2})[.\\-](\\d{1,2})[.\\-](\\d{4})$/);
+  if (euMatch) {
+    const [, a, b, y] = euMatch;
+    if (parseInt(a) > 12) {
+      return { year: parseInt(y), month: parseInt(b), day: parseInt(a), format: 'DD-MM-YYYY' };
+    }
+    if (parseInt(b) > 12) {
+      return { year: parseInt(y), month: parseInt(a), day: parseInt(b), format: 'MM-DD-YYYY' };
+    }
+    return { year: parseInt(y), month: parseInt(a), day: parseInt(b), format: 'MM-DD-YYYY (assumed)' };
+  }
+
+  // "Month DD, YYYY" or "Month DD YYYY"
+  const longMatch = trimmed.match(/^([A-Za-z]+)\\s+(\\d{1,2}),?\\s+(\\d{4})$/);
+  if (longMatch) {
+    const [, monthStr, d, y] = longMatch;
+    const m = monthNameToNumber(monthStr);
+    if (m) return { year: parseInt(y), month: m, day: parseInt(d), format: 'Month DD, YYYY' };
+  }
+
+  // "DD Month YYYY"
+  const euLongMatch = trimmed.match(/^(\\d{1,2})\\s+([A-Za-z]+)\\s+(\\d{4})$/);
+  if (euLongMatch) {
+    const [, d, monthStr, y] = euLongMatch;
+    const m = monthNameToNumber(monthStr);
+    if (m) return { year: parseInt(y), month: m, day: parseInt(d), format: 'DD Month YYYY' };
+  }
+
+  // YYYYMMDD (compact)
+  const compactMatch = trimmed.match(/^(\\d{4})(\\d{2})(\\d{2})$/);
+  if (compactMatch) {
+    const [, y, m, d] = compactMatch;
+    return { year: parseInt(y), month: parseInt(m), day: parseInt(d), format: 'YYYYMMDD' };
+  }
+
+  // Unix timestamp (seconds or milliseconds)
+  const num = Number(trimmed);
+  if (!isNaN(num) && num > 0) {
+    const ts = num > 1e12 ? num : num * 1000;
+    const date = new Date(ts);
+    if (!isNaN(date.getTime())) {
+      return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate(), format: 'timestamp' };
+    }
+  }
+
+  return null;
+}
+
+function monthNameToNumber(name: string): number | null {
+  const months: Record<string, number> = {
+    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+    apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+    aug: 8, august: 8, sep: 9, sept: 9, september: 9, oct: 10, october: 10,
+    nov: 11, november: 11, dec: 12, december: 12,
+  };
+  return months[name.toLowerCase()] || null;
+}
+
+function formatDate(month: number, day: number, year: number): string {
+  return \`\${String(month).padStart(2, '0')}/\${String(day).padStart(2, '0')}/\${year}\`;
+}
+
+export const dateNormalizationScript: IValidationScript = {
+  id: 'date-normalization',
+  name: 'Date Normalization',
+  description: 'Standardizes date fields to MM/DD/YYYY.',
+  type: 'transform',
+  targetFields: ['date'],
+  order: 35,
+
+  execute(context: ScriptContext): ScriptExecutionResult {
+    const { rows, headerMatches } = context;
+    const changes: ScriptChange[] = [];
+    const errors: ScriptError[] = [];
+    const warnings: ScriptWarning[] = [];
+    const modifiedRows = rows.map((row) => ({ ...row }));
+
+    // Find date columns via headerMatches and row key scanning
+    const dateHeaders: { header: string; field: string }[] = [];
+
+    for (const match of headerMatches) {
+      if (!match.isMatched || !match.matchedField) continue;
+      const fieldName = match.matchedField.hubspotField.toLowerCase();
+      const headerLower = match.originalHeader.toLowerCase();
+      if (fieldName === 'date' || fieldName.includes('date') ||
+          headerLower.includes('date') || headerLower.includes('birthday') ||
+          headerLower.includes('dob')) {
+        dateHeaders.push({ header: match.originalHeader, field: fieldName });
+      }
+    }
+
+    // Fallback: scan row keys for date-like headers
+    if (rows.length > 0) {
+      for (const key of Object.keys(rows[0])) {
+        const keyLower = key.toLowerCase().trim();
+        if ((keyLower.includes('date') || keyLower.includes('birthday') || keyLower.includes('dob'))
+            && !dateHeaders.some((d) => d.header === key)) {
+          dateHeaders.push({ header: key, field: keyLower });
+        }
+      }
+    }
+
+    if (dateHeaders.length === 0) {
+      return { success: true, changes: [], errors: [], warnings: [], modifiedRows: rows };
+    }
+
+    for (let i = 0; i < modifiedRows.length; i++) {
+      for (const { header, field } of dateHeaders) {
+        const value = String(modifiedRows[i][header] || '').trim();
+        if (!value) continue;
+
+        const parsed = parseDate(value);
+        if (parsed) {
+          const formatted = formatDate(parsed.month, parsed.day, parsed.year);
+          if (formatted !== value) {
+            modifiedRows[i][header] = formatted;
+            changes.push({
+              rowIndex: i, field, originalValue: value, newValue: formatted,
+              reason: \`Converted from \${parsed.format} to MM/DD/YYYY\`,
+            });
+          }
+        } else {
+          errors.push({
+            rowIndex: i, field, value, errorType: 'invalid_date',
+            message: \`Could not parse date value: "\${value}"\`,
+          });
+        }
+      }
+    }
+
+    return { success: errors.length === 0, changes, errors, warnings, modifiedRows };
+  },
+};`}</CodeBlock>
       </div>
     ),
   },
@@ -211,6 +489,143 @@ const sections: DocSection[] = [
         <p className="text-sm text-gray-600">
           <strong>Default target field:</strong> <code className="bg-gray-100 px-1.5 py-0.5 rounded">email</code>
         </p>
+        <h4 className="font-medium text-gray-900 mt-4">Source Code</h4>
+        <CodeBlock>{`import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptError, ScriptWarning } from './types';
+import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
+
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
+  'icloud.com', 'mail.com', 'protonmail.com', 'zoho.com', 'ymail.com',
+  'live.com', 'msn.com', 'me.com', 'mac.com',
+]);
+
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 'throwaway.email',
+  '10minutemail.com', 'temp-mail.org', 'fakeinbox.com', 'sharklasers.com', 'trashmail.com',
+]);
+
+const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+const STRICT_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_\\\`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+export class EmailValidationScript implements IValidationScript {
+  id = 'email-validation';
+  name = 'Email Validation';
+  description = 'Validates email format, cleans whitespace, and flags personal/disposable domains';
+  type: 'validate' = 'validate';
+  targetFields = ['email'];
+  order = 20;
+
+  execute(context: ScriptContext): ScriptExecutionResult {
+    const { rows, headerMatches, requiredFields } = context;
+    const changes: ScriptChange[] = [];
+    const errors: ScriptError[] = [];
+    const warnings: ScriptWarning[] = [];
+    const modifiedRows: ParsedRow[] = [];
+
+    const targetField = context.targetFields?.[0] || 'email';
+    const emailHeader = findColumnHeader(targetField, headerMatches, rows);
+
+    if (!emailHeader) {
+      if (requiredFields.includes('email')) {
+        errors.push({
+          rowIndex: -1, field: 'email', value: null,
+          errorType: 'missing_field',
+          message: 'Required email field is not mapped to any column',
+        });
+      }
+      return { success: errors.length === 0, changes: [], errors, warnings: [], modifiedRows: [...rows] };
+    }
+
+    const isRequired = requiredFields.includes('email');
+
+    rows.forEach((row, index) => {
+      const newRow = { ...row };
+      const originalValue = row[emailHeader];
+
+      if (originalValue === null || originalValue === undefined || String(originalValue).trim() === '') {
+        if (isRequired) {
+          errors.push({
+            rowIndex: index, field: 'email', value: originalValue,
+            errorType: 'missing_required', message: 'Required email field is empty',
+          });
+        }
+        modifiedRows.push(newRow);
+        return;
+      }
+
+      let email = String(originalValue).trim().toLowerCase();
+
+      if (email !== String(originalValue)) {
+        changes.push({
+          rowIndex: index, field: 'email', originalValue, newValue: email,
+          reason: 'Trimmed whitespace and converted to lowercase',
+        });
+        newRow[emailHeader] = email;
+      }
+
+      if (!EMAIL_REGEX.test(email)) {
+        errors.push({
+          rowIndex: index, field: 'email', value: email,
+          errorType: 'invalid_format', message: 'Invalid email format',
+        });
+        modifiedRows.push(newRow);
+        return;
+      }
+
+      if (!STRICT_EMAIL_REGEX.test(email)) {
+        warnings.push({
+          rowIndex: index, field: 'email', value: email,
+          warningType: 'suspicious_format',
+          message: 'Email format may have issues (unusual characters)',
+        });
+      }
+
+      const domain = email.split('@')[1];
+
+      if (DISPOSABLE_DOMAINS.has(domain)) {
+        errors.push({
+          rowIndex: index, field: 'email', value: email,
+          errorType: 'disposable_email',
+          message: \`Disposable email domain detected: \${domain}\`,
+        });
+      }
+
+      if (PERSONAL_DOMAINS.has(domain)) {
+        warnings.push({
+          rowIndex: index, field: 'email', value: email,
+          warningType: 'personal_email',
+          message: \`Personal email domain: \${domain} - consider using business email\`,
+        });
+      }
+
+      const suggestedDomain = this.checkDomainTypos(domain);
+      if (suggestedDomain) {
+        warnings.push({
+          rowIndex: index, field: 'email', value: email,
+          warningType: 'possible_typo',
+          message: \`Possible typo in domain: "\${domain}" - did you mean "\${suggestedDomain}"?\`,
+        });
+      }
+
+      modifiedRows.push(newRow);
+    });
+
+    return { success: errors.length === 0, changes, errors, warnings, modifiedRows };
+  }
+
+  private checkDomainTypos(domain: string): string | null {
+    const typoMap: Record<string, string> = {
+      'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com',
+      'gamil.com': 'gmail.com', 'gnail.com': 'gmail.com', 'gmail.con': 'gmail.com',
+      'gmail.co': 'gmail.com', 'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com',
+      'yahoo.con': 'yahoo.com', 'hotmal.com': 'hotmail.com', 'hotmai.com': 'hotmail.com',
+      'hotmail.con': 'hotmail.com', 'outloo.com': 'outlook.com', 'outlok.com': 'outlook.com',
+      'outlook.con': 'outlook.com',
+    };
+    return typoMap[domain] || null;
+  }
+}`}</CodeBlock>
       </div>
     ),
   },
@@ -239,6 +654,92 @@ const sections: DocSection[] = [
           <strong>Default target field:</strong> <code className="bg-gray-100 px-1.5 py-0.5 rounded">phone</code><br />
           Matches &ldquo;Phone&rdquo;, &ldquo;Phone Number&rdquo;, &ldquo;Mobile&rdquo;, &ldquo;Cell Phone&rdquo;, etc.
         </p>
+        <h4 className="font-medium text-gray-900 mt-4">Source Code</h4>
+        <CodeBlock>{`import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
+import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
+
+export class PhoneNormalizationScript implements IValidationScript {
+  id = 'phone-normalization';
+  name = 'Phone Number Normalization';
+  description = 'Standardizes phone numbers to +1XXXXXXXXXX format.';
+  type: 'transform' = 'transform';
+  targetFields = ['phone'];
+  order = 30;
+
+  execute(context: ScriptContext): ScriptExecutionResult {
+    const { rows, headerMatches } = context;
+    const changes: ScriptChange[] = [];
+    const warnings: ScriptWarning[] = [];
+    const modifiedRows: ParsedRow[] = [];
+
+    const targetField = context.targetFields?.[0] || 'phone';
+    const phoneHeader = findColumnHeader(targetField, headerMatches, rows);
+
+    if (!phoneHeader) {
+      return { success: true, changes: [], errors: [], warnings: [], modifiedRows: [...rows] };
+    }
+
+    rows.forEach((row, index) => {
+      const newRow = { ...row };
+      const originalValue = row[phoneHeader];
+
+      if (originalValue === null || originalValue === undefined || String(originalValue).trim() === '') {
+        modifiedRows.push(newRow);
+        return;
+      }
+
+      const valueStr = String(originalValue).trim();
+      const digitsOnly = valueStr.replace(/\\D/g, '');
+
+      if (digitsOnly.length < 7) {
+        warnings.push({
+          rowIndex: index, field: 'phone', value: valueStr,
+          warningType: 'too_short',
+          message: \`Phone number appears too short: \${digitsOnly.length} digits\`,
+        });
+        modifiedRows.push(newRow);
+        return;
+      }
+
+      let formatted: string;
+
+      if (digitsOnly.length === 10) {
+        formatted = \`+1\${digitsOnly}\`;
+      } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+        formatted = \`+\${digitsOnly}\`;
+      } else if (digitsOnly.length > 10 && valueStr.startsWith('+')) {
+        formatted = \`+\${digitsOnly}\`;
+      } else if (digitsOnly.length > 10) {
+        formatted = \`+\${digitsOnly}\`;
+        warnings.push({
+          rowIndex: index, field: 'phone', value: valueStr,
+          warningType: 'international',
+          message: \`Phone number may be international (\${digitsOnly.length} digits) — verify country code\`,
+        });
+      } else {
+        formatted = \`+1\${digitsOnly}\`;
+        warnings.push({
+          rowIndex: index, field: 'phone', value: valueStr,
+          warningType: 'missing_area_code',
+          message: \`Phone number may be missing area code (\${digitsOnly.length} digits)\`,
+        });
+      }
+
+      if (formatted !== valueStr) {
+        newRow[phoneHeader] = formatted;
+        changes.push({
+          rowIndex: index, field: 'phone', originalValue, newValue: formatted,
+          reason: \`Formatted to \${formatted}\`,
+        });
+      }
+
+      modifiedRows.push(newRow);
+    });
+
+    return { success: true, changes, errors: [], warnings, modifiedRows };
+  }
+}`}</CodeBlock>
       </div>
     ),
   },
@@ -268,6 +769,128 @@ const sections: DocSection[] = [
           <strong>Default target fields:</strong> <code className="bg-gray-100 px-1.5 py-0.5 rounded">firstname, lastname</code><br />
           This is a multi-field rule. The first value targets the first name column, the second targets the last name column.
         </p>
+        <h4 className="font-medium text-gray-900 mt-4">Source Code</h4>
+        <CodeBlock>{`import type { IValidationScript, ScriptContext, ScriptExecutionResult, ScriptChange, ScriptWarning } from './types';
+import type { ParsedRow } from '@/types';
+import { findColumnHeader } from './findColumn';
+
+const LOWERCASE_PREFIXES = new Set(['van', 'von', 'de', 'del', 'della', 'di', 'da', 'du', 'la', 'le', 'el']);
+const SUFFIXES = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v', 'phd', 'md', 'dds', 'esq']);
+const SPECIAL_PREFIXES: Record<string, string> = { 'mc': 'Mc', 'mac': 'Mac', "o'": "O'" };
+
+export class NameCapitalizationScript implements IValidationScript {
+  id = 'name-capitalization';
+  name = 'Name Capitalization';
+  description = "Properly capitalizes names, handling McDonald, O'Brien, van der Berg, etc.";
+  type: 'transform' = 'transform';
+  targetFields = ['firstname', 'lastname'];
+  order = 50;
+
+  execute(context: ScriptContext): ScriptExecutionResult {
+    const { rows, headerMatches } = context;
+    const changes: ScriptChange[] = [];
+    const warnings: ScriptWarning[] = [];
+    const modifiedRows: ParsedRow[] = [];
+
+    const firstField = context.targetFields?.[0] || 'firstname';
+    const lastField = context.targetFields?.[1] || 'lastname';
+    const firstHeader = findColumnHeader(firstField, headerMatches, rows);
+    const lastHeader = findColumnHeader(lastField, headerMatches, rows);
+
+    rows.forEach((row, index) => {
+      const newRow = { ...row };
+
+      // Process first name
+      if (firstHeader) {
+        const originalFirst = row[firstHeader];
+        if (originalFirst !== null && originalFirst !== undefined && String(originalFirst).trim() !== '') {
+          const valueStr = String(originalFirst).trim();
+          const result = this.processName(valueStr, 'first');
+          if (result.value !== valueStr) {
+            newRow[firstHeader] = result.value;
+            changes.push({
+              rowIndex: index, field: 'firstname', originalValue: originalFirst,
+              newValue: result.value, reason: result.reason,
+            });
+          }
+        }
+      }
+
+      // Process last name
+      if (lastHeader) {
+        const originalLast = row[lastHeader];
+        if (originalLast !== null && originalLast !== undefined && String(originalLast).trim() !== '') {
+          const valueStr = String(originalLast).trim();
+          const result = this.processName(valueStr, 'last');
+          if (result.value !== valueStr) {
+            newRow[lastHeader] = result.value;
+            changes.push({
+              rowIndex: index, field: 'lastname', originalValue: originalLast,
+              newValue: result.value, reason: result.reason,
+            });
+          }
+        }
+      }
+
+      modifiedRows.push(newRow);
+    });
+
+    return { success: true, changes, errors: [], warnings, modifiedRows };
+  }
+
+  private processName(name: string, nameType: 'first' | 'last'): { value: string; reason: string } {
+    name = name.trim().replace(/\\s+/g, ' ');
+
+    // Handle hyphenated names
+    if (name.includes('-')) {
+      const parts = name.split('-');
+      const result = parts.map((part) => this.capitalizeWord(part.trim(), nameType)).join('-');
+      return { value: result, reason: 'Capitalized hyphenated name parts' };
+    }
+
+    // Handle space-separated names (e.g., "Mary Ann", "van der Berg")
+    if (name.includes(' ')) {
+      const words = name.split(' ');
+      const result = words.map((word, idx) => {
+        if (nameType === 'last' && idx > 0 && LOWERCASE_PREFIXES.has(word.toLowerCase())) {
+          return word.toLowerCase();
+        }
+        return this.capitalizeWord(word, nameType);
+      }).join(' ');
+      return { value: result, reason: 'Capitalized multi-part name' };
+    }
+
+    const result = this.capitalizeWord(name, nameType);
+    return { value: result, reason: result !== name ? 'Corrected capitalization' : 'No change needed' };
+  }
+
+  private capitalizeWord(word: string, nameType: 'first' | 'last'): string {
+    if (!word) return word;
+    const lower = word.toLowerCase();
+
+    if (SUFFIXES.has(lower)) return this.formatSuffix(lower);
+
+    for (const [prefix, formatted] of Object.entries(SPECIAL_PREFIXES)) {
+      if (lower.startsWith(prefix) && lower.length > prefix.length) {
+        const rest = word.substring(prefix.length);
+        return formatted + rest.charAt(0).toUpperCase() + rest.slice(1).toLowerCase();
+      }
+    }
+
+    if (nameType === 'last' && LOWERCASE_PREFIXES.has(lower)) return lower;
+
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }
+
+  private formatSuffix(suffix: string): string {
+    const suffixMap: Record<string, string> = {
+      'jr': 'Jr.', 'jr.': 'Jr.', 'sr': 'Sr.', 'sr.': 'Sr.',
+      'ii': 'II', 'iii': 'III', 'iv': 'IV', 'v': 'V',
+      'phd': 'PhD', 'md': 'MD', 'dds': 'DDS', 'esq': 'Esq.',
+    };
+    return suffixMap[suffix] || suffix;
+  }
+}`}</CodeBlock>
       </div>
     ),
   },
