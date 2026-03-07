@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { ImportsChart } from '@/components/dashboard/ImportsChart';
+import { ImportsChart, RANGE_PRESETS, DEFAULT_RANGE_INDEX } from '@/components/dashboard/ImportsChart';
+import type { Granularity, RangePreset } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
-import { supabase } from '@/lib/supabase';
 
 function ComingSoonPage() {
   return (
@@ -305,37 +305,203 @@ function LandingPage() {
   );
 }
 
-function Dashboard() {
-  const [importCount, setImportCount] = useState<number | null>(null);
+function formatDateRange(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
+}
 
+function toInputDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function Dashboard() {
+  // Date range state (shared between chart and time-saved card)
+  const defaultRange = RANGE_PRESETS[DEFAULT_RANGE_INDEX].getRange();
+  const [startDate, setStartDate] = useState<Date>(defaultRange.start);
+  const [endDate, setEndDate] = useState<Date>(defaultRange.end);
+  const [granularity, setGranularity] = useState<Granularity>('month');
+  const [activePresetLabel, setActivePresetLabel] = useState<string>(RANGE_PRESETS[DEFAULT_RANGE_INDEX].label);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [granularityOpen, setGranularityOpen] = useState(false);
+  const [customPickerOpen, setCustomPickerOpen] = useState(false);
+  const [customStart, setCustomStart] = useState(toInputDate(defaultRange.start));
+  const [customEnd, setCustomEnd] = useState(toInputDate(defaultRange.end));
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  const granularityRef = useRef<HTMLDivElement>(null);
+
+  // Raw import rows (shared for time-saved calculation)
+  const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
+
+  // Close dropdowns on outside click
   useEffect(() => {
-    supabase
-      .from('upload_sessions')
-      .select('*', { count: 'exact', head: true })
-      .then(({ count }) => setImportCount(count ?? 0));
+    const handler = (e: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setDatePickerOpen(false);
+        setCustomPickerOpen(false);
+      }
+      if (granularityRef.current && !granularityRef.current.contains(e.target as Node)) {
+        setGranularityOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const minutesSaved = (importCount ?? 0) * 10;
+  const handlePresetSelect = useCallback((preset: RangePreset) => {
+    const { start, end } = preset.getRange();
+    setStartDate(start);
+    setEndDate(end);
+    setActivePresetLabel(preset.label);
+    setDatePickerOpen(false);
+    setCustomPickerOpen(false);
+  }, []);
+
+  const handleCustomApply = useCallback(() => {
+    const s = new Date(customStart + 'T00:00:00');
+    const e = new Date(customEnd + 'T00:00:00');
+    if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s <= e) {
+      setStartDate(s);
+      setEndDate(e);
+      setActivePresetLabel('Custom');
+      setDatePickerOpen(false);
+      setCustomPickerOpen(false);
+    }
+  }, [customStart, customEnd]);
+
+  const handleRawRowsChange = useCallback((rows: { created_at: string }[]) => {
+    setRawRows(rows);
+  }, []);
+
+  // Compute filtered import count for time-saved card
+  const filteredImportCount = (() => {
+    const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    rangeEnd.setHours(23, 59, 59, 999);
+    let count = 0;
+    for (const row of rawRows) {
+      const d = new Date(row.created_at);
+      if (d >= rangeStart && d <= rangeEnd) count++;
+    }
+    return count;
+  })();
+
+  const minutesSaved = filteredImportCount * 10;
   const hoursSaved = Math.floor(minutesSaved / 60);
   const remainingMinutes = minutesSaved % 60;
   const timeSavedDisplay = hoursSaved > 0
     ? `${hoursSaved}h ${remainingMinutes}m`
     : `${minutesSaved}m`;
 
+  const granularityLabel = granularity.charAt(0).toUpperCase() + granularity.slice(1);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-end">
-          <Link
-            href="/import"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-medium text-sm"
-            style={{ backgroundColor: '#0B8377' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            New Import
-          </Link>
+        {/* Header with date controls */}
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          {/* Date range picker */}
+          <div ref={datePickerRef} className="relative">
+            <button
+              onClick={() => { setDatePickerOpen(!datePickerOpen); setGranularityOpen(false); }}
+              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-gray-400 bg-white"
+            >
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{activePresetLabel === 'Custom' ? formatDateRange(startDate, endDate) : activePresetLabel}</span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${datePickerOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {datePickerOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px]">
+                {RANGE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => handlePresetSelect(preset)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                      activePresetLabel === preset.label ? 'text-gray-900 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <button
+                    onClick={() => setCustomPickerOpen(!customPickerOpen)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${
+                      activePresetLabel === 'Custom' ? 'text-gray-900 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    Custom range
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${customPickerOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {customPickerOpen && (
+                    <div className="px-4 py-3 space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Start date</label>
+                        <input
+                          type="date"
+                          value={customStart}
+                          onChange={(e) => setCustomStart(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">End date</label>
+                        <input
+                          type="date"
+                          value={customEnd}
+                          onChange={(e) => setCustomEnd(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <button
+                        onClick={handleCustomApply}
+                        className="w-full py-1.5 text-sm font-medium text-white rounded"
+                        style={{ backgroundColor: '#0B8377' }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Granularity dropdown */}
+          <div ref={granularityRef} className="relative">
+            <button
+              onClick={() => { setGranularityOpen(!granularityOpen); setDatePickerOpen(false); }}
+              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-gray-400 bg-white min-w-[90px]"
+            >
+              <span>{granularityLabel}</span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${granularityOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {granularityOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[110px]">
+                {(['day', 'month', 'year'] as Granularity[]).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => { setGranularity(g); setGranularityOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                      granularity === g ? 'text-gray-900 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {g.charAt(0).toUpperCase() + g.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -398,21 +564,24 @@ function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
-            <ImportsChart />
+            <ImportsChart
+              startDate={startDate}
+              endDate={endDate}
+              granularity={granularity}
+              onRawRowsChange={handleRawRowsChange}
+            />
           </div>
 
-          {importCount !== null && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ccfbf1' }}>
-                <svg className="w-6 h-6" style={{ color: '#0B8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="mt-3 text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
-              <p className="text-sm text-gray-500">Estimated time saved across {importCount} import{importCount !== 1 ? 's' : ''}</p>
-              <p className="mt-2 text-xs text-gray-400">Based on 10 minutes saved per import</p>
+          <div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#ccfbf1' }}>
+              <svg className="w-6 h-6" style={{ color: '#0B8377' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-          )}
+            <p className="mt-3 text-2xl font-bold text-gray-900">{timeSavedDisplay}</p>
+            <p className="text-sm text-gray-500">Estimated time saved across {filteredImportCount} import{filteredImportCount !== 1 ? 's' : ''}</p>
+            <p className="mt-2 text-xs text-gray-400">Based on 10 minutes saved per import</p>
+          </div>
         </div>
       </div>
     </AdminLayout>
