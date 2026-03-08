@@ -197,6 +197,10 @@ function getDbClient() {
 // --- Supabase storage ---
 
 async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId?: string): Promise<boolean> {
+  if (!accountId) {
+    console.error('[HubSpot] saveTokensToDb: accountId is empty — cannot persist tokens');
+    return false;
+  }
   try {
     const db = getDbClient();
     const upsertData: Record<string, unknown> = {
@@ -218,13 +222,28 @@ async function saveTokensToDb(tokens: HubSpotTokens, accountId: string, portalId
         onConflict: 'account_id,provider',
       });
     if (error) {
-      console.error('Failed to save tokens to DB:', error.message);
+      console.error('[HubSpot] Failed to save tokens to DB:', error.message, '(code:', error.code, ')');
       return false;
     }
-    console.log('Tokens saved to DB successfully (portal_id:', portalId || 'none', ')');
+
+    // Verify the write actually persisted by reading it back
+    const { data: verify, error: verifyError } = await db
+      .from('account_integrations')
+      .select('access_token')
+      .eq('account_id', accountId)
+      .eq('provider', 'hubspot')
+      .eq('is_active', true)
+      .single();
+
+    if (verifyError || !verify?.access_token) {
+      console.error('[HubSpot] Token verification read failed after upsert:', verifyError?.message || 'no data returned');
+      return false;
+    }
+
+    console.log('[HubSpot] Tokens saved and verified in DB (portal_id:', portalId || 'none', ')');
     return true;
   } catch (err) {
-    console.error('Exception saving tokens to DB:', err);
+    console.error('[HubSpot] Exception saving tokens to DB:', err);
     return false;
   }
 }
@@ -311,7 +330,7 @@ async function clearTokensFromDb(accountId: string): Promise<void> {
 const tokenCache = new Map<string, HubSpotTokens>();
 const portalIdCache = new Map<string, string>();
 
-export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
+export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string): Promise<{ persisted: boolean }> {
   const acctKey = accountId || '';
   tokenCache.set(acctKey, tokens);
   if (portalId) portalIdCache.set(acctKey, portalId);
@@ -325,10 +344,12 @@ export async function setTokens(tokens: HubSpotTokens, accountId?: string, porta
     const retried = await saveTokensToDb(tokens, acctKey, portalId);
     if (!retried) {
       console.error('[HubSpot] CRITICAL: Retry also failed. Tokens are only in memory.');
+      return { persisted: false };
     } else {
       console.log('[HubSpot] Retry succeeded — tokens persisted to DB.');
     }
   }
+  return { persisted: true };
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
