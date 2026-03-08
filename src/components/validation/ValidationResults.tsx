@@ -8,7 +8,7 @@ import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
 import { useValidationWorker } from '@/hooks/useValidationWorker';
-import { supabase } from '@/lib/supabase';
+
 import type { DynamicScriptSource } from '@/lib/scripts';
 import type { ScriptResult } from '@/types';
 
@@ -252,40 +252,31 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         // If encoding fails, skip file content but still record the session
       }
 
-      const sessionRecord: Record<string, unknown> = {
-        account_id: user?.accountId || null,
-        user_id: user?.id || null,
-        file_name: fileName,
-        status: 'completed',
-        total_rows: processedData.length,
-        processed_rows: processedData.length,
-        synced_rows: processedData.length,
-        failed_rows: 0,
-        field_mappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
-        completed_at: new Date().toISOString(),
+      const sessionPayload: Record<string, unknown> = {
+        fileName,
+        totalRows: processedData.length,
+        fieldMappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
+        userId: user?.id || null,
       };
 
-      // Include file content columns only when content is available
       if (encodedContent) {
-        sessionRecord.file_content = encodedContent;
-        sessionRecord.file_type = 'text/csv';
-        sessionRecord.file_size = csvBytes;
+        sessionPayload.fileContent = encodedContent;
+        sessionPayload.fileType = 'text/csv';
+        sessionPayload.fileSize = csvBytes;
       }
 
-      const { error: insertError } = await supabase.from('upload_sessions').insert(sessionRecord);
+      const saveResponse = await fetch('/api/pipeline/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-account-id': user?.accountId || '',
+        },
+        body: JSON.stringify(sessionPayload),
+      });
 
-      // If the full insert fails (e.g. file_content column missing), retry without file columns
-      if (insertError && encodedContent) {
-        console.warn('Insert with file content failed, retrying without:', insertError.message);
-        delete sessionRecord.file_content;
-        delete sessionRecord.file_type;
-        delete sessionRecord.file_size;
-        const { error: retryError } = await supabase.from('upload_sessions').insert(sessionRecord);
-        if (retryError) {
-          console.error('Failed to save import history:', retryError.message);
-        }
-      } else if (insertError) {
-        console.error('Failed to save import history:', insertError.message);
+      if (!saveResponse.ok) {
+        const errData = await saveResponse.json();
+        console.error('Failed to save import history:', errData.error);
       }
     } catch (err) {
       console.error('Failed to save import history:', err);

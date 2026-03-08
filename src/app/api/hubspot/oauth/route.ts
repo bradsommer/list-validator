@@ -11,22 +11,18 @@ interface ConnectionStatus {
 
 // GET - returns connection status or redirect URL
 export async function GET(request: NextRequest) {
-  const clientId = await getHubSpotClientIdAsync();
   const accountId = request.headers.get('x-account-id') || '';
-
-  if (!clientId) {
-    return NextResponse.json({
-      success: false,
-      connected: false,
-      error: 'HubSpot Client ID not configured. Set HUBSPOT_CLIENT_ID in .env.local or add hubspot_client_id to app_settings table.',
-    });
-  }
 
   // Check per-account cache for connection status
   const connectionCacheKey = CACHE_KEYS.hubspotConnection(accountId);
   const cached = cache.get<ConnectionStatus>(connectionCacheKey);
   if (cached) {
-    const authorizeUrl = cached.connected ? null : await getAuthorizeUrl(accountId);
+    // Only generate authorize URL if we have a client ID configured
+    let authorizeUrl: string | null = null;
+    if (!cached.connected) {
+      const clientId = await getHubSpotClientIdAsync();
+      if (clientId) authorizeUrl = await getAuthorizeUrl(accountId);
+    }
     return NextResponse.json({
       success: true,
       connected: cached.connected,
@@ -36,6 +32,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Check connection status from DB — this is the source of truth.
+  // Do this BEFORE checking clientId so that existing connections are
+  // always recognized even if the client ID is temporarily unavailable.
   const connected = await isConnected(accountId);
   const tokens = await getTokens(accountId);
   const expiresAt = tokens?.expires_at ? String(tokens.expires_at) : null;
@@ -48,7 +47,19 @@ export async function GET(request: NextRequest) {
     portalId,
   }, CACHE_TTL.CONNECTION);
 
-  const authorizeUrl = connected ? null : await getAuthorizeUrl(accountId);
+  // Generate authorize URL only if not connected and client ID is available
+  let authorizeUrl: string | null = null;
+  if (!connected) {
+    const clientId = await getHubSpotClientIdAsync();
+    if (!clientId) {
+      return NextResponse.json({
+        success: false,
+        connected: false,
+        error: 'HubSpot Client ID not configured. Set HUBSPOT_CLIENT_ID in .env.local or add hubspot_client_id to app_settings table.',
+      });
+    }
+    authorizeUrl = await getAuthorizeUrl(accountId);
+  }
 
   return NextResponse.json({
     success: true,
