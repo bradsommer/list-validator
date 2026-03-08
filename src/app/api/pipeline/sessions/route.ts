@@ -1,5 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
+
+// POST - Save a completed import session to history (server-side to bypass RLS)
+export async function POST(request: NextRequest) {
+  try {
+    const accountId = request.headers.get('x-account-id');
+    if (!accountId) {
+      return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const {
+      fileName,
+      totalRows,
+      fieldMappings,
+      fileContent,
+      fileType,
+      fileSize,
+      userId,
+    } = body as {
+      fileName: string;
+      totalRows: number;
+      fieldMappings: Record<string, string>;
+      fileContent?: string;
+      fileType?: string;
+      fileSize?: number;
+      userId?: string;
+    };
+
+    if (!fileName || !totalRows) {
+      return NextResponse.json(
+        { success: false, error: 'fileName and totalRows are required' },
+        { status: 400 }
+      );
+    }
+
+    const db = getServerSupabase();
+
+    const sessionRecord: Record<string, unknown> = {
+      account_id: accountId,
+      user_id: userId || null,
+      file_name: fileName,
+      status: 'completed',
+      total_rows: totalRows,
+      processed_rows: totalRows,
+      synced_rows: totalRows,
+      failed_rows: 0,
+      field_mappings: fieldMappings || {},
+      completed_at: new Date().toISOString(),
+    };
+
+    if (fileContent) {
+      sessionRecord.file_content = fileContent;
+      sessionRecord.file_type = fileType || 'text/csv';
+      sessionRecord.file_size = fileSize || 0;
+    }
+
+    const { data, error: insertError } = await db
+      .from('upload_sessions')
+      .insert(sessionRecord)
+      .select('id')
+      .single();
+
+    // If the full insert fails (e.g. file_content column missing), retry without file columns
+    if (insertError && fileContent) {
+      console.warn('Insert with file content failed, retrying without:', insertError.message);
+      delete sessionRecord.file_content;
+      delete sessionRecord.file_type;
+      delete sessionRecord.file_size;
+      const { data: retryData, error: retryError } = await db
+        .from('upload_sessions')
+        .insert(sessionRecord)
+        .select('id')
+        .single();
+
+      if (retryError) {
+        console.error('Failed to save import history:', retryError.message);
+        return NextResponse.json(
+          { success: false, error: 'Failed to save import session' },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ success: true, sessionId: retryData?.id });
+    } else if (insertError) {
+      console.error('Failed to save import history:', insertError.message);
+      return NextResponse.json(
+        { success: false, error: 'Failed to save import session' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, sessionId: data?.id });
+  } catch (error) {
+    console.error('Save session error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to save import session' },
+      { status: 500 }
+    );
+  }
+}
 
 // DELETE - Clear all import history (upload_sessions and their rows)
 export async function DELETE(request: NextRequest) {
@@ -9,22 +108,24 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Account ID is required' }, { status: 400 });
     }
 
+    const db = getServerSupabase();
+
     // Delete all rows first (cascade should handle this but be explicit)
-    const { data: sessions } = await supabase
+    const { data: sessions } = await db
       .from('upload_sessions')
       .select('id')
       .eq('account_id', accountId);
 
     if (sessions && sessions.length > 0) {
       const sessionIds = sessions.map((s: { id: string }) => s.id);
-      await supabase
+      await db
         .from('upload_rows')
         .delete()
         .in('session_id', sessionIds);
     }
 
     // Delete all sessions
-    const { error } = await supabase
+    const { error } = await db
       .from('upload_sessions')
       .delete()
       .eq('account_id', accountId);
@@ -58,7 +159,9 @@ export async function GET(request: NextRequest) {
     }
     const statusFilter = request.nextUrl.searchParams.get('status');
 
-    let query = supabase
+    const db = getServerSupabase();
+
+    let query = db
       .from('upload_sessions')
       .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, expires_at, completed_at, created_at, updated_at')
       .eq('account_id', accountId)

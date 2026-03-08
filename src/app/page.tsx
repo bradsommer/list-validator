@@ -344,12 +344,16 @@ function Dashboard() {
       try {
         const wideStart = new Date();
         wideStart.setFullYear(wideStart.getFullYear() - 3);
-        const [sessionsResult, rulesResult] = await Promise.all([
-          supabase
+        const sessionsQuery = supabase
             .from('upload_sessions')
             .select('created_at')
             .gte('created_at', wideStart.toISOString())
-            .order('created_at', { ascending: true }),
+            .order('created_at', { ascending: true });
+        if (user?.accountId) {
+          sessionsQuery.eq('account_id', user.accountId);
+        }
+        const [sessionsResult, rulesResult] = await Promise.all([
+          sessionsQuery,
           user?.accountId
             ? supabase
                 .from('account_rules')

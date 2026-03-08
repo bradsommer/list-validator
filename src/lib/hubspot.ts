@@ -18,8 +18,8 @@ const CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Load OAuth credentials from app_settings table in Supabase
 async function loadOAuthCredentialsFromDb(): Promise<{ clientId: string; clientSecret: string }> {
-  // Return cached values if fresh
-  if (cachedClientId !== null && Date.now() - credentialsCacheTime < CREDENTIALS_CACHE_TTL) {
+  // Return cached values if fresh — but only if we actually found credentials
+  if (cachedClientId && Date.now() - credentialsCacheTime < CREDENTIALS_CACHE_TTL) {
     return { clientId: cachedClientId, clientSecret: cachedClientSecret || '' };
   }
   try {
@@ -40,9 +40,13 @@ async function loadOAuthCredentialsFromDb(): Promise<{ clientId: string; clientS
         if (row.key === 'hubspot_client_secret') clientSecret = val;
       }
     }
-    cachedClientId = clientId;
-    cachedClientSecret = clientSecret;
-    credentialsCacheTime = Date.now();
+    // Only cache non-empty results — a transient DB failure shouldn't
+    // poison the cache and block all connection checks for 5 minutes.
+    if (clientId) {
+      cachedClientId = clientId;
+      cachedClientSecret = clientSecret;
+      credentialsCacheTime = Date.now();
+    }
     return { clientId, clientSecret };
   } catch {
     return { clientId: '', clientSecret: '' };
