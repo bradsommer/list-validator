@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, getServerSupabase } from '@/lib/supabase';
+
+// Use service-role client (bypasses RLS) with anon fallback
+function getDbClient() {
+  try {
+    return getServerSupabase();
+  } catch {
+    return supabase;
+  }
+}
 
 // GET - list integrations for the current user's account
 export async function GET(request: NextRequest) {
@@ -9,8 +18,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, integrations: [] });
     }
 
-    // In dev mode, return from supabase or mock
-    const { data, error } = await supabase
+    const db = getDbClient();
+    const { data, error } = await db
       .from('account_integrations')
       .select('*')
       .eq('account_id', accountId)
@@ -38,7 +47,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Integration ID required' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const db = getDbClient();
+    const { error } = await db
       .from('account_integrations')
       .delete()
       .eq('id', id);
