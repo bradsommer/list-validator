@@ -117,7 +117,33 @@ export async function fetchAndStoreProperties(accountId: string): Promise<{
 }> {
   const accessToken = await getValidAccessToken(accountId);
   if (!accessToken) {
-    throw new Error('HubSpot not connected');
+    // Check if the table is reachable and give a more specific error
+    try {
+      const db = getServerSupabase();
+      const { data, error } = await db
+        .from('account_integrations')
+        .select('id, is_active')
+        .eq('account_id', accountId)
+        .eq('provider', 'hubspot')
+        .maybeSingle();
+      if (error) {
+        console.error('[HubSpot Re-Sync] DB query failed:', error.message, '(code:', error.code, ')');
+        throw new Error('HubSpot token lookup failed — database error: ' + error.message);
+      }
+      if (!data) {
+        console.error('[HubSpot Re-Sync] No integration row found for account', accountId);
+        throw new Error('HubSpot not connected — no integration record found. Please reconnect via Admin > Integrations.');
+      }
+      if (!data.is_active) {
+        console.error('[HubSpot Re-Sync] Integration row exists but is_active=false for account', accountId);
+        throw new Error('HubSpot integration is inactive. Please reconnect via Admin > Integrations.');
+      }
+      // Row exists and is active, but token retrieval still failed (expired + refresh failed)
+      throw new Error('HubSpot token expired and could not be refreshed. Please reconnect via Admin > Integrations.');
+    } catch (diagErr) {
+      if (diagErr instanceof Error && diagErr.message.startsWith('HubSpot')) throw diagErr;
+      throw new Error('HubSpot not connected');
+    }
   }
 
   const allProperties: HubSpotProperty[] = [];

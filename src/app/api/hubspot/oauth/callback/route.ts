@@ -100,11 +100,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Store tokens to in-memory and database
-    await setTokens(tokens, accountId, portalId);
+    const { persisted } = await setTokens(tokens, accountId, portalId);
     resetClient(accountId);
 
     // Invalidate cached connection status for this account
     cache.invalidate(CACHE_KEYS.hubspotConnection(accountId));
+
+    // If tokens could not be persisted to the database, the connection will
+    // appear lost after a page reload or new deployment. Fail loudly so the
+    // user knows to check server logs / DB configuration.
+    if (!persisted) {
+      console.error('[HubSpot OAuth] Tokens exchanged but NOT persisted to DB. accountId:', accountId);
+      return oauthResultPage({
+        success: false,
+        error: 'Connected to HubSpot but failed to save credentials to database. Check that SUPABASE_SERVICE_ROLE_KEY is set and the account_integrations table exists.',
+      });
+    }
 
     // Auto-fetch HubSpot properties and sync as column headings
     try {
