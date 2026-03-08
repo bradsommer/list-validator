@@ -274,7 +274,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 {/* Account switcher */}
                 {accounts && accounts.length > 1 && (
                   <div className="border-b border-gray-100 py-1">
-                    <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Switch Account</p>
+                    <p className="px-3 py-1 text-xs font-semibold text-black uppercase tracking-wider">Switch Account</p>
                     <div className="max-h-40 overflow-y-auto">
                       {accounts.map((account) => (
                         <button
