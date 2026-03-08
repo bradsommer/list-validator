@@ -315,7 +315,20 @@ export async function setTokens(tokens: HubSpotTokens, accountId?: string, porta
   const acctKey = accountId || '';
   tokenCache.set(acctKey, tokens);
   if (portalId) portalIdCache.set(acctKey, portalId);
-  await saveTokensToDb(tokens, acctKey, portalId);
+
+  const saved = await saveTokensToDb(tokens, acctKey, portalId);
+  if (!saved) {
+    console.error('[HubSpot] CRITICAL: Failed to persist tokens to database for account', acctKey,
+      '— connection will appear lost after server restart or navigation.');
+    // Retry once after a short delay in case of transient DB issues
+    await new Promise(r => setTimeout(r, 1000));
+    const retried = await saveTokensToDb(tokens, acctKey, portalId);
+    if (!retried) {
+      console.error('[HubSpot] CRITICAL: Retry also failed. Tokens are only in memory.');
+    } else {
+      console.log('[HubSpot] Retry succeeded — tokens persisted to DB.');
+    }
+  }
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
