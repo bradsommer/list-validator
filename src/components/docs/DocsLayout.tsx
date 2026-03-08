@@ -21,8 +21,6 @@ const guidesNav: NavItem[] = [
 
 const otherNav: NavItem[] = [
   { href: '/contact', label: 'Contact Us' },
-  { href: '/legal/privacy', label: 'Privacy Policy' },
-  { href: '/legal/terms', label: 'Terms of Use' },
 ];
 
 export function DocsLayout({ children }: { children: ReactNode }) {
