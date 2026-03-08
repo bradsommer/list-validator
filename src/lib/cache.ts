@@ -54,10 +54,13 @@ export const CACHE_TTL = {
   COMPANY_SEARCH: 60 * 1000,     // 1 minute (during sync batches)
 } as const;
 
-// Cache keys
+// Cache keys — per-account where applicable to prevent cross-account contamination
 export const CACHE_KEYS = {
-  HUBSPOT_OWNERS: 'hubspot:owners',
-  HUBSPOT_CONNECTION: 'hubspot:connection',
+  hubspotOwners: (accountId: string) => `hubspot:owners:${accountId}`,
+  hubspotConnection: (accountId: string) => `hubspot:connection:${accountId}`,
   companyDomain: (domain: string) => `company:domain:${domain.toLowerCase()}`,
   companyName: (name: string) => `company:name:${name.toLowerCase()}`,
+  // Legacy constants kept temporarily for any remaining references
+  HUBSPOT_OWNERS: 'hubspot:owners',
+  HUBSPOT_CONNECTION: 'hubspot:connection',
 } as const;

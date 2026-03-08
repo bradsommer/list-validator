@@ -99,12 +99,12 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching HubSpot token info:', err);
     }
 
-    // Store tokens to in-memory, file, and database
+    // Store tokens to in-memory and database
     await setTokens(tokens, accountId, portalId);
-    resetClient();
+    resetClient(accountId);
 
-    // Invalidate cached connection status
-    cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
+    // Invalidate cached connection status for this account
+    cache.invalidate(CACHE_KEYS.hubspotConnection(accountId));
 
     // Auto-fetch HubSpot properties and sync as column headings
     try {

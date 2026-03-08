@@ -266,21 +266,23 @@ async function loadTokensFromDb(accountId: string): Promise<HubSpotTokens | null
 }
 
 export async function getPortalId(accountId?: string): Promise<string | null> {
-  // Check in-memory first (set during setTokens after OAuth callback)
-  if (storedPortalId) return storedPortalId;
+  const acctKey = accountId || '';
+  // Check per-account in-memory cache first (set during setTokens after OAuth callback)
+  const cached = portalIdCache.get(acctKey);
+  if (cached) return cached;
 
   try {
     const db = getDbClient();
     const { data, error } = await db
       .from('account_integrations')
       .select('portal_id')
-      .eq('account_id', accountId || '')
+      .eq('account_id', acctKey)
       .eq('provider', 'hubspot')
       .eq('is_active', true)
       .single();
 
     if (error || !data?.portal_id) return null;
-    storedPortalId = data.portal_id;
+    portalIdCache.set(acctKey, data.portal_id);
     return data.portal_id;
   } catch {
     return null;
@@ -300,24 +302,27 @@ async function clearTokensFromDb(accountId: string): Promise<void> {
   }
 }
 
-// --- Combined token management (in-memory + DB) ---
+// --- Combined token management (per-account in-memory cache + DB) ---
 
-let storedTokens: HubSpotTokens | null = null;
-let storedPortalId: string | null = null;
+const tokenCache = new Map<string, HubSpotTokens>();
+const portalIdCache = new Map<string, string>();
 
 export async function setTokens(tokens: HubSpotTokens, accountId?: string, portalId?: string) {
-  storedTokens = tokens;
-  if (portalId) storedPortalId = portalId;
-  await saveTokensToDb(tokens, accountId || '', portalId);
+  const acctKey = accountId || '';
+  tokenCache.set(acctKey, tokens);
+  if (portalId) portalIdCache.set(acctKey, portalId);
+  await saveTokensToDb(tokens, acctKey, portalId);
 }
 
 export async function getTokens(accountId?: string): Promise<HubSpotTokens | null> {
-  if (storedTokens) return storedTokens;
+  const acctKey = accountId || '';
+  const cached = tokenCache.get(acctKey);
+  if (cached) return cached;
 
   // Load from database (the sole persistent store)
-  const dbTokens = await loadTokensFromDb(accountId || '');
+  const dbTokens = await loadTokensFromDb(acctKey);
   if (dbTokens) {
-    storedTokens = dbTokens;
+    tokenCache.set(acctKey, dbTokens);
     return dbTokens;
   }
 
@@ -325,11 +330,12 @@ export async function getTokens(accountId?: string): Promise<HubSpotTokens | nul
 }
 
 export async function clearTokens(accountId?: string) {
-  storedTokens = null;
-  storedPortalId = null;
-  hubspotClient = null;
-  hubspotClientToken = null;
-  await clearTokensFromDb(accountId || '');
+  const acctKey = accountId || '';
+  tokenCache.delete(acctKey);
+  portalIdCache.delete(acctKey);
+  clientCache.delete(acctKey);
+  clientTokenCache.delete(acctKey);
+  await clearTokensFromDb(acctKey);
 }
 
 export async function getValidAccessToken(accountId?: string): Promise<string | null> {
@@ -344,12 +350,12 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
   // if the user re-authenticated in another request or the token was refreshed.
   const dbTokens = await loadTokensFromDb(acctId);
   if (dbTokens) {
-    storedTokens = dbTokens;
+    tokenCache.set(acctId, dbTokens);
   }
 
-  let tokens = storedTokens || await getTokens(acctId);
+  let tokens = tokenCache.get(acctId) || await getTokens(acctId);
   if (!tokens) {
-    console.log('[HubSpot Auth] No tokens found in DB or memory');
+    console.log('[HubSpot Auth] No tokens found in DB or memory for account', acctId);
     return null;
   }
 
@@ -358,7 +364,7 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
   const bufferMs = 5 * 60 * 1000;
   const isExpired = expiresAt === 0 || now > expiresAt - bufferMs;
 
-  console.log(`[HubSpot Auth] Token check: now=${now}, expires_at=${expiresAt} (type=${typeof tokens.expires_at}), isExpired=${isExpired}, gap=${Math.round((expiresAt - now) / 1000)}s`);
+  console.log(`[HubSpot Auth] Token check (account=${acctId}): now=${now}, expires_at=${expiresAt} (type=${typeof tokens.expires_at}), isExpired=${isExpired}, gap=${Math.round((expiresAt - now) / 1000)}s`);
 
   // Refresh if expired (with 5 min buffer)
   if (isExpired) {
@@ -368,8 +374,8 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
       await setTokens(refreshed, acctId);
       tokens = refreshed;
       // Reset the cached client so it picks up the new token
-      hubspotClient = null;
-      hubspotClientToken = null;
+      clientCache.delete(acctId);
+      clientTokenCache.delete(acctId);
       console.log(`[HubSpot Auth] Token refreshed successfully, new expires_at=${refreshed.expires_at}`);
     } catch (refreshErr) {
       console.error('[HubSpot Auth] Token refresh failed:', refreshErr);
@@ -385,9 +391,9 @@ export async function getValidAccessToken(accountId?: string): Promise<string | 
         }
         // DB has different, non-expired tokens — use them (likely from a re-auth)
         console.log('[HubSpot Auth] Found fresh re-authed token in DB');
-        storedTokens = freshDbTokens;
-        hubspotClient = null;
-        hubspotClientToken = null;
+        tokenCache.set(acctId, freshDbTokens);
+        clientCache.delete(acctId);
+        clientTokenCache.delete(acctId);
         return freshDbTokens.access_token;
       }
       // DB has the same expired token — nothing we can do
@@ -416,10 +422,11 @@ export async function isConnected(accountId?: string): Promise<boolean> {
 // HubSpot Client
 // ============================================================================
 
-let hubspotClient: Client | null = null;
-let hubspotClientToken: string | null = null;
+const clientCache = new Map<string, Client>();
+const clientTokenCache = new Map<string, string>();
 
 export async function getHubSpotClient(accountId?: string): Promise<Client> {
+  const acctKey = accountId || '';
   // Always get a valid token first — this handles refresh and DB re-reads.
   // If the token changed (due to refresh or re-auth), recreate the client.
   const accessToken = await getValidAccessToken(accountId);
@@ -427,17 +434,23 @@ export async function getHubSpotClient(accountId?: string): Promise<Client> {
     throw new Error('HubSpot not connected. Please connect via OAuth in Admin settings.');
   }
 
-  if (!hubspotClient || hubspotClientToken !== accessToken) {
-    hubspotClient = new Client({ accessToken });
-    hubspotClientToken = accessToken;
+  const cachedClient = clientCache.get(acctKey);
+  const cachedToken = clientTokenCache.get(acctKey);
+  if (cachedClient && cachedToken === accessToken) {
+    return cachedClient;
   }
-  return hubspotClient;
+
+  const client = new Client({ accessToken });
+  clientCache.set(acctKey, client);
+  clientTokenCache.set(acctKey, accessToken);
+  return client;
 }
 
 // Reset client when tokens change
-export function resetClient() {
-  hubspotClient = null;
-  hubspotClientToken = null;
+export function resetClient(accountId?: string) {
+  const acctKey = accountId || '';
+  clientCache.delete(acctKey);
+  clientTokenCache.delete(acctKey);
 }
 
 // Search for companies by domain (cached during sync batches)

@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Check cache for connection status
-  const cached = cache.get<ConnectionStatus>(CACHE_KEYS.HUBSPOT_CONNECTION);
+  // Check per-account cache for connection status
+  const connectionCacheKey = CACHE_KEYS.hubspotConnection(accountId);
+  const cached = cache.get<ConnectionStatus>(connectionCacheKey);
   if (cached) {
     const authorizeUrl = cached.connected ? null : await getAuthorizeUrl(accountId);
     return NextResponse.json({
@@ -40,8 +41,8 @@ export async function GET(request: NextRequest) {
   const expiresAt = tokens?.expires_at ? String(tokens.expires_at) : null;
   const portalId = connected ? await getPortalId(accountId) : null;
 
-  // Cache the connection status
-  cache.set<ConnectionStatus>(CACHE_KEYS.HUBSPOT_CONNECTION, {
+  // Cache the connection status per-account
+  cache.set<ConnectionStatus>(connectionCacheKey, {
     connected,
     expiresAt,
     portalId,
@@ -99,7 +100,7 @@ export async function DELETE(request: NextRequest) {
 
   await clearTokens(accountId);
   const removedHeadings = await removeAllHubSpotHeadingsAsync(accountId);
-  cache.invalidate(CACHE_KEYS.HUBSPOT_CONNECTION);
-  cache.invalidate(CACHE_KEYS.HUBSPOT_OWNERS);
+  cache.invalidate(CACHE_KEYS.hubspotConnection(accountId));
+  cache.invalidate(CACHE_KEYS.hubspotOwners(accountId));
   return NextResponse.json({ success: true, connected: false, removedHeadings });
 }
