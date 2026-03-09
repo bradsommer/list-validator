@@ -340,32 +340,29 @@ function Dashboard() {
   // Fetch import sessions and enabled rule count
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.accountId) return;
       setIsLoadingRows(true);
       try {
-        const wideStart = new Date();
-        wideStart.setFullYear(wideStart.getFullYear() - 3);
-        const sessionsQuery = supabase
-            .from('upload_sessions')
-            .select('created_at')
-            .gte('created_at', wideStart.toISOString())
-            .order('created_at', { ascending: true });
-        if (user?.accountId) {
-          sessionsQuery.eq('account_id', user.accountId);
-        }
-        const [sessionsResult, rulesResult] = await Promise.all([
-          sessionsQuery,
-          user?.accountId
-            ? supabase
-                .from('account_rules')
-                .select('id', { count: 'exact', head: true })
-                .eq('account_id', user.accountId)
-                .eq('enabled', true)
-            : Promise.resolve({ count: 0, error: null }),
-        ]);
+        // Fetch sessions via server-side API (uses service-role key, bypasses RLS)
+        const sessionsPromise = fetch('/api/pipeline/sessions', {
+          headers: { 'x-account-id': user.accountId },
+        }).then(async (res) => {
+          if (!res.ok) return [];
+          const json = await res.json();
+          return (json.sessions || []).map((s: { createdAt: string }) => ({
+            created_at: s.createdAt,
+          }));
+        });
 
-        if (!sessionsResult.error && sessionsResult.data) {
-          setRawRows(sessionsResult.data);
-        }
+        const rulesPromise = supabase
+          .from('account_rules')
+          .select('id', { count: 'exact', head: true })
+          .eq('account_id', user.accountId)
+          .eq('enabled', true);
+
+        const [sessions, rulesResult] = await Promise.all([sessionsPromise, rulesPromise]);
+
+        setRawRows(sessions);
         if (!rulesResult.error && rulesResult.count != null) {
           setEnabledRuleCount(rulesResult.count);
         }

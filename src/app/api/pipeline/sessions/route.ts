@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
 
     let query = db
       .from('upload_sessions')
-      .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, expires_at, completed_at, created_at, updated_at')
+      .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at')
       .eq('account_id', accountId)
       .order('created_at', { ascending: false });
 
@@ -195,6 +195,7 @@ export async function GET(request: NextRequest) {
         errorMessage: s.error_message,
         retryCount: s.retry_count,
         maxRetries: s.max_retries,
+        fileSize: s.file_size,
         expiresAt: s.expires_at,
         completedAt: s.completed_at,
         createdAt: s.created_at,
