@@ -333,9 +333,9 @@ function Dashboard() {
   const granularityRef = useRef<HTMLDivElement>(null);
 
   // Raw import rows (shared between chart and time-saved card)
-  const [rawRows, setRawRows] = useState<{ created_at: string }[]>([]);
+  const [rawRows, setRawRows] = useState<{ created_at: string; enabled_rule_count: number | null }[]>([]);
   const [isLoadingRows, setIsLoadingRows] = useState(true);
-  const [enabledRuleCount, setEnabledRuleCount] = useState(0);
+  const [fallbackRuleCount, setFallbackRuleCount] = useState(0);
 
   // Fetch import sessions and enabled rule count
   useEffect(() => {
@@ -349,11 +349,13 @@ function Dashboard() {
         }).then(async (res) => {
           if (!res.ok) return [];
           const json = await res.json();
-          return (json.sessions || []).map((s: { createdAt: string }) => ({
+          return (json.sessions || []).map((s: { createdAt: string; enabledRuleCount?: number | null }) => ({
             created_at: s.createdAt,
+            enabled_rule_count: s.enabledRuleCount ?? null,
           }));
         });
 
+        // Fallback rule count for older sessions that don't have per-session data
         const rulesPromise = supabase
           .from('account_rules')
           .select('id', { count: 'exact', head: true })
@@ -364,7 +366,7 @@ function Dashboard() {
 
         setRawRows(sessions);
         if (!rulesResult.error && rulesResult.count != null) {
-          setEnabledRuleCount(rulesResult.count);
+          setFallbackRuleCount(rulesResult.count);
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -411,21 +413,25 @@ function Dashboard() {
     }
   }, [customStart, customEnd]);
 
-  // Compute filtered import count for time-saved card
-  const filteredImportCount = (() => {
+  // Compute filtered import count and time saved using per-session rule counts
+  const { filteredImportCount, minutesSaved } = (() => {
     const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     rangeStart.setHours(0, 0, 0, 0);
     const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
     rangeEnd.setHours(23, 59, 59, 999);
     let count = 0;
+    let totalMinutes = 0;
     for (const row of rawRows) {
       const d = new Date(row.created_at);
-      if (d >= rangeStart && d <= rangeEnd) count++;
+      if (d >= rangeStart && d <= rangeEnd) {
+        count++;
+        // Use per-session rule count if available, fall back to current account count
+        const ruleCount = row.enabled_rule_count ?? fallbackRuleCount;
+        totalMinutes += ruleCount * 5;
+      }
     }
-    return count;
+    return { filteredImportCount: count, minutesSaved: totalMinutes };
   })();
-
-  const minutesSaved = filteredImportCount * enabledRuleCount * 5;
   const hoursSaved = Math.floor(minutesSaved / 60);
   const remainingMinutes = minutesSaved % 60;
   const timeSavedDisplay = hoursSaved > 0

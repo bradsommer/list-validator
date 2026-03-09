@@ -257,6 +257,7 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
         totalRows: processedData.length,
         fieldMappings: Object.keys(fieldMappings).length > 0 ? fieldMappings : columnMapping || {},
         userId: user?.id || null,
+        enabledRuleCount: enabledScripts.length,
       };
 
       if (encodedContent) {

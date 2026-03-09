@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       fileType,
       fileSize,
       userId,
+      enabledRuleCount,
     } = body as {
       fileName: string;
       totalRows: number;
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
       fileType?: string;
       fileSize?: number;
       userId?: string;
+      enabledRuleCount?: number;
     };
 
     if (!fileName || !totalRows) {
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
       failed_rows: 0,
       field_mappings: fieldMappings || {},
       completed_at: new Date().toISOString(),
+      enabled_rule_count: enabledRuleCount ?? null,
     };
 
     if (fileContent) {
@@ -163,7 +166,7 @@ export async function GET(request: NextRequest) {
 
     let query = db
       .from('upload_sessions')
-      .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at')
+      .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at, enabled_rule_count')
       .eq('account_id', accountId)
       .order('created_at', { ascending: false });
 
@@ -200,6 +203,7 @@ export async function GET(request: NextRequest) {
         completedAt: s.completed_at,
         createdAt: s.created_at,
         updatedAt: s.updated_at,
+        enabledRuleCount: s.enabled_rule_count,
       })),
     });
   } catch (error) {
