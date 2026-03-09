@@ -278,13 +278,15 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
       if (!saveResponse.ok) {
         const errData = await saveResponse.json();
         console.error('Failed to save import history:', errData.error);
-        logError('Import history save failed: ' + (errData.error || 'Unknown error'));
+        logError('export', 'Import history save failed: ' + (errData.error || 'Unknown error'), sessionId);
+        setToast('Warning: Failed to save to import history');
       } else {
-        logSuccess('Import saved to history');
+        logSuccess('export', 'Import saved to history', sessionId);
       }
     } catch (err) {
       console.error('Failed to save import history:', err);
-      logError('Failed to save import history: ' + String(err));
+      logError('export', 'Failed to save import history: ' + String(err), sessionId);
+      setToast('Warning: Failed to save to import history');
     }
 
     // Trigger download
@@ -295,6 +297,9 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
     a.download = `cleaned-data-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+
+    // Brief delay so user can see success/error toast before redirect
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Redirect to dashboard after download starts
     router.push('/');

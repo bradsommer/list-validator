@@ -180,9 +180,13 @@ export async function GET(request: NextRequest) {
 
     const db = getServerSupabase();
 
+    // Try full column set first, fall back to core columns if schema differs
+    const fullColumns = 'id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at, enabled_rule_count';
+    const coreColumns = 'id, file_name, status, total_rows, processed_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at';
+
     let query = db
       .from('upload_sessions')
-      .select('id, file_name, status, total_rows, processed_rows, enriched_rows, synced_rows, failed_rows, error_message, retry_count, max_retries, file_size, expires_at, completed_at, created_at, updated_at, enabled_rule_count')
+      .select(fullColumns)
       .eq('account_id', accountId)
       .order('created_at', { ascending: false });
 
@@ -190,7 +194,25 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', statusFilter);
     }
 
-    const { data, error } = await query;
+    let { data, error } = await query;
+
+    // If query fails (e.g. missing columns), retry with core columns only
+    if (error) {
+      console.warn('Full column query failed, retrying with core columns:', error.message);
+      let coreQuery = db
+        .from('upload_sessions')
+        .select(coreColumns)
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false });
+
+      if (statusFilter) {
+        coreQuery = coreQuery.eq('status', statusFilter);
+      }
+
+      const coreResult = await coreQuery;
+      data = coreResult.data;
+      error = coreResult.error;
+    }
 
     if (error) {
       console.error('Failed to fetch sessions:', error.message);
@@ -206,11 +228,11 @@ export async function GET(request: NextRequest) {
         id: s.id,
         fileName: s.file_name,
         status: s.status,
-        totalRows: s.total_rows,
-        processedRows: s.processed_rows,
-        enrichedRows: s.enriched_rows,
-        syncedRows: s.synced_rows,
-        failedRows: s.failed_rows,
+        totalRows: s.total_rows ?? 0,
+        processedRows: s.processed_rows ?? 0,
+        enrichedRows: s.enriched_rows ?? 0,
+        syncedRows: s.synced_rows ?? 0,
+        failedRows: s.failed_rows ?? 0,
         errorMessage: s.error_message,
         retryCount: s.retry_count,
         maxRetries: s.max_retries,
