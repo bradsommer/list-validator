@@ -59,41 +59,57 @@ export async function POST(request: NextRequest) {
       sessionRecord.file_size = fileSize || 0;
     }
 
-    const { data, error: insertError } = await db
+    // Try insert, with progressive fallbacks for column compatibility
+    let result = await db
       .from('upload_sessions')
       .insert(sessionRecord)
       .select('id')
       .single();
 
-    // If the full insert fails (e.g. file_content column missing), retry without file columns
-    if (insertError && fileContent) {
-      console.warn('Insert with file content failed, retrying without:', insertError.message);
+    // Fallback 1: retry without file columns (e.g. file_content column missing)
+    if (result.error && fileContent) {
+      console.warn('Insert with file content failed, retrying without:', result.error.message);
       delete sessionRecord.file_content;
       delete sessionRecord.file_type;
       delete sessionRecord.file_size;
-      const { data: retryData, error: retryError } = await db
+      result = await db
         .from('upload_sessions')
         .insert(sessionRecord)
         .select('id')
         .single();
+    }
 
-      if (retryError) {
-        console.error('Failed to save import history:', retryError.message);
-        return NextResponse.json(
-          { success: false, error: 'Failed to save import session' },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json({ success: true, sessionId: retryData?.id });
-    } else if (insertError) {
-      console.error('Failed to save import history:', insertError.message);
+    // Fallback 2: retry without user_id (FK constraint may fail if user not in users table)
+    if (result.error && sessionRecord.user_id) {
+      console.warn('Insert with user_id failed, retrying without:', result.error.message);
+      sessionRecord.user_id = null;
+      result = await db
+        .from('upload_sessions')
+        .insert(sessionRecord)
+        .select('id')
+        .single();
+    }
+
+    // Fallback 3: retry without enabled_rule_count (column may not exist)
+    if (result.error && sessionRecord.enabled_rule_count !== undefined) {
+      console.warn('Insert with enabled_rule_count failed, retrying without:', result.error.message);
+      delete sessionRecord.enabled_rule_count;
+      result = await db
+        .from('upload_sessions')
+        .insert(sessionRecord)
+        .select('id')
+        .single();
+    }
+
+    if (result.error) {
+      console.error('Failed to save import history after all retries:', result.error.message);
       return NextResponse.json(
-        { success: false, error: 'Failed to save import session' },
+        { success: false, error: `Failed to save import session: ${result.error.message}` },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true, sessionId: data?.id });
+    return NextResponse.json({ success: true, sessionId: result.data?.id });
   } catch (error) {
     console.error('Save session error:', error);
     return NextResponse.json(
