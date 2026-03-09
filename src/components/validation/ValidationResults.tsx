@@ -278,9 +278,13 @@ export function ValidationResults({ onCancel }: { onCancel?: () => void }) {
       if (!saveResponse.ok) {
         const errData = await saveResponse.json();
         console.error('Failed to save import history:', errData.error);
+        logError('Import history save failed: ' + (errData.error || 'Unknown error'));
+      } else {
+        logSuccess('Import saved to history');
       }
     } catch (err) {
       console.error('Failed to save import history:', err);
+      logError('Failed to save import history: ' + String(err));
     }
 
     // Trigger download
