@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ImportSession {
   id: string;
@@ -55,6 +55,7 @@ function daysUntilExpiry(expiresAt: string): { days: number; label: string; urge
 }
 
 export default function ImportHistoryPage() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -63,37 +64,30 @@ export default function ImportHistoryPage() {
 
   useEffect(() => {
     const fetchHistory = async () => {
+      if (!user?.accountId) return;
       setIsLoading(true);
       try {
-        // Only show fully completed imports (synced to HubSpot)
-        let query = supabase
-          .from('upload_sessions')
-          .select('id, file_name, status, total_rows, enriched_rows, synced_rows, failed_rows, file_size, expires_at, created_at, error_message')
-          .in('status', ['completed', 'failed', 'expired'])
-          .order('created_at', { ascending: false })
-          .limit(50);
+        const statusParam = filter !== 'all' ? `?status=${filter}` : '';
+        const response = await fetch(`/api/pipeline/sessions${statusParam}`, {
+          headers: { 'x-account-id': user.accountId },
+        });
 
-        if (filter !== 'all') {
-          query = query.eq('status', filter);
-        }
-
-        const { data, error } = await query;
-
-        if (!error && data) {
+        if (response.ok) {
+          const json = await response.json();
           setSessions(
-            data.map((s: Record<string, unknown>) => ({
+            (json.sessions || []).map((s: Record<string, unknown>) => ({
               id: s.id as string,
-              fileName: s.file_name as string,
+              fileName: s.fileName as string,
               status: s.status as string,
-              totalRows: s.total_rows as number,
-              enrichedRows: s.enriched_rows as number,
-              syncedRows: s.synced_rows as number,
-              failedRows: s.failed_rows as number,
-              hasFile: !!(s.file_size),
-              fileSize: s.file_size as number | null,
-              expiresAt: s.expires_at as string,
-              createdAt: s.created_at as string,
-              errorMessage: s.error_message as string | null,
+              totalRows: s.totalRows as number,
+              enrichedRows: s.enrichedRows as number,
+              syncedRows: s.syncedRows as number,
+              failedRows: s.failedRows as number,
+              hasFile: !!(s.fileSize),
+              fileSize: (s.fileSize as number | null) ?? null,
+              expiresAt: s.expiresAt as string,
+              createdAt: s.createdAt as string,
+              errorMessage: s.errorMessage as string | null,
             }))
           );
         }
@@ -105,7 +99,7 @@ export default function ImportHistoryPage() {
     };
 
     fetchHistory();
-  }, [filter]);
+  }, [filter, user?.accountId]);
 
   const handleDownload = async (session: ImportSession) => {
     setDownloadingId(session.id);
@@ -166,7 +160,10 @@ export default function ImportHistoryPage() {
   const handleClearHistory = async () => {
     if (!confirm('Are you sure you want to clear all import history? This cannot be undone.')) return;
     try {
-      const response = await fetch('/api/pipeline/sessions', { method: 'DELETE' });
+      const response = await fetch('/api/pipeline/sessions', {
+        method: 'DELETE',
+        headers: { 'x-account-id': user?.accountId || '' },
+      });
       if (response.ok) {
         setSessions([]);
       } else {
