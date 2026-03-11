@@ -168,18 +168,10 @@ function QuestionInput({ question, answer, onAnswer }: QuestionInputProps) {
   const showOverride = question.questionType !== 'text';
 
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-medium text-gray-900">
-            {question.questionText}
-            {question.isRequired && <span className="text-red-500 ml-1">*</span>}
-          </h4>
-          <p className="text-sm text-gray-500 mt-1">
-            Column: <strong>{question.columnHeader}</strong>
-          </p>
-        </div>
-      </div>
+    <div>
+      <p className="text-sm text-gray-500 mb-3">
+        Column: <strong>{question.columnHeader}</strong>
+      </p>
 
       {/* Main input */}
       <div className="mb-3">{renderInput()}</div>
@@ -239,6 +231,7 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
 
   const [questions, setQuestions] = useState<ImportQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeQuestions, setActiveQuestions] = useState<Record<string, boolean>>({});
 
   const accountId = user?.accountId || 'default';
 
@@ -251,10 +244,16 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
       const data = await response.json();
       if (data.success) {
         // Show all enabled questions
-        const activeQuestions = data.questions.filter(
+        const enabledQuestions = data.questions.filter(
           (q: ImportQuestion) => q.enabled
         );
-        setQuestions(activeQuestions);
+        setQuestions(enabledQuestions);
+        // Default all questions to active (toggled on)
+        const defaults: Record<string, boolean> = {};
+        enabledQuestions.forEach((q: ImportQuestion) => {
+          defaults[q.id] = true;
+        });
+        setActiveQuestions(defaults);
       }
     } catch (error) {
       console.error('Failed to load questions:', error);
@@ -270,10 +269,17 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
     setQuestionAnswer(questionId, answer);
   };
 
+  const toggleQuestion = (questionId: string) => {
+    setActiveQuestions((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+  };
+
   const handleContinue = () => {
-    // Validate required questions
+    // Validate required questions (only if toggled on)
     for (const question of questions) {
-      if (question.isRequired) {
+      if (question.isRequired && activeQuestions[question.id]) {
         const answer = questionAnswers[question.id];
         if (!answer || !answer.value.trim()) {
           alert(`Please answer the required question: "${question.questionText}"`);
@@ -282,10 +288,11 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
       }
     }
 
-    // Build a map of column header → value to apply from user answers
+    // Build a map of column header → value to apply from user answers (only active questions)
     const columnsToAdd: Record<string, string> = {};
 
     for (const question of questions) {
+      if (!activeQuestions[question.id]) continue;
       const answer = questionAnswers[question.id];
       if (answer && answer.value.trim()) {
         columnsToAdd[question.columnHeader] = answer.value;
@@ -369,14 +376,53 @@ export function ImportQuestionsStep({ onCancel }: { onCancel?: () => void }) {
       </div>
 
       <div className="space-y-4">
-        {questions.map((question) => (
-          <QuestionInput
-            key={question.id}
-            question={question}
-            answer={questionAnswers[question.id]}
-            onAnswer={(answer) => handleAnswer(question.id, answer)}
-          />
-        ))}
+        {questions.map((question) => {
+          const isActive = activeQuestions[question.id] ?? true;
+          return (
+            <div key={question.id} className={`border rounded-lg ${isActive ? '' : 'bg-gray-50'}`}>
+              <div
+                className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                onClick={() => toggleQuestion(question.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      isActive ? 'bg-primary-500' : 'bg-gray-300'
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleQuestion(question.id);
+                    }}
+                    aria-label={`Toggle ${question.questionText}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        isActive ? 'left-5' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                  <span className={`font-medium ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {question.questionText}
+                    {question.isRequired && isActive && <span className="text-red-500 ml-1">*</span>}
+                  </span>
+                </div>
+                {!isActive && (
+                  <span className="text-xs text-gray-400">Skipped — column will not be added</span>
+                )}
+              </div>
+              {isActive && (
+                <div className="px-4 pb-4">
+                  <QuestionInput
+                    question={{ ...question, isRequired: false }}
+                    answer={questionAnswers[question.id]}
+                    onAnswer={(answer) => handleAnswer(question.id, answer)}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t">
