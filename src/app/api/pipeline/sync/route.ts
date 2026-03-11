@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the session
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await getServerSupabase()
       .from('upload_sessions')
       .select('*')
       .eq('id', sessionId)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session status
-    await supabase
+    await getServerSupabase()
       .from('upload_sessions')
       .update({
         status: 'syncing',
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     while (hasMore) {
       // Fetch rows that need syncing (enriched or previously failed)
-      const { data: rows, error: fetchError } = await supabase
+      const { data: rows, error: fetchError } = await getServerSupabase()
         .from('upload_rows')
         .select('*')
         .eq('session_id', sessionId)
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
       for (const row of rows) {
         // Mark row as syncing
-        await supabase
+        await getServerSupabase()
           .from('upload_rows')
           .update({ status: 'syncing' })
           .eq('id', row.id);
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           const result = await processRowForHubSpot(row.row_index, mergedData, {}, taskAssigneeId);
 
           // Mark as synced
-          await supabase
+          await getServerSupabase()
             .from('upload_rows')
             .update({
               status: 'synced',
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'HubSpot sync error';
 
-          await supabase
+          await getServerSupabase()
             .from('upload_rows')
             .update({
               status: 'failed',
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update session progress
-        await supabase
+        await getServerSupabase()
           .from('upload_sessions')
           .update({
             synced_rows: totalSynced,
@@ -151,13 +151,13 @@ export async function POST(request: NextRequest) {
 
     if (allSynced) {
       // Delete all synced rows — PII is cleared
-      await supabase
+      await getServerSupabase()
         .from('upload_rows')
         .delete()
         .eq('session_id', sessionId)
         .eq('status', 'synced');
 
-      await supabase
+      await getServerSupabase()
         .from('upload_sessions')
         .update({
           status: 'completed',
@@ -177,13 +177,13 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Some rows failed — keep failed rows for retry, delete synced ones
-      await supabase
+      await getServerSupabase()
         .from('upload_rows')
         .delete()
         .eq('session_id', sessionId)
         .eq('status', 'synced');
 
-      await supabase
+      await getServerSupabase()
         .from('upload_sessions')
         .update({
           status: 'failed',

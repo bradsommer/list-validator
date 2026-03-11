@@ -146,7 +146,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
         .limit(1);
 
       if (!superAdmins || superAdmins.length === 0) {
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({ role: 'super_admin' })
           .eq('id', user.id);
@@ -260,7 +260,7 @@ export async function logoutUser(token: string): Promise<boolean> {
 // Validate session token and return user
 export async function validateSession(token: string): Promise<User | null> {
   try {
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await getServerSupabase()
       .from('user_sessions')
       .select('*, user:users(*, account:accounts(id, name))')
       .eq('token', token)

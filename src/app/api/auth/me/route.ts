@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
           : user.username.split('@')[0] + "'s Account";
         const slug = user.username.split('@')[0] + '-' + Date.now();
 
-        const { data: newAccount } = await supabase
+        const { data: newAccount } = await getServerSupabase()
           .from('accounts')
           .insert({ name: accountName, slug })
           .select()
           .single();
 
         if (newAccount) {
-          await supabase
+          await getServerSupabase()
             .from('users')
             .update({ account_id: newAccount.id })
             .eq('id', user.id);
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     // Check subscription status for non-admin users
     let subscriptionInactive = false;
     if (user.role !== 'super_admin' && user.role !== 'company_admin' && user.role !== 'admin') {
-      const { data: dbUser } = await supabase
+      const { data: dbUser } = await getServerSupabase()
         .from('users')
         .select('subscription_status, subscription_cancelled_at')
         .eq('id', user.id)
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Fetch accounts for multi-account users (same email, different accounts)
     let accounts: { userId: string; accountId: string; accountName: string; role: string }[] = [];
     if (user.username) {
-      const { data: userRows } = await supabase
+      const { data: userRows } = await getServerSupabase()
         .from('users')
         .select('id, role, account_id, accounts!inner(id, name)')
         .eq('username', user.username)

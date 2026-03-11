@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Check subscription status for non-admin users
     let subscriptionInactive = false;
     if (result.user && result.user.role !== 'super_admin' && result.user.role !== 'company_admin' && result.user.role !== 'admin') {
-      const { data: dbUser } = await supabase
+      const { data: dbUser } = await getServerSupabase()
         .from('users')
         .select('subscription_status, subscription_cancelled_at')
         .eq('id', result.user.id)

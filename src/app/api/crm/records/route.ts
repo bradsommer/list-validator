@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     // Check for existing record by dedup key
     if (dedupKey) {
-      const { data: existing } = await supabase
+      const { data: existing } = await getServerSupabase()
         .from('crm_records')
         .select('id, properties')
         .eq('account_id', accountId)
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         if (hubspotRecordId) updateData.hubspot_record_id = hubspotRecordId;
         if (uploadSessionId) updateData.upload_session_id = uploadSessionId;
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await getServerSupabase()
           .from('crm_records')
           .update(updateData)
           .eq('id', existing.id)
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new record
-    const { data: created, error } = await supabase
+    const { data: created, error } = await getServerSupabase()
       .from('crm_records')
       .insert({
         account_id: accountId,
@@ -170,7 +170,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { count, error } = await supabase
+    const { count, error } = await getServerSupabase()
       .from('crm_records')
       .delete({ count: 'exact' })
       .eq('account_id', accountId)

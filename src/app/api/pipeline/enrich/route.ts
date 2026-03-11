@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the session
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await getServerSupabase()
       .from('upload_sessions')
       .select('*')
       .eq('id', sessionId)
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     let configs: EnrichmentConfig[] = [];
 
     if (configIds.length > 0) {
-      const { data: configData } = await supabase
+      const { data: configData } = await getServerSupabase()
         .from('enrichment_configs')
         .select('*, ai_model:ai_models!ai_model_id(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
         .in('id', configIds)
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session status
-    await supabase
+    await getServerSupabase()
       .from('upload_sessions')
       .update({ status: 'enriching', error_message: null })
       .eq('id', sessionId);
@@ -100,18 +100,18 @@ export async function POST(request: NextRequest) {
     // If no enrichment configs, skip straight to enriched
     if (configs.length === 0) {
       // Mark all rows as enriched
-      await supabase
+      await getServerSupabase()
         .from('upload_rows')
         .update({ status: 'enriched' })
         .eq('session_id', sessionId)
         .eq('status', 'pending');
 
-      const { count } = await supabase
+      const { count } = await getServerSupabase()
         .from('upload_rows')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId);
 
-      await supabase
+      await getServerSupabase()
         .from('upload_sessions')
         .update({
           status: 'enriched',
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     while (hasMore) {
       // Fetch a batch of pending rows
-      const { data: rows, error: fetchError } = await supabase
+      const { data: rows, error: fetchError } = await getServerSupabase()
         .from('upload_rows')
         .select('*')
         .eq('session_id', sessionId)
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 
       for (const row of rows) {
         // Mark row as enriching
-        await supabase
+        await getServerSupabase()
           .from('upload_rows')
           .update({ status: 'enriching' })
           .eq('id', row.id);
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update the row
-        await supabase
+        await getServerSupabase()
           .from('upload_rows')
           .update({
             enriched_data: enrichedData,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
         if (rowSuccess) totalEnriched++;
 
         // Update session progress
-        await supabase
+        await getServerSupabase()
           .from('upload_sessions')
           .update({
             processed_rows: totalProcessed,
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session to enriched
-    await supabase
+    await getServerSupabase()
       .from('upload_sessions')
       .update({
         status: 'enriched',

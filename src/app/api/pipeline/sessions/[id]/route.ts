@@ -27,7 +27,7 @@ export async function GET(
     }
 
     // Get summary of row statuses
-    const { data: statusCounts } = await supabase
+    const { data: statusCounts } = await getServerSupabase()
       .from('upload_rows')
       .select('status')
       .eq('session_id', sessionId);
@@ -40,7 +40,7 @@ export async function GET(
     }
 
     // Get failed rows with their errors (limited to first 100)
-    const { data: failedRows } = await supabase
+    const { data: failedRows } = await getServerSupabase()
       .from('upload_rows')
       .select('row_index, error_message, status')
       .eq('session_id', sessionId)
@@ -93,7 +93,7 @@ export async function DELETE(
     const accountId = request.headers.get('x-account-id');
 
     // Delete rows first (cascade should handle this, but be explicit)
-    await supabase
+    await getServerSupabase()
       .from('upload_rows')
       .delete()
       .eq('session_id', sessionId);
