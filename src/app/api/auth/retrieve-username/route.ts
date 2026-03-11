@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user by username (which is their email)
-    const { data: user } = await supabase
+    const { data: user } = await getServerSupabase()
       .from('users')
       .select('username')
       .eq('username', email.toLowerCase().trim())

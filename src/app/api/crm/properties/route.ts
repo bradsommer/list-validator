@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const objectType = request.nextUrl.searchParams.get('objectType') || 'contacts';
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('crm_properties')
       .select('*')
       .eq('account_id', accountId)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const sanitizedName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_');
 
     // Get max sort_order for this object type
-    const { data: maxOrder } = await supabase
+    const { data: maxOrder } = await getServerSupabase()
       .from('crm_properties')
       .select('sort_order')
       .eq('account_id', accountId)
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     const nextOrder = (maxOrder?.sort_order || 0) + 1;
 
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('crm_properties')
       .insert({
         account_id: accountId,
@@ -127,7 +127,7 @@ export async function PATCH(request: NextRequest) {
     if (options !== undefined) updateData.options = options;
     if (isRequired !== undefined) updateData.is_required = isRequired;
 
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('crm_properties')
       .update(updateData)
       .eq('id', id)
@@ -159,7 +159,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     // Check it's not a system property
-    const { data: prop } = await supabase
+    const { data: prop } = await getServerSupabase()
       .from('crm_properties')
       .select('is_system')
       .eq('id', id)
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('crm_properties')
       .delete()
       .eq('id', id)

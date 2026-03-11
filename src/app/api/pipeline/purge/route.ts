@@ -8,7 +8,7 @@ export async function POST() {
     const now = new Date().toISOString();
 
     // Find expired sessions that still have data
-    const { data: expiredSessions, error: fetchError } = await supabase
+    const { data: expiredSessions, error: fetchError } = await getServerSupabase()
       .from('upload_sessions')
       .select('id, file_name, status, total_rows')
       .lt('expires_at', now)
@@ -36,7 +36,7 @@ export async function POST() {
 
     for (const session of expiredSessions) {
       // Delete all rows for this session
-      const { error: deleteRowsError } = await supabase
+      const { error: deleteRowsError } = await getServerSupabase()
         .from('upload_rows')
         .delete()
         .eq('session_id', session.id);
@@ -47,7 +47,7 @@ export async function POST() {
       }
 
       // Mark session as expired, clear stored file content (keep metadata for audit)
-      await supabase
+      await getServerSupabase()
         .from('upload_sessions')
         .update({
           status: 'expired',

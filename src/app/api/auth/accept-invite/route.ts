@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find valid invite token
-    const { data: resetToken } = await supabase
+    const { data: resetToken } = await getServerSupabase()
       .from('password_reset_tokens')
       .select('id, user_id')
       .eq('token', token)
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the user to verify they already have a password (existing user)
-    const { data: user } = await supabase
+    const { data: user } = await getServerSupabase()
       .from('users')
       .select('id, password_hash')
       .eq('id', resetToken.user_id)
@@ -54,13 +54,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Activate the user record for this account
-    await supabase
+    await getServerSupabase()
       .from('users')
       .update({ is_active: true })
       .eq('id', resetToken.user_id);
 
     // Delete used token
-    await supabase
+    await getServerSupabase()
       .from('password_reset_tokens')
       .delete()
       .eq('id', resetToken.id);

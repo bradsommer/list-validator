@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up the target user with account info
-    const { data: targetUser, error } = await supabase
+    const { data: targetUser, error } = await getServerSupabase()
       .from('users')
       .select('*, account:accounts(name)')
       .eq('id', userId)
