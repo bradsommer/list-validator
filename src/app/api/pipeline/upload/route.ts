@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 const BATCH_INSERT_SIZE = 500;
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (fileType) sessionInsert.file_type = fileType;
     if (fileSize) sessionInsert.file_size = fileSize;
 
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await getServerSupabase()
       .from('upload_sessions')
       .insert(sessionInsert)
       .select()
@@ -75,14 +75,14 @@ export async function POST(request: NextRequest) {
         status: 'pending',
       }));
 
-      const { error: rowError } = await supabase
+      const { error: rowError } = await getServerSupabase()
         .from('upload_rows')
         .insert(batch);
 
       if (rowError) {
         console.error(`Failed to insert row batch starting at ${i}:`, rowError.message);
         // Clean up the session on failure
-        await supabase.from('upload_sessions').delete().eq('id', session.id);
+        await getServerSupabase().from('upload_sessions').delete().eq('id', session.id);
         return NextResponse.json(
           { success: false, error: `Failed to store rows (batch starting at row ${i})` },
           { status: 500 }

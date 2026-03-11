@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
+import { fetchAccountRules, type AccountRule } from '@/lib/client/accountRules';
 
 export function RulesStep({ onCancel }: { onCancel?: () => void }) {
   const { user } = useAuth();

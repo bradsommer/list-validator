@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { validateSession } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover',
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         customerEmail = sessionUser.username;
 
         // Look up existing Stripe customer ID
-        const { data: dbUser } = await supabase
+        const { data: dbUser } = await getServerSupabase()
           .from('users')
           .select('stripe_customer_id')
           .eq('id', sessionUser.id)

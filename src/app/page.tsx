@@ -7,7 +7,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ImportsChart, RANGE_PRESETS, DEFAULT_RANGE_INDEX } from '@/components/dashboard/ImportsChart';
 import type { Granularity, RangePreset } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
-import { supabase } from '@/lib/supabase';
 
 function ComingSoonPage() {
   return (
@@ -356,17 +355,14 @@ function Dashboard() {
         });
 
         // Fallback rule count for older sessions that don't have per-session data
-        const rulesPromise = supabase
-          .from('account_rules')
-          .select('id', { count: 'exact', head: true })
-          .eq('account_id', user.accountId)
-          .eq('enabled', true);
+        const rulesPromise = fetch(`/api/dashboard-stats?accountId=${encodeURIComponent(user.accountId)}`)
+          .then((r) => r.json());
 
         const [sessions, rulesResult] = await Promise.all([sessionsPromise, rulesPromise]);
 
         setRawRows(sessions);
-        if (!rulesResult.error && rulesResult.count != null) {
-          setFallbackRuleCount(rulesResult.count);
+        if (rulesResult.enabledRulesCount != null) {
+          setFallbackRuleCount(rulesResult.enabledRulesCount);
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);

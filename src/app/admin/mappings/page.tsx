@@ -13,7 +13,7 @@ import {
   clearMappingHistoryAsync,
   updateMappingHistoryEntry,
   updateMappingHistoryEntryAsync,
-} from '@/lib/columnHeadings';
+} from '@/lib/client/columnHeadings';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';
 

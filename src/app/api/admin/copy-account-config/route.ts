@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 /**
  * POST /api/admin/copy-account-config
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // --- Copy Rules ---
-    const { data: sourceRules, error: rulesError } = await supabase
+    const { data: sourceRules, error: rulesError } = await getServerSupabase()
       .from('account_rules')
       .select('*')
       .eq('account_id', sourceAccountId);
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete existing rules on target first
-    await supabase.from('account_rules').delete().eq('account_id', targetAccountId);
+    await getServerSupabase().from('account_rules').delete().eq('account_id', targetAccountId);
 
     let rulesCopied = 0;
     if (sourceRules && sourceRules.length > 0) {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         display_order: r.display_order,
       }));
 
-      const { error: insertError } = await supabase.from('account_rules').insert(newRules);
+      const { error: insertError } = await getServerSupabase().from('account_rules').insert(newRules);
       if (insertError) {
         return NextResponse.json({ success: false, error: 'Failed to copy rules: ' + insertError.message }, { status: 500 });
       }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // --- Copy Import Questions ---
-    const { data: sourceQuestions, error: questionsError } = await supabase
+    const { data: sourceQuestions, error: questionsError } = await getServerSupabase()
       .from('import_questions')
       .select('*')
       .eq('account_id', sourceAccountId);
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete existing questions on target first
-    await supabase.from('import_questions').delete().eq('account_id', targetAccountId);
+    await getServerSupabase().from('import_questions').delete().eq('account_id', targetAccountId);
 
     let questionsCopied = 0;
     if (sourceQuestions && sourceQuestions.length > 0) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         enabled: q.enabled,
       }));
 
-      const { error: insertError } = await supabase.from('import_questions').insert(newQuestions);
+      const { error: insertError } = await getServerSupabase().from('import_questions').insert(newQuestions);
       if (insertError) {
         return NextResponse.json({ success: false, error: 'Failed to copy questions: ' + insertError.message }, { status: 500 });
       }

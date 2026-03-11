@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { supabase } from '@/lib/supabase';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import type { EnrichmentConfig } from '@/types';
 
@@ -52,14 +51,13 @@ export function EnrichmentPanel() {
     const fetchConfigs = async () => {
       setIsLoadingConfigs(true);
       try {
-        const { data, error } = await supabase
-          .from('enrichment_configs')
-          .select('*, ai_model:ai_models!ai_model_id(name, provider, model_id, api_key_encrypted, use_env_key, env_key_name, base_url)')
-          .eq('is_enabled', true)
-          .order('execution_order');
+        const res = await fetch('/api/admin/enrichment-configs?enabledOnly=true');
+        const json = await res.json();
+        const data = json.data;
+        const error = json.error;
 
         if (error) {
-          console.error('Failed to fetch enrichment configs:', error.message);
+          console.error('Failed to fetch enrichment configs:', error);
         } else if (data) {
           // Log raw data to debug ai_model join issues
           console.log('Raw enrichment configs from DB:', JSON.stringify(data.map((d: Record<string, unknown>) => ({

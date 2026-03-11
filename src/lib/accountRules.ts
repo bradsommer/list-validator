@@ -3,7 +3,7 @@
  * Rules are defined in TypeScript but enabled/configured per-account in the database.
  */
 
-import { supabase } from './supabase';
+import { getServerSupabase } from './supabase';
 
 export interface AccountRule {
   id: string;
@@ -60,7 +60,7 @@ function mapDbToAccountRule(row: DbAccountRule): AccountRule {
  */
 export async function fetchAccountRules(accountId: string): Promise<AccountRule[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('account_rules')
       .select('*')
       .eq('account_id', accountId)
@@ -83,7 +83,7 @@ export async function fetchAccountRules(accountId: string): Promise<AccountRule[
  */
 export async function fetchEnabledRules(accountId: string): Promise<AccountRule[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('account_rules')
       .select('*')
       .eq('account_id', accountId)
@@ -111,7 +111,7 @@ export async function toggleRuleEnabled(
   enabled: boolean
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('account_rules')
       .update({ enabled })
       .eq('account_id', accountId)
@@ -146,7 +146,7 @@ export async function updateRuleConfig(
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.sourceCode !== undefined) dbUpdates.source_code = updates.sourceCode;
 
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('account_rules')
       .update(dbUpdates)
       .eq('account_id', accountId)
@@ -291,7 +291,7 @@ export async function initializeAccountRules(
   try {
     // If a source account is specified, try to copy from it
     if (sourceAccountId) {
-      const { data: sourceRules } = await supabase
+      const { data: sourceRules } = await getServerSupabase()
         .from('account_rules')
         .select('*')
         .eq('account_id', sourceAccountId);
@@ -309,7 +309,7 @@ export async function initializeAccountRules(
           display_order: r.display_order,
         }));
 
-        const { error } = await supabase.from('account_rules').insert(newRules);
+        const { error } = await getServerSupabase().from('account_rules').insert(newRules);
         if (!error) return true;
         console.error('[accountRules] Failed to copy rules from', sourceAccountId, error);
       }
@@ -328,7 +328,7 @@ export async function initializeAccountRules(
       display_order: rule.display_order,
     }));
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getServerSupabase()
       .from('account_rules')
       .insert(newRules);
 
@@ -352,7 +352,7 @@ export async function deleteAccountRule(
   ruleId: string
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('account_rules')
       .delete()
       .eq('account_id', accountId)
@@ -388,7 +388,7 @@ export async function createAccountRule(
   }
 ): Promise<AccountRule | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('account_rules')
       .insert({
         account_id: accountId,

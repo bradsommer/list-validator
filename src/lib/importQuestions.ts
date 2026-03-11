@@ -3,7 +3,7 @@
  * Questions are shown during list import to set column values for all rows.
  */
 
-import { supabase } from './supabase';
+import { getServerSupabase } from './supabase';
 
 /**
  * Question input types:
@@ -73,7 +73,7 @@ function mapDbToImportQuestion(row: DbImportQuestion): ImportQuestion {
  */
 export async function fetchImportQuestions(accountId: string): Promise<ImportQuestion[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('import_questions')
       .select('*')
       .eq('account_id', accountId)
@@ -96,7 +96,7 @@ export async function fetchImportQuestions(accountId: string): Promise<ImportQue
  */
 export async function fetchEnabledImportQuestions(accountId: string): Promise<ImportQuestion[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('import_questions')
       .select('*')
       .eq('account_id', accountId)
@@ -134,7 +134,7 @@ export async function createImportQuestion(
   }
 ): Promise<ImportQuestion | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('import_questions')
       .insert({
         account_id: accountId,
@@ -195,7 +195,7 @@ export async function updateImportQuestion(
     if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled;
 
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('import_questions')
       .update(dbUpdates)
       .eq('id', questionId);
@@ -217,7 +217,7 @@ export async function updateImportQuestion(
  */
 export async function deleteImportQuestion(questionId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('import_questions')
       .delete()
       .eq('id', questionId);
@@ -284,7 +284,7 @@ export async function initializeAccountQuestions(
   try {
     // If a source account is specified, try to copy from it
     if (sourceAccountId) {
-      const { data: sourceQuestions, error: fetchError } = await supabase
+      const { data: sourceQuestions, error: fetchError } = await getServerSupabase()
         .from('import_questions')
         .select('*')
         .eq('account_id', sourceAccountId);
@@ -304,7 +304,7 @@ export async function initializeAccountQuestions(
           enabled: q.enabled,
         }));
 
-        const { error: insertError } = await supabase
+        const { error: insertError } = await getServerSupabase()
           .from('import_questions')
           .insert(newQuestions);
 
@@ -319,7 +319,7 @@ export async function initializeAccountQuestions(
       ...q,
     }));
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getServerSupabase()
       .from('import_questions')
       .insert(newQuestions);
 

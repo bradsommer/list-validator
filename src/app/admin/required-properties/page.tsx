@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';
 
@@ -49,14 +48,11 @@ export default function RequiredPropertiesPage() {
       }
 
       // Fetch saved required fields from app_settings
-      const { data: setting } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'required_properties')
-        .single();
+      const settingRes = await fetch('/api/admin/app-settings?key=required_properties');
+      const settingJson = await settingRes.json();
 
-      if (setting?.value) {
-        const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      if (settingJson.data) {
+        const parsed = typeof settingJson.data === 'string' ? JSON.parse(settingJson.data) : settingJson.data;
         if (Array.isArray(parsed)) {
           setRequiredFields(parsed);
         }
@@ -81,15 +77,15 @@ export default function RequiredPropertiesPage() {
     setIsSaving(true);
     setSaveMessage(null);
     try {
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert(
-          { key: 'required_properties', value: JSON.stringify(requiredFields) },
-          { onConflict: 'key' }
-        );
+      const saveRes = await fetch('/api/admin/app-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'required_properties', value: JSON.stringify(requiredFields) }),
+      });
+      const saveJson = await saveRes.json();
 
-      if (error) {
-        setSaveMessage({ type: 'error', text: 'Failed to save: ' + error.message });
+      if (saveJson.error) {
+        setSaveMessage({ type: 'error', text: 'Failed to save: ' + saveJson.error });
       } else {
         setSaveMessage({ type: 'success', text: 'Required properties saved successfully' });
       }

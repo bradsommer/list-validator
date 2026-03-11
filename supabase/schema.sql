@@ -645,39 +645,12 @@ ALTER TABLE crm_records ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
 
--- Policies for authenticated users
-CREATE POLICY "Allow all for authenticated" ON accounts FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON users FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON user_sessions FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON ai_models FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON hubspot_fields FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON header_mappings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON enrichment_configs FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON validation_scripts FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON app_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON account_integrations FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON import_audit_log FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON upload_sessions FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON upload_rows FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON crm_properties FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow all for authenticated" ON crm_records FOR ALL TO authenticated USING (true);
-
-CREATE POLICY "Allow all for authenticated" ON password_reset_tokens FOR ALL TO authenticated USING (true);
-
--- Development policies (remove in production)
-CREATE POLICY "Allow all for anon" ON accounts FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON users FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON user_sessions FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON ai_models FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON hubspot_fields FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON header_mappings FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON enrichment_configs FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON validation_scripts FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON app_settings FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON account_integrations FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON import_audit_log FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON upload_sessions FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON upload_rows FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON crm_properties FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON crm_records FOR ALL TO anon USING (true);
-CREATE POLICY "Allow all for anon" ON password_reset_tokens FOR ALL TO anon USING (true);
+-- SECURITY MODEL: All database access goes through the Supabase service role
+-- client (getServerSupabase()) in server-side API routes. No anon or
+-- authenticated RLS policies are defined. The anon key exposed in the browser
+-- bundle cannot read or write any table. RLS is enabled on all tables as an
+-- additional safeguard — with no permissive policies, even if a client somehow
+-- connects, no rows are accessible.
+--
+-- See migration: 20260311_remove_anon_policies_tighten_rls.sql
+-- RPCs verify_password() and hash_password() are also revoked from anon.

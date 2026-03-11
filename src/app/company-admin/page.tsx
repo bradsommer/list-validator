@@ -12,7 +12,6 @@ import {
 } from 'recharts';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 interface AccountStats {
@@ -77,28 +76,14 @@ export default function CompanyAdminPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch all accounts
-        const { data: accounts } = await supabase
-          .from('accounts')
-          .select('id, name, slug')
-          .order('name');
-
-        // Fetch all users grouped by account
-        const { data: users } = await supabase
-          .from('users')
-          .select('id, account_id');
-
-        // Fetch all upload sessions (24-month window)
+        // Fetch all dashboard data in one request
         const { start } = getMonthsInRange('24m');
-        const { data: sessions } = await supabase
-          .from('upload_sessions')
-          .select('id, account_id, total_rows, created_at')
-          .gte('created_at', start.toISOString());
-
-        // Fetch all account rules
-        const { data: rules } = await supabase
-          .from('account_rules')
-          .select('account_id, enabled');
+        const dashRes = await fetch(`/api/company-admin/dashboard?startDate=${encodeURIComponent(start.toISOString())}`);
+        const dashJson = await dashRes.json();
+        const accounts = dashJson.accounts;
+        const users = dashJson.users;
+        const sessions = dashJson.sessions;
+        const rules = dashJson.rules;
 
         // Build monthly import counts
         const monthlyCounts: Record<string, number> = {};

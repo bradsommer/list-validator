@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { runEnrichment } from '@/lib/enrichment';
 import type { EnrichmentConfig, ParsedRow } from '@/types';
 

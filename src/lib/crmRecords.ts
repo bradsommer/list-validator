@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 const RETENTION_DAYS = 15;
 
@@ -39,7 +39,7 @@ export async function upsertCrmRecord(
 
     // Try to find existing record by dedup key
     if (dedupKey) {
-      const { data: existing } = await supabase
+      const { data: existing } = await getServerSupabase()
         .from('crm_records')
         .select('id, properties')
         .eq('account_id', accountId)
@@ -58,7 +58,7 @@ export async function upsertCrmRecord(
         if (hubspotRecordId) updateData.synced_at = new Date().toISOString();
         if (uploadSessionId) updateData.upload_session_id = uploadSessionId;
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await getServerSupabase()
           .from('crm_records')
           .update(updateData)
           .eq('id', existing.id)
@@ -87,7 +87,7 @@ export async function upsertCrmRecord(
     }
     if (uploadSessionId) insertData.upload_session_id = uploadSessionId;
 
-    const { data: created, error } = await supabase
+    const { data: created, error } = await getServerSupabase()
       .from('crm_records')
       .insert(insertData)
       .select('id')
@@ -155,7 +155,7 @@ export async function storeSyncResults(
  * Purge expired CRM records (older than 15 days).
  */
 export async function purgeExpiredRecords(accountId: string): Promise<number> {
-  const { count, error } = await supabase
+  const { count, error } = await getServerSupabase()
     .from('crm_records')
     .delete({ count: 'exact' })
     .eq('account_id', accountId)

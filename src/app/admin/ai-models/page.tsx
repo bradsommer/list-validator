@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 
 interface AIModel {
   id: string;
@@ -54,11 +53,9 @@ export default function AIModelsPage() {
   const fetchModels = async () => {
     setIsLoading(true);
     try {
-      const { data } = await supabase
-        .from('ai_models')
-        .select('*')
-        .order('created_at', { ascending: false });
-      setModels(data || []);
+      const res = await fetch('/api/admin/ai-models');
+      const json = await res.json();
+      setModels(json.data || []);
     } catch (err) {
       console.error('Error fetching models:', err);
     } finally {
@@ -136,17 +133,17 @@ export default function AIModelsPage() {
       }
 
       if (editingModel) {
-        await supabase.from('ai_models').update(data).eq('id', editingModel.id);
+        await fetch('/api/admin/ai-models', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingModel.id, ...data }),
+        });
       } else {
-        await supabase.from('ai_models').insert(data);
-      }
-
-      // If setting as default, unset others
-      if (formData.is_default && editingModel) {
-        await supabase
-          .from('ai_models')
-          .update({ is_default: false })
-          .neq('id', editingModel.id);
+        await fetch('/api/admin/ai-models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
       }
 
       setShowAddModal(false);
@@ -163,7 +160,11 @@ export default function AIModelsPage() {
     if (!confirm('Are you sure you want to delete this AI model?')) return;
 
     try {
-      await supabase.from('ai_models').delete().eq('id', id);
+      await fetch('/api/admin/ai-models', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
       fetchModels();
     } catch (err) {
       console.error('Error deleting model:', err);
@@ -172,7 +173,11 @@ export default function AIModelsPage() {
 
   const toggleActive = async (model: AIModel) => {
     try {
-      await supabase.from('ai_models').update({ is_active: !model.is_active }).eq('id', model.id);
+      await fetch('/api/admin/ai-models', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: model.id, is_active: !model.is_active }),
+      });
       fetchModels();
     } catch (err) {
       console.error('Error toggling model:', err);

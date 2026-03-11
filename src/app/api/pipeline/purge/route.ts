@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 // POST - Purge expired sessions (15-day TTL)
 // Can be called by cron job or manually from admin

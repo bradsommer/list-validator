@@ -23,9 +23,8 @@ async function loadOAuthCredentialsFromDb(): Promise<{ clientId: string; clientS
     return { clientId: cachedClientId, clientSecret: cachedClientSecret || '' };
   }
   try {
-    const { getServerSupabase, supabase } = await import('@/lib/supabase');
-    let db;
-    try { db = getServerSupabase(); } catch { db = supabase; }
+    const { getServerSupabase: getDb } = await import('@/lib/supabase');
+    const db = getDb();
     const { data } = await db
       .from('app_settings')
       .select('key, value')
@@ -183,15 +182,11 @@ export async function refreshAccessToken(refreshToken: string): Promise<HubSpotT
 }
 
 // Token persistence - Supabase (database) is the sole persistent store
-import { supabase, getServerSupabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
-// Helper: use service-role client on the server (bypasses RLS) with anon fallback
+// Helper: use service-role client on the server (bypasses RLS)
 function getDbClient() {
-  try {
-    return getServerSupabase();
-  } catch {
-    return supabase;
-  }
+  return getServerSupabase();
 }
 
 // --- Supabase storage ---

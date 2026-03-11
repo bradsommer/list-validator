@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { getServerSupabase } from './supabase';
 import type { UserRole } from './permissions';
 
 export interface User {
@@ -42,7 +42,7 @@ function generateToken(): string {
 export async function loginUser(username: string, password: string): Promise<AuthResult> {
   try {
     // Find ALL user records for this email (could be in multiple accounts)
-    const { data: users, error: userError } = await supabase
+    const { data: users, error: userError } = await getServerSupabase()
       .from('users')
       .select('*, account:accounts(id, name)')
       .eq('username', username.toLowerCase().trim())
@@ -59,7 +59,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     }
 
     // Verify password using Supabase RPC
-    const { data: isValid, error: verifyError } = await supabase.rpc('verify_password', {
+    const { data: isValid, error: verifyError } = await getServerSupabase().rpc('verify_password', {
       password: password,
       password_hash: userWithPassword.password_hash,
     });
@@ -75,13 +75,13 @@ export async function loginUser(username: string, password: string): Promise<Aut
       const token = generateToken();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      await supabase.from('user_sessions').insert({
+      await getServerSupabase().from('user_sessions').insert({
         user_id: firstUser.id,
         token,
         expires_at: expiresAt.toISOString(),
       });
 
-      await supabase
+      await getServerSupabase()
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', firstUser.id);
@@ -120,7 +120,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const { error: sessionError } = await supabase.from('user_sessions').insert({
+    const { error: sessionError } = await getServerSupabase().from('user_sessions').insert({
       user_id: user.id,
       token,
       expires_at: expiresAt.toISOString(),
@@ -130,7 +130,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
       return { success: false, error: 'Failed to create session' };
     }
 
-    await supabase
+    await getServerSupabase()
       .from('users')
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id);
@@ -139,7 +139,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     // auto-promote them to super_admin so there's always a system admin.
     let effectiveRole = user.role;
     if (user.role === 'admin') {
-      const { data: superAdmins } = await supabase
+      const { data: superAdmins } = await getServerSupabase()
         .from('users')
         .select('id')
         .eq('role', 'super_admin')
@@ -190,7 +190,7 @@ export async function selectAccount(
     }
 
     // Verify the target user record belongs to the same email
-    const { data: targetUser, error: targetError } = await supabase
+    const { data: targetUser, error: targetError } = await getServerSupabase()
       .from('users')
       .select('*, account:accounts(id, name)')
       .eq('id', targetUserId)
@@ -203,13 +203,13 @@ export async function selectAccount(
     }
 
     // Delete old session
-    await supabase.from('user_sessions').delete().eq('token', currentToken);
+    await getServerSupabase().from('user_sessions').delete().eq('token', currentToken);
 
     // Create new session for the target user record
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const { error: sessionError } = await supabase.from('user_sessions').insert({
+    const { error: sessionError } = await getServerSupabase().from('user_sessions').insert({
       user_id: targetUser.id,
       token,
       expires_at: expiresAt.toISOString(),
@@ -219,7 +219,7 @@ export async function selectAccount(
       return { success: false, error: 'Failed to create session' };
     }
 
-    await supabase
+    await getServerSupabase()
       .from('users')
       .update({ last_login: new Date().toISOString() })
       .eq('id', targetUser.id);
@@ -250,7 +250,7 @@ export async function selectAccount(
 // Logout user
 export async function logoutUser(token: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('user_sessions').delete().eq('token', token);
+    const { error } = await getServerSupabase().from('user_sessions').delete().eq('token', token);
     return !error;
   } catch {
     return false;
@@ -301,7 +301,7 @@ export async function createUser(
 ): Promise<AuthResult> {
   try {
     // Hash password using Supabase RPC
-    const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
+    const { data: passwordHash, error: hashError } = await getServerSupabase().rpc('hash_password', {
       password,
     });
 
@@ -310,7 +310,7 @@ export async function createUser(
     }
 
     // Create user
-    const { data: user, error: createError } = await supabase
+    const { data: user, error: createError } = await getServerSupabase()
       .from('users')
       .insert({
         username: username.toLowerCase().trim(),
@@ -354,13 +354,13 @@ export async function createUser(
 // Update user password (admin only) — syncs across all accounts for same email
 export async function updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
   try {
-    const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
+    const { data: passwordHash, error: hashError } = await getServerSupabase().rpc('hash_password', {
       password: newPassword,
     });
 
     if (hashError || !passwordHash) return false;
 
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('users')
       .update({ password_hash: passwordHash })
       .eq('id', userId);
@@ -368,14 +368,14 @@ export async function updateUserPassword(userId: string, newPassword: string): P
     if (error) return false;
 
     // Sync password across all accounts for this email
-    const { data: thisUser } = await supabase
+    const { data: thisUser } = await getServerSupabase()
       .from('users')
       .select('username')
       .eq('id', userId)
       .single();
 
     if (thisUser) {
-      await supabase
+      await getServerSupabase()
         .from('users')
         .update({ password_hash: passwordHash })
         .eq('username', thisUser.username)
@@ -391,7 +391,7 @@ export async function updateUserPassword(userId: string, newPassword: string): P
 // Get all users (admin only)
 export async function getAllUsers(): Promise<User[]> {
   try {
-    const { data: users, error } = await supabase
+    const { data: users, error } = await getServerSupabase()
       .from('users')
       .select('*')
       .order('created_at', { ascending: false });
@@ -418,7 +418,7 @@ export async function getAllUsers(): Promise<User[]> {
 // Toggle user active status
 export async function toggleUserStatus(userId: string, isActive: boolean): Promise<boolean> {
   try {
-    const { error } = await supabase.from('users').update({ is_active: isActive }).eq('id', userId);
+    const { error } = await getServerSupabase().from('users').update({ is_active: isActive }).eq('id', userId);
     return !error;
   } catch {
     return false;
@@ -428,7 +428,7 @@ export async function toggleUserStatus(userId: string, isActive: boolean): Promi
 // Delete user
 export async function deleteUser(userId: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('users').delete().eq('id', userId);
+    const { error } = await getServerSupabase().from('users').delete().eq('id', userId);
     return !error;
   } catch {
     return false;

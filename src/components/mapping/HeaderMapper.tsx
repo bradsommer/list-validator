@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/store/useAppStore';
-import { supabase } from '@/lib/supabase';
 import type { HeaderMatch, HubSpotObjectType } from '@/types';
 
 const OBJECT_TYPE_LABELS: Record<HubSpotObjectType, string> = {
@@ -32,14 +31,11 @@ export function HeaderMapper() {
   useEffect(() => {
     const fetchRequired = async () => {
       try {
-        const { data: setting } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'required_properties')
-          .single();
+        const settingRes = await fetch('/api/admin/app-settings?key=required_properties');
+        const settingJson = await settingRes.json();
 
-        if (setting?.value) {
-          const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+        if (settingJson.data) {
+          const parsed = typeof settingJson.data === 'string' ? JSON.parse(settingJson.data) : settingJson.data;
           if (Array.isArray(parsed)) {
             setDbRequiredFields(parsed);
             // Also update the store so validation can use them

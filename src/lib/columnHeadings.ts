@@ -4,7 +4,7 @@
  * Falls back to localStorage when Supabase is unavailable.
  */
 
-import { supabase } from './supabase';
+import { getServerSupabase } from './supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'hubspot_column_headings';
@@ -26,7 +26,7 @@ export interface ColumnHeading {
 /** Fetch column headings from Supabase */
 export async function fetchColumnHeadings(accountId: string): Promise<ColumnHeading[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('column_headings')
       .select('id, name, source, hubspot_object_type, hubspot_field_name, created_at')
       .eq('account_id', accountId)
@@ -60,7 +60,7 @@ export async function addColumnHeadingAsync(name: string, accountId: string): Pr
   const trimmedName = name.trim();
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('column_headings')
       .insert({ account_id: accountId, name: trimmedName, source: 'manual' })
       .select('id, name, source, created_at')
@@ -94,7 +94,7 @@ export async function addColumnHeadingAsync(name: string, accountId: string): Pr
 /** Remove a column heading from Supabase */
 export async function removeColumnHeadingAsync(id: string, accountId: string): Promise<void> {
   try {
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('column_headings')
       .delete()
       .eq('id', id)
@@ -114,7 +114,7 @@ export async function removeColumnHeadingAsync(id: string, accountId: string): P
 /** Remove all HubSpot-sourced column headings for an account */
 export async function removeAllHubSpotHeadingsAsync(accountId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('column_headings')
       .delete()
       .eq('account_id', accountId)
@@ -145,7 +145,7 @@ export async function updateColumnHeadingAsync(id: string, name: string, account
   const trimmedName = name.trim();
 
   try {
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('column_headings')
       .update({ name: trimmedName })
       .eq('id', id)
@@ -176,7 +176,7 @@ export async function syncHubSpotPropertiesAsHeadings(
   removed: number;
   total: number;
 }> {
-  const db = dbClient || supabase;
+  const db = dbClient || getServerSupabase();
 
   // 1. Fetch all HubSpot properties stored in the hubspot_properties table
   const { data: hubspotProps, error: fetchError } = await db
@@ -306,7 +306,7 @@ export async function syncHubSpotPropertiesAsHeadings(
 /** Fetch mapping history from Supabase */
 export async function fetchMappingHistory(accountId: string): Promise<Record<string, string>> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('column_mapping_history')
       .select('spreadsheet_header, hubspot_heading')
       .eq('account_id', accountId);
@@ -356,7 +356,7 @@ export async function saveMappingHistoryAsync(
     }));
 
     if (rows.length > 0) {
-      const { error } = await supabase
+      const { error } = await getServerSupabase()
         .from('column_mapping_history')
         .upsert(rows, { onConflict: 'account_id,spreadsheet_header' });
 
@@ -420,7 +420,7 @@ export function deleteMappingHistoryEntry(header: string): void {
 export async function deleteMappingHistoryEntryAsync(header: string, accountId: string): Promise<void> {
   deleteMappingHistoryEntry(header);
   try {
-    await supabase
+    await getServerSupabase()
       .from('column_mapping_history')
       .delete()
       .eq('account_id', accountId)
@@ -439,7 +439,7 @@ export function clearMappingHistory(): void {
 export async function clearMappingHistoryAsync(accountId: string): Promise<void> {
   clearMappingHistory();
   try {
-    await supabase
+    await getServerSupabase()
       .from('column_mapping_history')
       .delete()
       .eq('account_id', accountId);
@@ -463,7 +463,7 @@ export async function updateMappingHistoryEntryAsync(
 ): Promise<void> {
   updateMappingHistoryEntry(header, newValue);
   try {
-    await supabase
+    await getServerSupabase()
       .from('column_mapping_history')
       .upsert(
         { account_id: accountId, spreadsheet_header: header, hubspot_heading: newValue },

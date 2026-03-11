@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { processRowForHubSpot } from '@/lib/hubspot';
 
 const BATCH_SIZE = 50;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { validatePassword } from '@/lib/passwordValidation';
 
 export async function POST(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find valid invite token
-    const { data: resetToken } = await supabase
+    const { data: resetToken } = await getServerSupabase()
       .from('password_reset_tokens')
       .select('id, user_id')
       .eq('token', token)
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const { data: hash, error: hashError } = await supabase.rpc('hash_password', {
+    const { data: hash, error: hashError } = await getServerSupabase().rpc('hash_password', {
       password,
     });
 
@@ -49,20 +49,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user: set password and activate account
-    await supabase
+    await getServerSupabase()
       .from('users')
       .update({ password_hash: hash, is_active: true })
       .eq('id', resetToken.user_id);
 
     // Sync password across all accounts for this email
-    const { data: thisUser } = await supabase
+    const { data: thisUser } = await getServerSupabase()
       .from('users')
       .select('username')
       .eq('id', resetToken.user_id)
       .single();
 
     if (thisUser) {
-      await supabase
+      await getServerSupabase()
         .from('users')
         .update({ password_hash: hash })
         .eq('username', thisUser.username)
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete used token
-    await supabase
+    await getServerSupabase()
       .from('password_reset_tokens')
       .delete()
       .eq('id', resetToken.id);

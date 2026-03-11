@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { sendInviteEmail, sendAccountAcceptEmail } from '@/lib/email';
 import { validatePassword } from '@/lib/passwordValidation';
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = username.toLowerCase().trim();
 
     // Check if this email already exists in any account
-    const { data: existingUsers } = await supabase
+    const { data: existingUsers } = await getServerSupabase()
       .from('users')
       .select('id, password_hash, first_name, last_name, account_id')
       .eq('username', normalizedEmail);
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       insertData.config = { permissions: customPermissions };
     }
 
-    const { data: user, error: createError } = await supabase
+    const { data: user, error: createError } = await getServerSupabase()
       .from('users')
       .insert(insertData)
       .select()
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     // Generate invite/accept token (48-hour expiry)
     const token = generateToken();
 
-    const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
+    const { error: tokenError } = await getServerSupabase().from('password_reset_tokens').insert({
       user_id: user.id,
       token,
       expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
@@ -161,7 +161,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Fetch the user
-    const { data: user, error: fetchError } = await supabase
+    const { data: user, error: fetchError } = await getServerSupabase()
       .from('users')
       .select('*')
       .eq('id', userId)
@@ -182,12 +182,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Delete any existing tokens for this user
-    await supabase.from('password_reset_tokens').delete().eq('user_id', userId);
+    await getServerSupabase().from('password_reset_tokens').delete().eq('user_id', userId);
 
     // Generate new invite token (48-hour expiry)
     const token = generateToken();
 
-    const { error: tokenError } = await supabase.from('password_reset_tokens').insert({
+    const { error: tokenError } = await getServerSupabase().from('password_reset_tokens').insert({
       user_id: userId,
       token,
       expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
@@ -260,7 +260,7 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      const { data: hash, error: hashError } = await supabase.rpc('hash_password', {
+      const { data: hash, error: hashError } = await getServerSupabase().rpc('hash_password', {
         password,
       });
 
@@ -274,7 +274,7 @@ export async function PUT(request: NextRequest) {
       updates.password_hash = hash;
     }
 
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('users')
       .update(updates)
       .eq('id', id);
@@ -289,14 +289,14 @@ export async function PUT(request: NextRequest) {
 
     // If password was changed, sync across all accounts for this email
     if (updates.password_hash) {
-      const { data: thisUser } = await supabase
+      const { data: thisUser } = await getServerSupabase()
         .from('users')
         .select('username')
         .eq('id', id)
         .single();
 
       if (thisUser) {
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({ password_hash: updates.password_hash as string })
           .eq('username', thisUser.username)
@@ -312,5 +312,57 @@ export async function PUT(request: NextRequest) {
       { success: false, error: `Failed to update user: ${message}` },
       { status: 500 }
     );
+  }
+}
+
+// GET /api/admin/users — List users (optionally filtered by account)
+export async function GET(request: NextRequest) {
+  try {
+    const accountId = request.nextUrl.searchParams.get('accountId');
+    const db = getServerSupabase();
+
+    let query = db
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (accountId) {
+      query = query.eq('account_id', accountId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ users: data || [] });
+  } catch (error) {
+    console.error('List users error:', error);
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/users — Delete a user
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId } = await request.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
+
+    const db = getServerSupabase();
+    const { error } = await db
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }

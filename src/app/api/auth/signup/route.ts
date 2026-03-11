@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists with this email (multi-account support)
     // Use maybeSingle() to avoid errors when no rows match
-    const { data: existingUsers } = await supabase
+    const { data: existingUsers } = await getServerSupabase()
       .from('users')
       .select('id, password_hash, stripe_customer_id')
       .eq('username', normalizedEmail)
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // If the email already exists, verify the password matches before creating a new account
     if (existingUser) {
-      const { data: passwordMatch, error: verifyError } = await supabase.rpc('verify_password', {
+      const { data: passwordMatch, error: verifyError } = await getServerSupabase().rpc('verify_password', {
         password,
         password_hash: existingUser.password_hash,
       });
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash password
-    const { data: passwordHash, error: hashError } = await supabase.rpc('hash_password', {
+    const { data: passwordHash, error: hashError } = await getServerSupabase().rpc('hash_password', {
       password,
     });
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     // Try with region column first; if the migration hasn't been applied yet, retry without it
     let account: { id: string } | null = null;
-    const { data: accountData, error: accountError } = await supabase
+    const { data: accountData, error: accountError } = await getServerSupabase()
       .from('accounts')
       .insert({
         name: accountName,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     if (accountError) {
       console.error('Account creation error (with region):', accountError);
       // Retry without region in case the column doesn't exist yet
-      const { data: retryData, error: retryError } = await supabase
+      const { data: retryData, error: retryError } = await getServerSupabase()
         .from('accounts')
         .insert({
           name: accountName,
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user linked to the new account
-    const { data: user, error: createError } = await supabase
+    const { data: user, error: createError } = await getServerSupabase()
       .from('users')
       .insert({
         username: normalizedEmail,
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     const token = Array.from(tokenArray, (byte) => byte.toString(16).padStart(2, '0')).join('');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await supabase.from('user_sessions').insert({
+    await getServerSupabase().from('user_sessions').insert({
       user_id: user.id,
       token,
       expires_at: expiresAt.toISOString(),
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     if (!existingStripeCustomerId) {
       // The first user row we checked might not have had a stripe_customer_id;
       // look across all rows for this email
-      const { data: stripeRow } = await supabase
+      const { data: stripeRow } = await getServerSupabase()
         .from('users')
         .select('stripe_customer_id')
         .eq('username', normalizedEmail)

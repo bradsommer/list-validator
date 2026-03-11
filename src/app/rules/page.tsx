@@ -12,7 +12,7 @@ import {
   deleteAccountRule,
   initializeAccountRules,
   type AccountRule,
-} from '@/lib/accountRules';
+} from '@/lib/client/accountRules';
 import type { HubSpotObjectType } from '@/types';
 
 const OBJECT_TYPES: { value: HubSpotObjectType; label: string }[] = [

@@ -13,7 +13,7 @@ import {
   saveMappingHistory,
   autoMatchHeader,
   type ColumnHeading,
-} from '@/lib/columnHeadings';
+} from '@/lib/client/columnHeadings';
 
 const DO_NOT_USE = '__do_not_use__';
 
