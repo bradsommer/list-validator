@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 
 export default function AccountSettingsPage() {
   const { user, isAdmin, checkSession } = useAuth();
@@ -19,15 +18,12 @@ export default function AccountSettingsPage() {
     const fetchAccount = async () => {
       setIsLoading(true);
       try {
-        const { data } = await supabase
-          .from('accounts')
-          .select('name')
-          .eq('id', user.accountId)
-          .single();
+        const res = await fetch(`/api/admin/account?accountId=${encodeURIComponent(user.accountId)}`);
+        const json = await res.json();
 
-        if (data) {
-          setAccountName(data.name);
-          setOriginalName(data.name);
+        if (json.data) {
+          setAccountName(json.data.name);
+          setOriginalName(json.data.name);
         }
       } catch (err) {
         console.error('Error fetching account:', err);
@@ -46,12 +42,14 @@ export default function AccountSettingsPage() {
     setSaveMessage(null);
 
     try {
-      const { error } = await supabase
-        .from('accounts')
-        .update({ name: accountName.trim() })
-        .eq('id', user.accountId);
+      const res = await fetch('/api/admin/account', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: user.accountId, name: accountName.trim() }),
+      });
+      const json = await res.json();
 
-      if (error) {
+      if (json.error) {
         setSaveMessage({ type: 'error', text: 'Failed to update company name.' });
       } else {
         setOriginalName(accountName.trim());

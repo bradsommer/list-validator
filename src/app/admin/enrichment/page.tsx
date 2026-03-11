@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 import type { HubSpotObjectType } from '@/types';
 
 interface AIModel {
@@ -151,14 +150,13 @@ export default function EnrichmentPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [configsRes, modelsRes, propertiesRes] = await Promise.all([
-        supabase.from('enrichment_configs').select('*, ai_model:ai_models(*)').order('execution_order'),
-        supabase.from('ai_models').select('*').eq('is_active', true),
+      const [configsRes, propertiesRes] = await Promise.all([
+        fetch('/api/admin/enrichment-configs?includeModels=true').then((r) => r.json()),
         fetch('/api/hubspot/properties').then((r) => r.json()),
       ]);
 
       setConfigs(configsRes.data || []);
-      setAiModels(modelsRes.data || []);
+      setAiModels(configsRes.models || []);
 
       if (propertiesRes.success && propertiesRes.properties) {
         const mapped: HubSpotProperty[] = propertiesRes.properties.map(
@@ -256,9 +254,17 @@ export default function EnrichmentPage() {
       };
 
       if (editingConfig) {
-        await supabase.from('enrichment_configs').update(data).eq('id', editingConfig.id);
+        await fetch('/api/admin/enrichment-configs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingConfig.id, ...data }),
+        });
       } else {
-        await supabase.from('enrichment_configs').insert(data);
+        await fetch('/api/admin/enrichment-configs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
       }
 
       setShowModal(false);
@@ -275,7 +281,11 @@ export default function EnrichmentPage() {
     if (!confirm('Are you sure you want to delete this enrichment configuration?')) return;
 
     try {
-      await supabase.from('enrichment_configs').delete().eq('id', id);
+      await fetch('/api/admin/enrichment-configs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
       fetchData();
     } catch (err) {
       console.error('Error deleting config:', err);
@@ -284,10 +294,11 @@ export default function EnrichmentPage() {
 
   const toggleEnabled = async (config: EnrichmentConfig) => {
     try {
-      await supabase
-        .from('enrichment_configs')
-        .update({ is_enabled: !config.is_enabled })
-        .eq('id', config.id);
+      await fetch('/api/admin/enrichment-configs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: config.id, is_enabled: !config.is_enabled }),
+      });
       fetchData();
     } catch (err) {
       console.error('Error toggling config:', err);

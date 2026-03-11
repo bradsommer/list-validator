@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 interface Account {
@@ -48,13 +47,11 @@ export default function CompanyAdminAccountsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [{ data: acctData }, { data: userData }] = await Promise.all([
-          supabase.from('accounts').select('*').order('name'),
-          supabase.from('users').select('id, username, first_name, last_name, role, is_active, last_login, account_id').order('created_at', { ascending: false }),
-        ]);
+        const res = await fetch('/api/company-admin/accounts');
+        const json = await res.json();
 
-        setAccounts(acctData || []);
-        setUsers(userData || []);
+        setAccounts(json.accounts || []);
+        setUsers(json.users || []);
       } catch (err) {
         console.error('Failed to fetch accounts:', err);
       } finally {

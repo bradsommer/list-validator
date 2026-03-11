@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { sendUsernameReminderEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {

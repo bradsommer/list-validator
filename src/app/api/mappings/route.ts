@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 // Save new header mappings
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get the HubSpot field ID
-        const { data: field, error: fieldError } = await supabase
+        const { data: field, error: fieldError } = await getServerSupabase()
           .from('hubspot_fields')
           .select('id')
           .eq('field_name', hubspotField)
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         // Try to insert or update the mapping
         const normalizedHeader = originalHeader.toLowerCase().trim();
 
-        const { error: upsertError } = await supabase.from('header_mappings').upsert(
+        const { error: upsertError } = await getServerSupabase().from('header_mappings').upsert(
           {
             original_header: originalHeader.trim(),
             normalized_header: normalizedHeader,
@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
 
         if (upsertError) {
           // If duplicate, just update usage count
-          await supabase
+          await getServerSupabase()
             .from('header_mappings')
             .update({
-              usage_count: supabase.rpc('increment_usage_count'),
+              usage_count: getServerSupabase().rpc('increment_usage_count'),
               last_used_at: new Date().toISOString(),
             })
             .eq('normalized_header', normalizedHeader)
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 // Get learned mappings for auto-matching
 export async function GET() {
   try {
-    const { data: mappings, error } = await supabase
+    const { data: mappings, error } = await getServerSupabase()
       .from('header_mappings')
       .select('*, hubspot_field:hubspot_fields(*)')
       .order('usage_count', { ascending: false });

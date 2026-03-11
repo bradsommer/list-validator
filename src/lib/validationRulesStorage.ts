@@ -3,7 +3,7 @@
  * Falls back to localStorage when Supabase is unavailable.
  */
 
-import { supabase } from './supabase';
+import { getServerSupabase } from './supabase';
 
 const LOCAL_STORAGE_KEY = 'disabled_validation_rules';
 
@@ -14,7 +14,7 @@ const LOCAL_STORAGE_KEY = 'disabled_validation_rules';
 /** Fetch disabled script IDs from Supabase */
 export async function fetchDisabledRules(accountId: string): Promise<string[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getServerSupabase()
       .from('disabled_validation_rules')
       .select('script_id')
       .eq('account_id', accountId);
@@ -45,7 +45,7 @@ export async function saveDisabledRulesAsync(
 
   try {
     // Delete all existing disabled rules for this account
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await getServerSupabase()
       .from('disabled_validation_rules')
       .delete()
       .eq('account_id', accountId);
@@ -62,7 +62,7 @@ export async function saveDisabledRulesAsync(
         script_id: scriptId,
       }));
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await getServerSupabase()
         .from('disabled_validation_rules')
         .insert(rows);
 

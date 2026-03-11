@@ -10,7 +10,7 @@ import {
   updateColumnHeadingAsync,
   getColumnHeadings,
   type ColumnHeading,
-} from '@/lib/columnHeadings';
+} from '@/lib/client/columnHeadings';
 
 type SortKey = 'name' | 'hubspotObjectType' | 'source' | 'createdAt';
 type SortDirection = 'asc' | 'desc';

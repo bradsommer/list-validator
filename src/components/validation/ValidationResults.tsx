@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { getValidationSummary, getScriptSummary, getAvailableScripts } from '@/lib/validator';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchAccountRules, type AccountRule } from '@/lib/accountRules';
+import { fetchAccountRules, type AccountRule } from '@/lib/client/accountRules';
 import { useValidationWorker } from '@/hooks/useValidationWorker';
 
 import type { DynamicScriptSource } from '@/lib/scripts';

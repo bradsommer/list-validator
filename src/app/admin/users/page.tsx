@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { validatePassword } from '@/lib/passwordValidation';
 import {
@@ -73,17 +72,13 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      let query = supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Super/company admins see all users; account admins see only their account's users
+      const params = new URLSearchParams();
       if (!isCompanyAdmin && currentUser?.accountId) {
-        query = query.eq('account_id', currentUser.accountId);
+        params.set('accountId', currentUser.accountId);
       }
-
-      const { data } = await query;
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const json = await res.json();
+      const data = json.users || json.data || [];
       // Filter out roles the current user shouldn't see:
       // - super_admin users are FreshSegments-internal; only visible to other super_admins
       // - company_admin users are only visible to super_admins
@@ -254,7 +249,11 @@ export default function UsersPage() {
     if (!confirm(`Are you sure you want to delete user "${user.username}"?`)) return;
 
     try {
-      await supabase.from('users').delete().eq('id', user.id);
+      await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
       fetchUsers();
     } catch (err) {
       console.error('Error deleting user:', err);

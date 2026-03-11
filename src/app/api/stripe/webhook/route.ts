@@ -53,11 +53,11 @@ export async function POST(req: NextRequest) {
 
         if (userId) {
           // Preferred: match by user ID from metadata
-          await supabase.from('users').update(updateData).eq('id', userId);
+          await getServerSupabase().from('users').update(updateData).eq('id', userId);
         } else if (customerEmail && customerId) {
           // Fallback: match by email, but only for users without an existing
           // stripe_customer_id to avoid overwriting other accounts' data
-          await supabase
+          await getServerSupabase()
             .from('users')
             .update(updateData)
             .eq('username', customerEmail.toLowerCase().trim())
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({
             subscription_status: subscription.status,
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({
             subscription_status: 'cancelled',
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         const sub = invoice.parent?.subscription_details?.subscription;
         const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({
             subscription_status: 'past_due',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { validateSession } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover',
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up stripe_customer_id for the authenticated user
-    const { data: dbUser } = await supabase
+    const { data: dbUser } = await getServerSupabase()
       .from('users')
       .select('stripe_customer_id, username, account_id')
       .eq('id', sessionUser.id)
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         stripeCustomerId = customers.data[0].id;
 
         // Save it for next time so we don't need to look it up again
-        await supabase
+        await getServerSupabase()
           .from('users')
           .update({ stripe_customer_id: stripeCustomerId })
           .eq('id', sessionUser.id);
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // If still no customer ID, check other users in the same account
     // This allows billing-permissioned users to manage the account's subscription
     if (!stripeCustomerId && dbUser?.account_id) {
-      const { data: accountUser } = await supabase
+      const { data: accountUser } = await getServerSupabase()
         .from('users')
         .select('stripe_customer_id')
         .eq('account_id', dbUser.account_id)

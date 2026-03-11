@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { supabase, getServerSupabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 
 // Map built-in rule IDs to their source file names
 const RULE_FILES: Record<string, string> = {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   // Try DB first (if accountId provided)
   if (accountId) {
     try {
-      const { data } = await supabase
+      const { data } = await getServerSupabase()
         .from('account_rules')
         .select('source_code')
         .eq('account_id', accountId)
@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Save to database
-    const { error } = await supabase
+    const { error } = await getServerSupabase()
       .from('account_rules')
       .update({ source_code: source })
       .eq('account_id', accountId)

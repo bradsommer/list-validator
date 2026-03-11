@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSupabase } from '@/lib/supabase';
 import { sendPasswordResetEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const { data: user } = await supabase
+    const { data: user } = await getServerSupabase()
       .from('users')
       .select('id, username')
       .eq('username', username.toLowerCase().trim())
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const token = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 
     // Store token with 1-hour expiry
-    await supabase.from('password_reset_tokens').insert({
+    await getServerSupabase().from('password_reset_tokens').insert({
       user_id: user.id,
       token,
       expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
