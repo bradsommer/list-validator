@@ -361,7 +361,7 @@ $$ LANGUAGE plpgsql SET search_path = '';
 CREATE OR REPLACE FUNCTION hash_password(password TEXT)
 RETURNS TEXT AS $$
 BEGIN
-  RETURN public.crypt(password, public.gen_salt('bf', 12));
+  RETURN extensions.crypt(password, extensions.gen_salt('bf', 12));
 END;
 $$ LANGUAGE plpgsql SET search_path = '';
 
@@ -369,7 +369,7 @@ $$ LANGUAGE plpgsql SET search_path = '';
 CREATE OR REPLACE FUNCTION verify_password(password TEXT, password_hash TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN password_hash = public.crypt(password, password_hash);
+  RETURN password_hash = extensions.crypt(password, password_hash);
 END;
 $$ LANGUAGE plpgsql SET search_path = '';
 
