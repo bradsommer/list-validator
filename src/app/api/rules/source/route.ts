@@ -5,6 +5,7 @@ import { getServerSupabase } from '@/lib/supabase';
 
 // Map built-in rule IDs to their source file names
 const RULE_FILES: Record<string, string> = {
+  'mojibake-cleanup': 'mojibake-cleanup.ts',
   'state-normalization': 'state-normalization.ts',
   'whitespace-validation': 'whitespace-validation.ts',
   'new-business-validation': 'new-business-validation.ts',
