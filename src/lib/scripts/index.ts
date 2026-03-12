@@ -51,6 +51,7 @@ function createDynamicScript(source: DynamicScriptSource): IValidationScript {
 }
 
 // Import all built-in scripts
+import { mojibakeCleanupScript } from './mojibake-cleanup';
 import { stateNormalizationScript } from './state-normalization';
 import { emailValidationScript } from './email-validation';
 import { phoneNormalizationScript } from './phone-normalization';
@@ -66,6 +67,7 @@ import { solutionNormalizationScript } from './solution-normalization';
 
 // Registry of all available scripts (ordered by execution order)
 const ALL_SCRIPTS: IValidationScript[] = [
+  mojibakeCleanupScript,               // order: 5
   stateNormalizationScript,            // order: 10
   whitespaceValidationScript,          // order: 12
   newBusinessValidationScript,         // order: 13
@@ -299,6 +301,7 @@ export function runAllScripts(
 
 // Export individual scripts for direct access if needed
 export {
+  mojibakeCleanupScript,
   stateNormalizationScript,
   whitespaceValidationScript,
   newBusinessValidationScript,
