@@ -175,7 +175,7 @@ const DEFAULT_RULES = [
     description: 'Removes garbled characters (mojibake) caused by encoding issues in spreadsheets. Fixes corrupted quotes, accents, dashes, and other symbols.',
     rule_type: 'transform' as const,
     target_fields: ['*'],
-    config: {},
+    config: { objectTypes: ['contacts', 'companies', 'deals'] },
     display_order: 5,
   },
   {

@@ -226,7 +226,7 @@ export default function EditRulePage() {
                 placeholder="e.g. email, phone, firstname"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none"
               />
-              <p className="text-xs text-gray-400 mt-1">Comma-separated field names.</p>
+              <p className="text-xs text-gray-400 mt-1">Comma-separated field names. Use * to target all fields.</p>
             </div>
           </div>
 
