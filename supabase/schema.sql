@@ -355,23 +355,23 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 -- Function to hash password
 CREATE OR REPLACE FUNCTION hash_password(password TEXT)
 RETURNS TEXT AS $$
 BEGIN
-  RETURN crypt(password, gen_salt('bf', 12));
+  RETURN public.crypt(password, public.gen_salt('bf', 12));
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 -- Function to verify password
 CREATE OR REPLACE FUNCTION verify_password(password TEXT, password_hash TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN password_hash = crypt(password, password_hash);
+  RETURN password_hash = public.crypt(password, password_hash);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 -- ============================================================================
 -- TRIGGERS
