@@ -170,6 +170,15 @@ export async function updateRuleConfig(
  */
 const DEFAULT_RULES = [
   {
+    rule_id: 'mojibake-cleanup',
+    name: 'Encoding Cleanup',
+    description: 'Removes garbled characters (mojibake) caused by encoding issues in spreadsheets. Fixes corrupted quotes, accents, dashes, and other symbols.',
+    rule_type: 'transform' as const,
+    target_fields: ['*'],
+    config: {},
+    display_order: 5,
+  },
+  {
     rule_id: 'state-normalization',
     name: 'State Normalization',
     description: 'Converts state abbreviations (AL, CA, NY) to full names (Alabama, California, New York). Also fixes common misspellings and case variations.',
