@@ -8,32 +8,6 @@ import { ImportsChart, RANGE_PRESETS, DEFAULT_RANGE_INDEX } from '@/components/d
 import type { Granularity, RangePreset } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 
-function ComingSoonPage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col items-center justify-center px-4">
-      <FreshSegmentsLogo className="h-10 mb-8" />
-      <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 text-center tracking-tight">
-        Coming Soon
-      </h1>
-      <p className="mt-4 text-lg text-gray-600 text-center max-w-md">
-        We&apos;re building something great. Clean, validate, and prepare your data for HubSpot — effortlessly.
-      </p>
-      <div className="mt-8 flex items-center gap-4 text-sm text-gray-500">
-        <Link href="/contact" className="hover:text-gray-700 transition-colors">
-          Contact Us
-        </Link>
-        <span>|</span>
-        <Link href="/documentation" className="hover:text-gray-700 transition-colors">
-          Documentation
-        </Link>
-      </div>
-      <p className="mt-4 text-sm text-gray-400">
-        &copy; {new Date().getFullYear()} FreshSegments. All rights reserved.
-      </p>
-    </div>
-  );
-}
-
 function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -642,7 +616,7 @@ export default function HomePage() {
   }
 
   if (!isAuthenticated) {
-    return <ComingSoonPage />;
+    return <LandingPage />;
   }
 
   return <Dashboard />;
