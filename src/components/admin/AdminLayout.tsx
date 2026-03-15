@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { marketingLink } from '@/lib/domainLinks';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -229,15 +230,15 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
 
           {/* Right: Help icon + User dropdown */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/documentation"
+            <a
+              href={marketingLink('/documentation')}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
               title="Documentation"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </Link>
+            </a>
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -403,17 +404,17 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
               <p>&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
               <div className="flex items-center gap-3">
-                <Link href="/documentation" className="hover:text-gray-700 transition-colors">
+                <a href={marketingLink('/documentation')} className="hover:text-gray-700 transition-colors">
                   Documentation
-                </Link>
+                </a>
                 <span>|</span>
-                <Link href="/legal/privacy" className="hover:text-gray-700 transition-colors">
+                <a href={marketingLink('/legal/privacy')} className="hover:text-gray-700 transition-colors">
                   Privacy Policy
-                </Link>
+                </a>
                 <span>|</span>
-                <Link href="/legal/terms" className="hover:text-gray-700 transition-colors">
+                <a href={marketingLink('/legal/terms')} className="hover:text-gray-700 transition-colors">
                   Terms of Use
-                </Link>
+                </a>
               </div>
             </div>
           </footer>

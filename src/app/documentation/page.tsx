@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { DocsLayout } from '@/components/docs/DocsLayout';
+import { appLink } from '@/lib/domainLinks';
 
 interface DocCard {
   title: string;
@@ -83,20 +84,20 @@ export default function DocumentationPage() {
             <ol className="list-decimal pl-6 space-y-3">
               <li>
                 <strong>Upload your spreadsheet</strong> &mdash; Go to the{' '}
-                <Link href="/import" className="text-teal-600 hover:underline">Import</Link> page and drop in your CSV or Excel file.
+                <a href={appLink('/import')} className="text-teal-600 hover:underline">Import</a> page and drop in your CSV or Excel file.
                 Your data is parsed entirely in your browser and never uploaded to our servers.
               </li>
               <li>
                 <strong>Map your columns</strong> &mdash; FreshSegments automatically detects common column headers like
                 &ldquo;Email&rdquo;, &ldquo;First Name&rdquo;, and &ldquo;Phone&rdquo;. You can review and adjust the
                 mappings, or configure custom output headings on the{' '}
-                <Link href="/column-headings" className="text-teal-600 hover:underline">Output Headings</Link> page.
+                <a href={appLink('/column-headings')} className="text-teal-600 hover:underline">Output Headings</a> page.
               </li>
               <li>
                 <strong>Validate and clean</strong> &mdash; Validation rules run automatically to normalize names,
                 standardize phone numbers and dates, expand state abbreviations, validate emails, and detect duplicates.
                 You can configure which rules are active on the{' '}
-                <Link href="/rules" className="text-teal-600 hover:underline">Rules</Link> page.
+                <a href={appLink('/rules')} className="text-teal-600 hover:underline">Rules</a> page.
               </li>
               <li>
                 <strong>Review results</strong> &mdash; See a summary of all changes, warnings, and errors.
@@ -105,7 +106,7 @@ export default function DocumentationPage() {
               <li>
                 <strong>Export</strong> &mdash; Download your cleaned data as a CSV ready for HubSpot import,
                 or push it directly if you&apos;ve connected your HubSpot account via{' '}
-                <Link href="/admin/integrations" className="text-teal-600 hover:underline">Integrations</Link>.
+                <a href={appLink('/admin/integrations')} className="text-teal-600 hover:underline">Integrations</a>.
               </li>
             </ol>
           </div>
@@ -208,6 +209,7 @@ export default function DocumentationPage() {
             <p className="text-sm text-gray-600 leading-relaxed">
               Yes. Rules are TypeScript classes that implement a standard interface. See the{' '}
               <Link href="/docs/rules#writing-rules" className="text-teal-600 hover:underline">Writing Custom Rules</Link>{' '}
+
               section in the Rules documentation for a complete guide with examples.
             </p>
           </div>
@@ -215,7 +217,7 @@ export default function DocumentationPage() {
             <h3 className="font-semibold text-gray-900 mb-1">How do I invite team members?</h3>
             <p className="text-sm text-gray-600 leading-relaxed">
               Account admins can invite users from the{' '}
-              <Link href="/admin/users" className="text-teal-600 hover:underline">Users</Link>{' '}
+              <a href={appLink('/admin/users')} className="text-teal-600 hover:underline">Users</a>{' '}
               page under Settings. Invited users receive an email with a link to set up their account.
               You can assign roles to control what each user can access.
             </p>

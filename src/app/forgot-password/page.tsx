@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { appLink } from '@/lib/domainLinks';
 
 type Mode = 'password' | 'username';
 
@@ -56,12 +57,12 @@ export default function ForgotPasswordPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-7" />
             </Link>
-            <Link
-              href="/login"
+            <a
+              href={appLink('/login')}
               className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700"
             >
               Sign In
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -114,12 +115,12 @@ export default function ForgotPasswordPage() {
                     ? 'If an account exists with that email, you\'ll receive a password reset link.'
                     : 'If an account exists with that email, you\'ll receive your username.'}
                 </p>
-                <Link
-                  href="/login"
+                <a
+                  href={appLink('/login')}
                   className="inline-block mt-6 text-primary-600 hover:text-primary-700 text-sm font-medium"
                 >
                   Back to Sign In
-                </Link>
+                </a>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
