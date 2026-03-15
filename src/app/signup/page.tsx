@@ -287,6 +287,13 @@ export default function SignupPage() {
                 {' '}and{' '}
                 <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>.
               </p>
+
+              <p className="text-center text-xs text-gray-400">
+                We may occasionally send you product updates and relevant content.
+                You can unsubscribe at any time. See our{' '}
+                <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>
+                {' '}for details.
+              </p>
             </form>
           </div>
 
