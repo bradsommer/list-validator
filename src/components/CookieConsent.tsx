@@ -13,6 +13,7 @@ export default function CookieConsentBanner() {
           readOnly: true,
         },
         analytics: {},
+        advertising: {},
       },
 
       language: {
@@ -50,6 +51,12 @@ export default function CookieConsentBanner() {
                   description:
                     'These cookies help us understand how visitors interact with the website, helping us improve our service.',
                   linkedCategory: 'analytics',
+                },
+                {
+                  title: 'Advertising Cookies',
+                  description:
+                    'These cookies are used to deliver personalized advertisements and to measure the effectiveness of advertising campaigns.',
+                  linkedCategory: 'advertising',
                 },
               ],
             },

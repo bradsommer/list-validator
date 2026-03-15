@@ -172,6 +172,10 @@ export default function LoginPage() {
               <a href={marketingLink('/legal/terms')} className="hover:text-white transition-colors">
                 Terms of Use
               </a>
+              <span className="text-gray-500">|</span>
+              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">
+                Privacy Choices
+              </button>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>
