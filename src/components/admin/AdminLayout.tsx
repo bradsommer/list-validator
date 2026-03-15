@@ -41,19 +41,20 @@ const companyAdminNavItems: NavItem[] = [
   { href: '/company-admin/accounts', label: 'Accounts', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
 ];
 
-function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: string; icon: string; isActive: boolean }) {
+function SidebarNavItem({ href, label, icon, isActive, collapsed }: { href: string; label: string; icon: string; isActive: boolean; collapsed?: boolean }) {
   return (
     <li>
       <Link
         href={href}
+        title={collapsed ? label : undefined}
         className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
           isActive
             ? 'bg-gray-100 text-gray-900'
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-        }`}
+        } ${collapsed ? 'justify-center' : ''}`}
       >
         <svg
-          className="w-5 h-5"
+          className="w-5 h-5 shrink-0"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -65,7 +66,7 @@ function SidebarNavItem({ href, label, icon, isActive }: { href: string; label: 
             d={icon}
           />
         </svg>
-        {label}
+        {!collapsed && label}
       </Link>
     </li>
   );
@@ -84,6 +85,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
     selectAccount,
   } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -322,8 +324,8 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
       {/* Body: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
-          <nav className="flex-1 p-4 overflow-y-auto">
+        <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-200`}>
+          <nav className={`flex-1 ${sidebarCollapsed ? 'p-2' : 'p-4'} overflow-y-auto`}>
             {/* Main navigation */}
             <ul className="space-y-1">
               {mainNavItems.map((item) => (
@@ -331,6 +333,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                   key={item.href}
                   {...item}
                   isActive={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)}
+                  collapsed={sidebarCollapsed}
                 />
               ))}
             </ul>
@@ -339,15 +342,18 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             {configureNavItems.length > 0 && (
               <>
                 <hr className="my-4 border-gray-200" />
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Configure
-                </div>
+                {!sidebarCollapsed && (
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                    Configure
+                  </div>
+                )}
                 <ul className="space-y-1">
                   {configureNavItems.map((item) => (
                     <SidebarNavItem
                       key={item.href}
                       {...item}
                       isActive={pathname === item.href || pathname.startsWith(item.href)}
+                      collapsed={sidebarCollapsed}
                     />
                   ))}
                 </ul>
@@ -357,15 +363,19 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             {/* Settings section (admin / permission-gated) */}
             {visibleSettingsItems.length > 0 && (
               <>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
-                  Settings
-                </div>
+                {!sidebarCollapsed && (
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
+                    Settings
+                  </div>
+                )}
+                {sidebarCollapsed && <hr className="my-4 border-gray-200" />}
                 <ul className="space-y-1">
                   {visibleSettingsItems.map((item) => (
                     <SidebarNavItem
                       key={item.href}
                       {...item}
                       isActive={pathname === item.href || pathname.startsWith(item.href)}
+                      collapsed={sidebarCollapsed}
                     />
                   ))}
                 </ul>
@@ -375,21 +385,43 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
             {/* Company Admin section */}
             {isCompanyAdmin && (
               <>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
-                  Company Admin
-                </div>
+                {!sidebarCollapsed && (
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">
+                    Company Admin
+                  </div>
+                )}
+                {sidebarCollapsed && <hr className="my-4 border-gray-200" />}
                 <ul className="space-y-1">
                   {companyAdminNavItems.map((item) => (
                     <SidebarNavItem
                       key={item.href}
                       {...item}
                       isActive={item.href === '/company-admin' ? pathname === '/company-admin' : pathname.startsWith(item.href)}
+                      collapsed={sidebarCollapsed}
                     />
                   ))}
                 </ul>
               </>
             )}
           </nav>
+
+          {/* Collapse toggle */}
+          <div className="border-t border-gray-200 p-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="w-full flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <svg
+                className={`w-5 h-5 transition-transform duration-200 ${sidebarCollapsed ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
         </aside>
 
         {/* Main content area */}
