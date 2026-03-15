@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS users (
   stripe_subscription_id VARCHAR(255),
   subscription_status VARCHAR(50),
   subscription_trial_end TIMESTAMP WITH TIME ZONE,
+  marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+  marketing_opt_in_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(username, account_id)
