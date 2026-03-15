@@ -85,7 +85,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
     selectAccount,
   } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    }
+    return false;
+  });
   const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -408,7 +413,7 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
           {/* Collapse toggle */}
           <div className="border-t border-gray-200 p-2">
             <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              onClick={() => { const next = !sidebarCollapsed; setSidebarCollapsed(next); localStorage.setItem('sidebarCollapsed', String(next)); }}
               className="w-full flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
