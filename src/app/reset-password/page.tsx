@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { validatePassword } from '@/lib/passwordValidation';
+import { appLink } from '@/lib/domainLinks';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -77,12 +78,12 @@ function ResetPasswordForm() {
         </div>
         <p className="text-gray-900 font-medium">Password reset successfully</p>
         <p className="text-gray-500 text-sm mt-1">You can now sign in with your new password.</p>
-        <Link
-          href="/login"
+        <a
+          href={appLink('/login')}
           className="inline-block mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"
         >
           Sign In
-        </Link>
+        </a>
       </div>
     );
   }

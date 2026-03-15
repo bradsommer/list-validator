@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { marketingLink } from '@/lib/domainLinks';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -58,16 +59,16 @@ export default function LoginPage() {
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/">
+            <a href={marketingLink('/')}>
               <FreshSegmentsLogo className="h-7" />
-            </Link>
-            <Link
-              href="/"
+            </a>
+            <a
+              href={marketingLink('/')}
               className="px-4 py-2 text-sm font-medium"
               style={{ color: '#0B8377' }}
             >
               Back to Home
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -130,22 +131,22 @@ export default function LoginPage() {
               </button>
 
               <div className="text-center">
-                <Link
-                  href="/forgot-password"
+                <a
+                  href={marketingLink('/forgot-password')}
                   className="text-sm transition-colors"
                   style={{ color: '#0B8377' }}
                 >
                   Forgot password or username?
-                </Link>
+                </a>
               </div>
             </form>
           </div>
 
           <div className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="font-medium" style={{ color: '#0B8377' }}>
+            <a href={marketingLink('/signup')} className="font-medium" style={{ color: '#0B8377' }}>
               Start Free Trial
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -156,21 +157,21 @@ export default function LoginPage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <FreshSegmentsLogo className="h-6" dark />
             <div className="flex items-center gap-4 text-sm">
-              <Link href="/documentation" className="hover:text-white transition-colors">
+              <a href={marketingLink('/documentation')} className="hover:text-white transition-colors">
                 Documentation
-              </Link>
+              </a>
               <span className="text-gray-500">|</span>
-              <Link href="/contact" className="hover:text-white transition-colors">
+              <a href={marketingLink('/contact')} className="hover:text-white transition-colors">
                 Contact Us
-              </Link>
+              </a>
               <span className="text-gray-500">|</span>
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">
+              <a href={marketingLink('/legal/privacy')} className="hover:text-white transition-colors">
                 Privacy Policy
-              </Link>
+              </a>
               <span className="text-gray-500">|</span>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">
+              <a href={marketingLink('/legal/terms')} className="hover:text-white transition-colors">
                 Terms of Use
-              </Link>
+              </a>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>

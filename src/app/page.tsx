@@ -7,6 +7,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ImportsChart, RANGE_PRESETS, DEFAULT_RANGE_INDEX } from '@/components/dashboard/ImportsChart';
 import type { Granularity, RangePreset } from '@/components/dashboard/ImportsChart';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
+import { appLink, marketingLink, isDomainSplitActive } from '@/lib/domainLinks';
 
 function LandingPage() {
   return (
@@ -23,13 +24,13 @@ function LandingPage() {
               >
                 Contact Us
               </Link>
-              <Link
-                href="/login"
+              <a
+                href={appLink('/login')}
                 className="px-4 py-2 text-sm font-medium"
                 style={{ color: '#0B8377' }}
               >
                 Sign In
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -53,12 +54,12 @@ function LandingPage() {
             >
               Start Free Trial
             </Link>
-            <Link
-              href="/login"
+            <a
+              href={appLink('/login')}
               className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             >
               Sign In
-            </Link>
+            </a>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             $19.99/month after 14-day free trial. Cancel anytime.
@@ -607,6 +608,10 @@ function Dashboard() {
 export default function HomePage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
+  // When domain splitting is active, determine which domain we're on
+  const isAppDomain = isDomainSplitActive && typeof window !== 'undefined' &&
+    window.location.hostname === new URL(process.env.NEXT_PUBLIC_APP_DOMAIN || '').hostname;
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -615,6 +620,18 @@ export default function HomePage() {
     );
   }
 
+  // On app domain: show dashboard if authenticated, redirect to login if not
+  if (isAppDomain) {
+    if (!isAuthenticated) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      return null;
+    }
+    return <Dashboard />;
+  }
+
+  // On marketing domain (or when split is disabled): show landing or dashboard
   if (!isAuthenticated) {
     return <LandingPage />;
   }

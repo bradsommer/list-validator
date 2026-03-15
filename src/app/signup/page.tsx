@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { validatePassword } from '@/lib/passwordValidation';
+import { appLink } from '@/lib/domainLinks';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -95,13 +96,13 @@ export default function SignupPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-7" />
             </Link>
-            <Link
-              href="/login"
+            <a
+              href={appLink('/login')}
               className="px-4 py-2 text-sm font-medium"
               style={{ color: '#0B8377' }}
             >
               Sign In
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -291,9 +292,9 @@ export default function SignupPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link href="/login" className="font-medium" style={{ color: '#0B8377' }}>
+            <a href={appLink('/login')} className="font-medium" style={{ color: '#0B8377' }}>
               Sign In
-            </Link>
+            </a>
           </div>
         </div>
       </div>

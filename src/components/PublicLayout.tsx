@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { appLink } from '@/lib/domainLinks';
 
 export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: ReactNode; maxWidth?: string }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -27,22 +28,22 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
             </Link>
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
-                <Link
-                  href="/"
+                <a
+                  href={appLink('/')}
                   className="px-4 py-2 text-sm font-medium text-white rounded-lg"
                   style={{ backgroundColor: '#0B8377' }}
                 >
                   Go to App
-                </Link>
+                </a>
               ) : (
                 <>
-                  <Link
-                    href="/login"
+                  <a
+                    href={appLink('/login')}
                     className="px-4 py-2 text-sm font-medium"
                     style={{ color: '#0B8377' }}
                   >
                     Sign In
-                  </Link>
+                  </a>
                   <Link
                     href="/signup"
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg"
