@@ -287,6 +287,13 @@ export default function SignupPage() {
                 {' '}and{' '}
                 <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>.
               </p>
+
+              <p className="text-center text-xs text-gray-400">
+                We may occasionally send you product updates and relevant content.
+                You can unsubscribe at any time. See our{' '}
+                <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>
+                {' '}for details.
+              </p>
             </form>
           </div>
 
@@ -320,6 +327,10 @@ export default function SignupPage() {
               <Link href="/legal/terms" className="hover:text-white transition-colors">
                 Terms of Use
               </Link>
+              <span className="text-gray-500">|</span>
+              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">
+                Privacy Choices
+              </button>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>

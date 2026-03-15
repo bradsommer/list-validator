@@ -415,6 +415,10 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                 <a href={marketingLink('/legal/terms')} className="hover:text-gray-700 transition-colors">
                   Terms of Use
                 </a>
+                <span>|</span>
+                <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-gray-700 transition-colors">
+                  Privacy Choices
+                </button>
               </div>
             </div>
           </footer>

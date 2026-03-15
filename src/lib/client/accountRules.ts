@@ -183,3 +183,18 @@ export async function getEnabledRuleIds(accountId: string): Promise<string[]> {
   const rules = await fetchEnabledRules(accountId);
   return rules.map((r) => r.ruleId);
 }
+
+export async function initializeAccountRules(accountId: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/account-rules/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId }),
+    });
+    const json = await res.json();
+    return json.success || false;
+  } catch (err) {
+    console.error('[accountRules] Initialize error:', err);
+    return false;
+  }
+}

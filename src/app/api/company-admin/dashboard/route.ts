@@ -12,13 +12,13 @@ export async function GET(request: NextRequest) {
       db.from('account_rules').select('account_id, enabled'),
     ]);
 
-    let sessionsResult = { data: [] as { id: string; account_id: string; total_rows: number; created_at: string }[], error: null as unknown };
+    let sessionsQuery = db
+      .from('upload_sessions')
+      .select('id, account_id, total_rows, created_at');
     if (startDate) {
-      sessionsResult = await db
-        .from('upload_sessions')
-        .select('id, account_id, total_rows, created_at')
-        .gte('created_at', startDate);
+      sessionsQuery = sessionsQuery.gte('created_at', startDate);
     }
+    const sessionsResult = await sessionsQuery;
 
     return NextResponse.json({
       accounts: accountsResult.data || [],

@@ -73,7 +73,7 @@ export default function UsersPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      if (!isCompanyAdmin && currentUser?.accountId) {
+      if (currentUser?.accountId) {
         params.set('accountId', currentUser.accountId);
       }
       const res = await fetch(`/api/admin/users?${params.toString()}`);
