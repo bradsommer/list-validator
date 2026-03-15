@@ -16,7 +16,9 @@ function LandingPage() {
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <FreshSegmentsLogo className="h-7" />
+            <Link href="/">
+              <FreshSegmentsLogo className="h-7" />
+            </Link>
             <div className="flex items-center gap-4">
               <Link
                 href="/contact"
@@ -254,7 +256,9 @@ function LandingPage() {
       <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <FreshSegmentsLogo className="h-6" dark />
+            <Link href="/">
+              <FreshSegmentsLogo className="h-6" dark />
+            </Link>
             <div className="flex items-center gap-4 text-sm">
               <Link href="/documentation" className="hover:text-white transition-colors">
                 Documentation
