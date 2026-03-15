@@ -19,6 +19,7 @@ export default function SignupPage() {
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -55,6 +56,7 @@ export default function SignupPage() {
           lastName: lastName || undefined,
           companyName: companyName || undefined,
           country,
+          marketingOptIn,
         }),
       });
 
@@ -272,6 +274,19 @@ export default function SignupPage() {
                 />
               </div>
 
+              <div className="flex items-start gap-3">
+                <input
+                  id="marketingOptIn"
+                  type="checkbox"
+                  checked={marketingOptIn}
+                  onChange={(e) => setMarketingOptIn(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="marketingOptIn" className="text-sm text-gray-600">
+                  I'd like to receive product updates, tips, and occasional marketing emails from FreshSegments. You can unsubscribe at any time.
+                </label>
+              </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -286,13 +301,6 @@ export default function SignupPage() {
                 <Link href="/legal/terms" style={{ color: '#0B8377' }}>Terms of Use</Link>
                 {' '}and{' '}
                 <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>.
-              </p>
-
-              <p className="text-center text-xs text-gray-400">
-                We may occasionally send you product updates and relevant content.
-                You can unsubscribe at any time. See our{' '}
-                <Link href="/legal/privacy" style={{ color: '#0B8377' }}>Privacy Policy</Link>
-                {' '}for details.
               </p>
             </form>
           </div>

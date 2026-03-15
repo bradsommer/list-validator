@@ -24,7 +24,7 @@ function countryToRegion(countryCode: string): 'us' | 'eu' | 'ch' {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, firstName, lastName, companyName, country } = await request.json();
+    const { email, password, firstName, lastName, companyName, country, marketingOptIn } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -160,6 +160,8 @@ export async function POST(request: NextRequest) {
         role: 'admin',
         account_id: account.id,
         is_active: true,
+        marketing_opt_in: !!marketingOptIn,
+        marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null,
       })
       .select()
       .single();
