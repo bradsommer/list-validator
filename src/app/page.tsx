@@ -24,14 +24,14 @@ function LandingPage() {
                 href="/contact"
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               >
-                Contact Us
+                Contact
               </Link>
               <a
                 href={appLink('/login')}
                 className="px-4 py-2 text-sm font-medium"
                 style={{ color: '#0B8377' }}
               >
-                Sign In
+                Login
               </a>
             </div>
           </div>
@@ -60,7 +60,7 @@ function LandingPage() {
               href={appLink('/login')}
               className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             >
-              Sign In
+              Login
             </a>
           </div>
           <p className="mt-4 text-sm text-gray-500">
@@ -259,26 +259,16 @@ function LandingPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-6" dark />
             </Link>
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/documentation" className="hover:text-white transition-colors">
-                Documentation
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/contact" className="hover:text-white transition-colors">
-                Contact Us
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">
-                Terms of Use
-              </Link>
-              <span className="text-gray-500">|</span>
-              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">
-                Privacy Choices
-              </button>
+            <div className="grid grid-cols-3 md:flex md:items-center gap-x-4 gap-y-2 text-sm text-center md:text-left">
+              <Link href="/documentation" className="hover:text-white transition-colors">Documentation</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Use</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">Privacy Choices</button>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>
