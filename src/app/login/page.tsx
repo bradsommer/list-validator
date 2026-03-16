@@ -110,6 +110,10 @@ export default function LoginPage() {
               >
                 Forgot password or username?
               </a>
+              <span className="text-gray-500">|</span>
+              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">
+                Privacy Choices
+              </button>
             </div>
           </form>
         </div>
