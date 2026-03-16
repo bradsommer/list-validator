@@ -444,6 +444,19 @@ export function CrmLandingPage({ crm }: { crm: string }) {
 
   return (
     <PublicLayout maxWidth="max-w-6xl">
+      {/* HubSpot Integration Banner */}
+      {crm === 'hubspot' && (
+        <div className="mb-8 rounded-xl border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50 p-6 sm:p-8 text-center">
+          <span className="inline-block px-3 py-1 text-xs font-bold uppercase tracking-wider text-white rounded-full mb-3" style={{ backgroundColor: '#0B8377' }}>
+            New
+          </span>
+          <h2 className="text-2xl font-bold text-gray-900">Now Integrates with HubSpot</h2>
+          <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
+            FreshSegments now pulls in all properties for Contacts, Companies, and Deals automatically from your HubSpot account — making it easier than ever to update your spreadsheet column headings to match your CRM.
+          </p>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="text-center pt-8 pb-16">
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">

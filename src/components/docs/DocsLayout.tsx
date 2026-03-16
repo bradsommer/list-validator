@@ -101,7 +101,7 @@ export function DocsLayout({ children }: { children: ReactNode }) {
                     {crmLinks.map((crm) => (
                       <Link
                         key={crm.slug}
-                        href={`/resources/for/${crm.slug}`}
+                        href={`/resources/${crm.slug}`}
                         className="block px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         onClick={() => setResourcesOpen(false)}
                       >
@@ -176,7 +176,7 @@ export function DocsLayout({ children }: { children: ReactNode }) {
               {crmLinks.map((crm) => (
                 <Link
                   key={crm.slug}
-                  href={`/resources/for/${crm.slug}`}
+                  href={`/resources/${crm.slug}`}
                   className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
