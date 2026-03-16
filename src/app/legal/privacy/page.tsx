@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
             <li>Validation rule configurations (enabled/disabled status, target fields, display preferences)</li>
             <li>Column heading mappings and output heading definitions</li>
             <li>Import question configurations</li>
-            <li>HubSpot integration settings (encrypted OAuth tokens, connected account info)</li>
+            <li>CRM integration settings (encrypted OAuth tokens, connected account info)</li>
           </ul>
           <h3 className="text-base font-medium text-gray-800 mt-4">Usage Data</h3>
           <ul className="list-disc pl-6 text-gray-700 space-y-1 mt-2">
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
             <li>Authenticate you and provide access to your account</li>
             <li>Store your validation rule preferences so they persist between sessions</li>
             <li>Maintain your column heading and output heading configurations</li>
-            <li>Facilitate HubSpot integration (syncing properties, maintaining OAuth connections)</li>
+            <li>Facilitate CRM integrations (syncing properties, maintaining OAuth connections)</li>
             <li>Improve the Service and fix issues</li>
           </ul>
         </section>
@@ -82,7 +82,7 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc pl-6 text-gray-700 space-y-1 mt-2">
             <li>All data is encrypted in transit (TLS/HTTPS)</li>
             <li>Database access is restricted through Row Level Security (RLS) policies</li>
-            <li>HubSpot OAuth tokens are stored encrypted</li>
+            <li>CRM OAuth tokens are stored encrypted</li>
             <li>Authentication is managed through secure session tokens</li>
           </ul>
           <p className="text-gray-700 mt-2">
@@ -101,14 +101,12 @@ export default function PrivacyPolicyPage() {
               Supabase Privacy Policy
             </a>.
           </p>
-          <h3 className="text-base font-medium text-gray-800 mt-4">HubSpot (Optional)</h3>
+          <h3 className="text-base font-medium text-gray-800 mt-4">CRM Integrations (Optional)</h3>
           <p className="text-gray-700 mt-1">
-            If you choose to connect your HubSpot account, we use the HubSpot API to sync property definitions.
-            We store encrypted OAuth tokens to maintain the connection. You may disconnect at any time from the
-            Integrations settings page. Subject to the{' '}
-            <a href="https://legal.hubspot.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">
-              HubSpot Privacy Policy
-            </a>.
+            If you choose to connect a CRM account (such as HubSpot, Salesforce, or others), we use the respective
+            CRM API to sync property definitions. We store encrypted OAuth tokens to maintain the connection. You may
+            disconnect at any time from the Integrations settings page. Your use of CRM integrations is subject to the
+            respective provider&apos;s privacy policy.
           </p>
         </section>
 
@@ -122,7 +120,7 @@ export default function PrivacyPolicyPage() {
             <li>Account credentials and profile information</li>
             <li>Validation rule configurations</li>
             <li>Column heading and output heading mappings</li>
-            <li>HubSpot integration tokens and settings</li>
+            <li>CRM integration tokens and settings</li>
           </ul>
           <p className="text-gray-700 mt-2">
             Spreadsheet data is never stored, so there is nothing to retain or delete regarding your file contents.
@@ -150,7 +148,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Access</strong> the personal information we hold about you</li>
             <li><strong>Correct</strong> inaccurate information in your account</li>
             <li><strong>Delete</strong> your account and all associated data</li>
-            <li><strong>Disconnect</strong> third-party integrations (such as HubSpot) at any time</li>
+            <li><strong>Disconnect</strong> third-party CRM integrations at any time</li>
             <li><strong>Export</strong> your configuration data</li>
           </ul>
         </section>

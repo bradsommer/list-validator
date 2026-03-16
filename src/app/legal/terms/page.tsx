@@ -25,13 +25,13 @@ export default function TermsOfUsePage() {
           <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">2. Description of Service</h2>
           <p className="text-gray-700 mt-3">
             FreshSegments is a data validation and transformation tool designed to clean, normalize, and prepare
-            spreadsheet data for import into CRM systems such as HubSpot. The Service provides:
+            spreadsheet data for import into CRM systems. The Service provides:
           </p>
           <ul className="list-disc pl-6 text-gray-700 space-y-1 mt-2">
             <li>Client-side spreadsheet parsing and validation</li>
             <li>Configurable validation rules for data transformation</li>
             <li>Column mapping and output heading management</li>
-            <li>Optional HubSpot integration for property syncing</li>
+            <li>Optional CRM integration for property syncing</li>
           </ul>
         </section>
 
@@ -88,13 +88,13 @@ export default function TermsOfUsePage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">7. Third-Party Integrations</h2>
           <p className="text-gray-700 mt-3">
-            The Service may integrate with third-party platforms such as HubSpot. Your use of these integrations
+            The Service may integrate with third-party CRM platforms such as HubSpot, Salesforce, and others. Your use of these integrations
             is subject to the respective third party&apos;s terms of service. We are not responsible for the
             availability, accuracy, or actions of third-party services.
           </p>
           <p className="text-gray-700 mt-2">
-            When you connect a HubSpot account, we store encrypted OAuth tokens to maintain the connection.
-            You may disconnect your HubSpot account at any time from the Integrations settings page.
+            When you connect a CRM account, we store encrypted OAuth tokens to maintain the connection.
+            You may disconnect your CRM account at any time from the Integrations settings page.
           </p>
         </section>
 
