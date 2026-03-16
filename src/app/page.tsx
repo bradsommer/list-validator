@@ -10,6 +10,8 @@ import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { appLink, marketingLink, isDomainSplitActive } from '@/lib/domainLinks';
 
 function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Navigation */}
@@ -19,7 +21,14 @@ function LandingPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-7" />
             </Link>
-            <div className="flex items-center gap-4">
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link
+                href="/documentation"
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Help Center
+              </Link>
               <Link
                 href="/contact"
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
@@ -34,7 +43,50 @@ function LandingPage() {
                 Login
               </a>
             </div>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 py-2">
+              <Link
+                href="/documentation"
+                className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Help Center
+              </Link>
+              <Link
+                href="/contact"
+                className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Contact
+              </Link>
+              <a
+                href={appLink('/login')}
+                className="block px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                style={{ color: '#0B8377' }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Login
+              </a>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -56,12 +108,6 @@ function LandingPage() {
             >
               Start Free Trial
             </Link>
-            <a
-              href={appLink('/login')}
-              className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              Login
-            </a>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             $19.99/month after 14-day free trial. Cancel anytime.
