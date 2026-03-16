@@ -79,12 +79,6 @@ function LandingPage() {
             >
               Start Free Trial
             </Link>
-            <Link
-              href="/login"
-              className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              Sign In
-            </Link>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             $19.99/month after 14-day free trial. Cancel anytime.
