@@ -108,18 +108,21 @@ export async function POST(request: NextRequest) {
     // Deduplication: Check if there are any orphaned accounts (0 users) that were
     // created by a previous failed/incomplete signup attempt for this email.
     // Account slugs are derived from the email, so we can find candidates by
-    // matching the slug prefix. Reuse the first orphaned one instead of creating
-    // yet another empty account.
+    // matching the slug prefix. Reuse one orphaned account and delete any extras.
     let account: { id: string } | null = null;
 
     const slugPrefix = normalizedEmail.replace(/[^a-z0-9]/g, '-');
     const { data: candidateAccounts } = await getServerSupabase()
       .from('accounts')
-      .select('id')
+      .select('id, created_at')
       .like('slug', `${slugPrefix}-%`)
       .eq('is_active', true);
 
     if (candidateAccounts && candidateAccounts.length > 0) {
+      // Grace period: don't touch accounts created less than 1 hour ago
+      // (someone else with same email prefix might be mid-checkout)
+      const graceCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
       for (const candidate of candidateAccounts) {
         const { count } = await getServerSupabase()
           .from('users')
@@ -127,15 +130,23 @@ export async function POST(request: NextRequest) {
           .eq('account_id', candidate.id);
 
         if (count === 0) {
-          // Update the orphaned account's name/region to match the current request
-          await getServerSupabase()
-            .from('accounts')
-            .update({ name: accountName })
-            .eq('id', candidate.id);
+          if (!account) {
+            // Reuse the first orphaned account
+            await getServerSupabase()
+              .from('accounts')
+              .update({ name: accountName })
+              .eq('id', candidate.id);
 
-          account = { id: candidate.id };
-          console.log(`Reusing orphaned account ${candidate.id} for ${normalizedEmail} instead of creating duplicate`);
-          break;
+            account = { id: candidate.id };
+            console.log(`Reusing orphaned account ${candidate.id} for ${normalizedEmail}`);
+          } else if (candidate.created_at < graceCutoff) {
+            // Delete extra orphaned accounts older than the grace period
+            await getServerSupabase()
+              .from('accounts')
+              .delete()
+              .eq('id', candidate.id);
+            console.log(`Deleted extra orphaned account ${candidate.id}`);
+          }
         }
       }
     }
