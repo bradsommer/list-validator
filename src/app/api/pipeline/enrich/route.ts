@@ -3,6 +3,8 @@ import { getServerSupabase } from '@/lib/supabase';
 import { runEnrichment } from '@/lib/enrichment';
 import type { EnrichmentConfig, ParsedRow } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 const BATCH_SIZE = 50;
 
 // POST - Run enrichment on stored rows for a session

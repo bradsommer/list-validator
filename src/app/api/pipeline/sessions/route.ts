@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Save a completed import session to history (server-side to bypass RLS)
 export async function POST(request: NextRequest) {
   try {

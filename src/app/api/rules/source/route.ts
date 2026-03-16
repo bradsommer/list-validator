@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // Map built-in rule IDs to their source file names
 const RULE_FILES: Record<string, string> = {
   'mojibake-cleanup': 'mojibake-cleanup.ts',

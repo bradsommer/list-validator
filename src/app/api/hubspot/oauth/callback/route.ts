@@ -4,6 +4,8 @@ import { cache, CACHE_KEYS } from '@/lib/cache';
 import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { syncHubSpotPropertiesAsHeadings } from '@/lib/columnHeadings';
 
+export const dynamic = 'force-dynamic';
+
 // Returns a small HTML page that posts a message to the opener window and closes itself.
 // This supports both popup-based OAuth (sends postMessage + closes) and direct navigation
 // (falls back to redirect if there is no opener).

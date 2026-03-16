@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/admin/copy-account-config
  *

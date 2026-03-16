@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 import Papa from 'papaparse';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Export session rows as CSV
 // Query params:
 //   filter: 'all' | 'clean' | 'flagged'

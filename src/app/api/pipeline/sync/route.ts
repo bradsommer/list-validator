@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 import { processRowForHubSpot } from '@/lib/hubspot';
 
+export const dynamic = 'force-dynamic';
+
 const BATCH_SIZE = 50;
 
 // POST - Push enriched rows to HubSpot, delete on success

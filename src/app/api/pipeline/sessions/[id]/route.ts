@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Get session detail including failed row errors
 export async function GET(
   request: NextRequest,

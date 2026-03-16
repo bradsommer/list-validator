@@ -3,6 +3,8 @@ import { getAuthorizeUrl, getHubSpotClientIdAsync, isConnected, getTokens, getVa
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 import { removeAllHubSpotHeadingsAsync } from '@/lib/columnHeadings';
 
+export const dynamic = 'force-dynamic';
+
 interface ConnectionStatus {
   connected: boolean;
   expiresAt: string | null;
