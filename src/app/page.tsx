@@ -95,10 +95,10 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
             Clean Your Data
-            <span className="block" style={{ color: '#0B8377' }}>Before It Hits HubSpot</span>
+            <span className="block" style={{ color: '#0B8377' }}>Before It Hits Your CRM</span>
           </h1>
           <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-            Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
+            Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to your CRM every time.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -120,7 +120,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900">Everything You Need for Clean Data</h2>
-            <p className="mt-4 text-lg text-gray-600">Powerful features to transform your messy spreadsheets into HubSpot-ready data.</p>
+            <p className="mt-4 text-lg text-gray-600">Powerful features to transform your messy spreadsheets into CRM-ready data.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -154,7 +154,7 @@ function LandingPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Column Mapping</h3>
-              <p className="text-gray-600">Map your spreadsheet columns to HubSpot properties with smart auto-matching. Remembers your preferences for future imports.</p>
+              <p className="text-gray-600">Map your spreadsheet columns to your CRM properties with smart auto-matching. Remembers your preferences for future imports.</p>
             </div>
 
             {/* Feature 4 */}
@@ -176,7 +176,7 @@ function LandingPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Detection</h3>
-              <p className="text-gray-600">Instantly see which rows have issues. Review flagged records before export to ensure only clean data reaches HubSpot.</p>
+              <p className="text-gray-600">Instantly see which rows have issues. Review flagged records before export to ensure only clean data reaches your CRM.</p>
             </div>
 
             {/* Feature 6 */}
@@ -186,8 +186,8 @@ function LandingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">HubSpot-Ready Export</h3>
-              <p className="text-gray-600">Export clean, validated CSV files ready to upload directly to HubSpot. No more import errors or data cleanup.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">CRM-Ready Export</h3>
+              <p className="text-gray-600">Export clean, validated CSV files ready to upload directly to your CRM. No more import errors or data cleanup.</p>
             </div>
           </div>
         </div>
@@ -222,7 +222,7 @@ function LandingPage() {
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold" style={{ backgroundColor: '#0B8377' }}>3</div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Export Clean Data</h3>
-                <p className="mt-2 text-gray-600">Download your validated, HubSpot-ready file and import it with confidence.</p>
+                <p className="mt-2 text-gray-600">Download your validated, CRM-ready file and import it with confidence.</p>
               </div>
             </div>
           </div>
