@@ -119,9 +119,9 @@ export async function POST(request: NextRequest) {
       .eq('is_active', true);
 
     if (candidateAccounts && candidateAccounts.length > 0) {
-      // Grace period: don't touch accounts created less than 1 hour ago
-      // (someone else with same email prefix might be mid-checkout)
-      const graceCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      // Grace period: don't touch accounts created less than 26 hours ago
+      // (Stripe checkout sessions are valid for 24 hours)
+      const graceCutoff = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
 
       for (const candidate of candidateAccounts) {
         const { count } = await getServerSupabase()

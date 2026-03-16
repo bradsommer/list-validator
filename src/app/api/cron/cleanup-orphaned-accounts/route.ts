@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
 
     const db = getServerSupabase();
 
-    // Grace period: 1 hour. Any account created more than 1 hour ago
-    // with 0 users is considered abandoned and safe to delete.
-    const gracePeriodMs = 60 * 60 * 1000; // 1 hour
+    // Grace period: 26 hours. Stripe checkout sessions expire after 24 hours,
+    // so 26 hours ensures the checkout is fully expired before we clean up.
+    const gracePeriodMs = 26 * 60 * 60 * 1000; // 26 hours
     const cutoff = new Date(Date.now() - gracePeriodMs).toISOString();
 
     // Find all accounts created before the cutoff
