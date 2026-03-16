@@ -1,14 +1,36 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { appLink } from '@/lib/domainLinks';
 
+const crmLinks = [
+  { name: 'HubSpot', slug: 'hubspot' },
+  { name: 'Salesforce', slug: 'salesforce' },
+  { name: 'Dynamics 365', slug: 'dynamics' },
+  { name: 'Pipedrive', slug: 'pipedrive' },
+  { name: 'Zoho CRM', slug: 'zoho-crm' },
+  { name: 'monday.com', slug: 'monday' },
+  { name: 'Airtable', slug: 'airtable' },
+];
+
 export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: ReactNode; maxWidth?: string }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (resourcesRef.current && !resourcesRef.current.contains(e.target as Node)) {
+        setResourcesOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -29,12 +51,47 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
             </Link>
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-4">
-              <Link
-                href="/documentation"
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Help Center
-              </Link>
+              <div className="relative" ref={resourcesRef}>
+                <button
+                  onClick={() => setResourcesOpen(!resourcesOpen)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-1"
+                >
+                  Resources
+                  <svg className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {resourcesOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <Link
+                      href="/resources"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      All Resources
+                    </Link>
+                    <Link
+                      href="/documentation"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      Help Center
+                    </Link>
+                    <div className="border-t border-gray-100 my-1" />
+                    <p className="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+                    {crmLinks.map((crm) => (
+                      <Link
+                        key={crm.slug}
+                        href={`/resources/for/${crm.slug}`}
+                        className="block px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        onClick={() => setResourcesOpen(false)}
+                      >
+                        {crm.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               {isAuthenticated ? (
                 <a
                   href={appLink('/')}
@@ -83,12 +140,30 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-gray-100 py-2">
               <Link
-                href="/documentation"
+                href="/resources"
                 className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Resources
+              </Link>
+              <Link
+                href="/documentation"
+                className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Help Center
               </Link>
+              <p className="px-6 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+              {crmLinks.map((crm) => (
+                <Link
+                  key={crm.slug}
+                  href={`/resources/for/${crm.slug}`}
+                  className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {crm.name}
+                </Link>
+              ))}
               {isAuthenticated ? (
                 <a
                   href={appLink('/')}

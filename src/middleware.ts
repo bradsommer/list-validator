@@ -26,6 +26,7 @@ const MARKETING_PREFIXES = [
   '/legal',
   '/forgot-password',
   '/reset-password',
+  '/resources',
 ];
 
 // Prefixes that belong on the app site
