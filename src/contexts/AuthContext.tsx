@@ -11,6 +11,7 @@ export interface User {
   role: UserRole;
   accountId: string | null;
   accountName: string | null;
+  accountNumber: number | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
@@ -21,6 +22,7 @@ export interface AccountOption {
   userId: string;
   accountId: string;
   accountName: string;
+  accountNumber: number | null;
   role: string;
 }
 

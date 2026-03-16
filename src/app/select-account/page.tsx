@@ -94,7 +94,14 @@ export default function SelectAccountPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-gray-900">{account.accountName}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{account.accountName}</span>
+                        {account.accountNumber != null && (
+                          <span className="px-1.5 py-0.5 text-xs font-mono bg-gray-100 text-gray-500 rounded">
+                            #{account.accountNumber}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-gray-500 mt-0.5">
                         {ROLE_LABEL[account.role] || account.role}
                       </div>
