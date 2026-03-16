@@ -86,9 +86,7 @@ export default function CompanyAdminAccountsPage() {
   };
 
   const getUsersForAccount = (accountId: string) => {
-    // Filter out super_admin users — they are FreshSegments-internal and
-    // should not appear in any company account's user list.
-    return users.filter((u) => u.account_id === accountId && u.role !== 'super_admin');
+    return users.filter((u) => u.account_id === accountId);
   };
 
   const handleCopyConfig = async (targetAccountId: string) => {
@@ -173,7 +171,7 @@ export default function CompanyAdminAccountsPage() {
     (a) => getUsersForAccount(a.id).length === 0
   ).length;
 
-  const unassignedUsers = users.filter((u) => !u.account_id && u.role !== 'super_admin');
+  const unassignedUsers = users.filter((u) => !u.account_id);
 
   if (authLoading || (!isCompanyAdmin && !authLoading)) {
     return null;
