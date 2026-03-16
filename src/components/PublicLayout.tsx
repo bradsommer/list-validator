@@ -8,12 +8,6 @@ import { appLink } from '@/lib/domainLinks';
 
 const crmLinks = [
   { name: 'HubSpot', slug: 'hubspot' },
-  { name: 'Salesforce', slug: 'salesforce' },
-  { name: 'Dynamics 365', slug: 'dynamics' },
-  { name: 'Pipedrive', slug: 'pipedrive' },
-  { name: 'Zoho CRM', slug: 'zoho-crm' },
-  { name: 'monday.com', slug: 'monday' },
-  { name: 'Airtable', slug: 'airtable' },
 ];
 
 export function PublicLayout({ children, maxWidth = 'max-w-5xl', centerContent = false }: { children: ReactNode; maxWidth?: string; centerContent?: boolean }) {
