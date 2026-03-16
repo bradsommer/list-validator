@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     if (user.username) {
       const { data: userRows } = await getServerSupabase()
         .from('users')
-        .select('id, role, account_id, accounts!inner(id, name)')
+        .select('id, role, account_id, accounts!inner(id, name, account_number)')
         .eq('username', user.username)
         .eq('is_active', true);
 
@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
             userId: row.id as string,
             accountId: acct.id as string,
             accountName: acct.name as string,
+            accountNumber: (acct.account_number as number) ?? null,
             role: row.role as string,
           };
         });

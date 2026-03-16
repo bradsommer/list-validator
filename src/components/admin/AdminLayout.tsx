@@ -275,7 +275,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                     <p className="text-xs text-gray-500 truncate">{user.username}</p>
                   )}
                   {user?.accountName && (
-                    <p className="text-xs truncate mt-0.5" style={{ color: '#0B8377' }}>{user.accountName}</p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: '#0B8377' }}>
+                      {user.accountName}
+                      {user.accountNumber != null && (
+                        <span className="text-gray-400 ml-1">#{user.accountNumber}</span>
+                      )}
+                    </p>
                   )}
                 </div>
 
@@ -295,7 +300,12 @@ export function AdminLayout({ children, hideChrome = false }: AdminLayoutProps) 
                               : 'text-gray-700 hover:bg-gray-50'
                           } disabled:opacity-60`}
                         >
-                          <span className="truncate">{account.accountName}</span>
+                          <span className="truncate">
+                            {account.accountName}
+                            {account.accountNumber != null && (
+                              <span className="text-gray-400 ml-1 text-xs">#{account.accountNumber}</span>
+                            )}
+                          </span>
                           {switchingAccount === account.userId && (
                             <div className="animate-spin w-3 h-3 border-2 border-t-transparent rounded-full shrink-0 ml-2" style={{ borderColor: '#0b8377', borderTopColor: 'transparent' }} />
                           )}
