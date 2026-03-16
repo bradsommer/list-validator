@@ -65,7 +65,7 @@ export default function ResourcesPage() {
             {crmPages.map((crm) => (
               <Link
                 key={crm.slug}
-                href={`/resources/for/${crm.slug}`}
+                href={`/resources/${crm.slug}`}
                 className="rounded-xl border border-gray-200 bg-white p-6 hover:shadow-md transition-shadow group"
               >
                 <h3 className="text-lg font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">
