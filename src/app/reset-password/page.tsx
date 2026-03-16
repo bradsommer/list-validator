@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { PublicLayout } from '@/components/PublicLayout';
 import { validatePassword } from '@/lib/passwordValidation';
 import { appLink } from '@/lib/domainLinks';
 
@@ -141,7 +142,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <PublicLayout centerContent>
       <div className="max-w-md w-full">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-6">
@@ -153,6 +154,6 @@ export default function ResetPasswordPage() {
           </Suspense>
         </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 }
