@@ -25,6 +25,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError('');
 
     const pwCheck = validatePassword(password);

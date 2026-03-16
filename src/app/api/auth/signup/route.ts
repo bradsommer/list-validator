@@ -102,44 +102,93 @@ export async function POST(request: NextRequest) {
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
     const accountName = companyName?.trim()
       || (fullName ? `${fullName}'s Account` : normalizedEmail.split('@')[0] + "'s Account");
-    const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
     const region = countryToRegion(country || '');
 
-    // Try with region column first; if the migration hasn't been applied yet, retry without it
+    // Deduplication: Check if there are any orphaned accounts (0 users) that were
+    // created by a previous failed/incomplete signup attempt for this email.
+    // Account slugs are derived from the email, so we can find candidates by
+    // matching the slug prefix. Reuse one orphaned account and delete any extras.
     let account: { id: string } | null = null;
-    const { data: accountData, error: accountError } = await getServerSupabase()
-      .from('accounts')
-      .insert({
-        name: accountName,
-        slug: accountSlug,
-        region,
-      })
-      .select()
-      .single();
 
-    if (accountError) {
-      console.error('Account creation error (with region):', accountError);
-      // Retry without region in case the column doesn't exist yet
-      const { data: retryData, error: retryError } = await getServerSupabase()
+    const slugPrefix = normalizedEmail.replace(/[^a-z0-9]/g, '-');
+    const { data: candidateAccounts } = await getServerSupabase()
+      .from('accounts')
+      .select('id, created_at')
+      .like('slug', `${slugPrefix}-%`)
+      .eq('is_active', true);
+
+    if (candidateAccounts && candidateAccounts.length > 0) {
+      // Grace period: don't touch accounts created less than 26 hours ago
+      // (Stripe checkout sessions are valid for 24 hours)
+      const graceCutoff = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+
+      for (const candidate of candidateAccounts) {
+        const { count } = await getServerSupabase()
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('account_id', candidate.id);
+
+        if (count === 0) {
+          if (!account) {
+            // Reuse the first orphaned account
+            await getServerSupabase()
+              .from('accounts')
+              .update({ name: accountName })
+              .eq('id', candidate.id);
+
+            account = { id: candidate.id };
+            console.log(`Reusing orphaned account ${candidate.id} for ${normalizedEmail}`);
+          } else if (candidate.created_at < graceCutoff) {
+            // Delete extra orphaned accounts older than the grace period
+            await getServerSupabase()
+              .from('accounts')
+              .delete()
+              .eq('id', candidate.id);
+            console.log(`Deleted extra orphaned account ${candidate.id}`);
+          }
+        }
+      }
+    }
+
+    // Only create a new account if we didn't find an existing one to reuse
+    if (!account) {
+      const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+
+      // Try with region column first; if the migration hasn't been applied yet, retry without it
+      const { data: accountData, error: accountError } = await getServerSupabase()
         .from('accounts')
         .insert({
           name: accountName,
-          slug: accountSlug + '-r',
+          slug: accountSlug,
+          region,
         })
         .select()
         .single();
 
-      if (retryError || !retryData) {
-        console.error('Account creation error (without region):', retryError);
-        return NextResponse.json(
-          { success: false, error: 'Failed to create account workspace. Please try again.' },
-          { status: 500 }
-        );
+      if (accountError) {
+        console.error('Account creation error (with region):', accountError);
+        // Retry without region in case the column doesn't exist yet
+        const { data: retryData, error: retryError } = await getServerSupabase()
+          .from('accounts')
+          .insert({
+            name: accountName,
+            slug: accountSlug + '-r',
+          })
+          .select()
+          .single();
+
+        if (retryError || !retryData) {
+          console.error('Account creation error (without region):', retryError);
+          return NextResponse.json(
+            { success: false, error: 'Failed to create account workspace. Please try again.' },
+            { status: 500 }
+          );
+        }
+        account = retryData;
+      } else {
+        account = accountData;
       }
-      account = retryData;
-    } else {
-      account = accountData;
     }
 
     if (!account) {

@@ -35,15 +35,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', baseUrl));
     }
 
-    // Verify the user exists
+    // Verify the user exists and their account hasn't been cleaned up
     const { data: user } = await getServerSupabase()
       .from('users')
-      .select('id, is_active')
+      .select('id, is_active, account_id')
       .eq('id', userId)
       .single();
 
     if (!user || !user.is_active) {
       return NextResponse.redirect(new URL('/login', baseUrl));
+    }
+
+    // If the user's account was deleted (cleaned up as orphaned), redirect
+    // to signup so they can start fresh
+    if (user.account_id) {
+      const { data: account } = await getServerSupabase()
+        .from('accounts')
+        .select('id')
+        .eq('id', user.account_id)
+        .single();
+
+      if (!account) {
+        console.error('Stripe return: user account no longer exists (cleaned up as orphaned)');
+        return NextResponse.redirect(new URL('/signup?reason=expired', baseUrl));
+      }
     }
 
     // Check if the user already has a valid session (from signup cookie)

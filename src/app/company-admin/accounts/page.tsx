@@ -34,6 +34,8 @@ export default function CompanyAdminAccountsPage() {
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [copyingConfigTo, setCopyingConfigTo] = useState<string | null>(null);
   const [copyResult, setCopyResult] = useState<{ accountId: string; message: string; success: boolean } | null>(null);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ message: string; success: boolean } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isCompanyAdmin) {
@@ -114,6 +116,35 @@ export default function CompanyAdminAccountsPage() {
     }
   };
 
+  const handleCleanupOrphans = async () => {
+    setCleaningUp(true);
+    setCleanupResult(null);
+    try {
+      const res = await fetch('/api/cron/cleanup-orphaned-accounts', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setCleanupResult({ message: data.message, success: true });
+        // Refresh the accounts list
+        if (data.deleted > 0) {
+          const refreshRes = await fetch('/api/company-admin/accounts');
+          const refreshData = await refreshRes.json();
+          setAccounts(refreshData.accounts || []);
+          setUsers(refreshData.users || []);
+        }
+      } else {
+        setCleanupResult({ message: data.error || 'Cleanup failed', success: false });
+      }
+    } catch {
+      setCleanupResult({ message: 'Network error', success: false });
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
+  const orphanedAccountCount = accounts.filter(
+    (a) => getUsersForAccount(a.id).length === 0
+  ).length;
+
   const unassignedUsers = users.filter((u) => !u.account_id && u.role !== 'super_admin');
 
   if (authLoading || (!isCompanyAdmin && !authLoading)) {
@@ -123,11 +154,27 @@ export default function CompanyAdminAccountsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
+        <div className="flex items-start justify-between gap-4">
           <p className="text-gray-600">
             View all accounts and their users. Click an account to see its users and log in as any user for troubleshooting.
           </p>
+          {orphanedAccountCount > 0 && (
+            <button
+              onClick={handleCleanupOrphans}
+              disabled={cleaningUp}
+              className="shrink-0 px-3 py-1.5 text-sm font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              {cleaningUp ? 'Cleaning up...' : `Remove ${orphanedAccountCount} orphaned account${orphanedAccountCount !== 1 ? 's' : ''}`}
+            </button>
+          )}
         </div>
+        {cleanupResult && (
+          <div className={`px-4 py-2 rounded text-sm ${
+            cleanupResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {cleanupResult.message}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">
@@ -140,8 +187,10 @@ export default function CompanyAdminAccountsPage() {
               const acctUsers = getUsersForAccount(account.id);
               const isExpanded = expandedAccount === account.id;
 
+              const isOrphaned = acctUsers.length === 0;
+
               return (
-                <div key={account.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div key={account.id} className={`bg-white rounded-lg border overflow-hidden ${isOrphaned ? 'border-red-200 bg-red-50/30' : 'border-gray-200'}`}>
                   {/* Account header */}
                   <button
                     onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
