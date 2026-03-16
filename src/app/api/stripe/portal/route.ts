@@ -72,16 +72,35 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: stripeCustomerId,
-      return_url: `${baseUrl}/billing`,
-    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: `${baseUrl}/billing`,
+      });
+    } catch (stripeError: unknown) {
+      const msg = stripeError instanceof Error ? stripeError.message : String(stripeError);
+      console.error('Stripe billing portal error:', msg);
+
+      // Provide actionable error for common portal issues
+      if (msg.includes('portal') || msg.includes('configuration')) {
+        return NextResponse.json(
+          { error: 'The billing portal is not configured yet. Please contact support.' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to create billing portal session. Please try again or contact support.' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating portal session:', error);
+    console.error('Error in portal endpoint:', error);
     return NextResponse.json(
-      { error: 'Failed to create billing portal session' },
+      { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }
     );
   }

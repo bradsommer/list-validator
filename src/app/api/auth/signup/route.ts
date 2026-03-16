@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
         metadata: { user_id: user.id },
       },
       metadata: { user_id: user.id },
-      success_url: `${baseUrl}/?welcome=true`,
+      success_url: `${baseUrl}/api/auth/stripe-return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?checkout=cancelled`,
       allow_promotion_codes: true,
     };
