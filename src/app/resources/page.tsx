@@ -5,17 +5,11 @@ import { PublicLayout } from '@/components/PublicLayout';
 export const metadata: Metadata = {
   title: 'Resources | FreshSegments',
   description:
-    'Explore FreshSegments resources including our Help Center, documentation, and CRM-specific guides for HubSpot, Salesforce, Dynamics 365, and more.',
+    'Explore FreshSegments resources including our Help Center, documentation, and CRM-specific guides for HubSpot.',
 };
 
 const crmPages = [
   { name: 'HubSpot', slug: 'hubspot', description: 'Clean and validate your data before importing into HubSpot.' },
-  { name: 'Salesforce', slug: 'salesforce', description: 'Ensure flawless Data Loader imports with clean spreadsheets.' },
-  { name: 'Dynamics 365', slug: 'dynamics', description: 'Eliminate import errors and keep your Dynamics data consistent.' },
-  { name: 'Pipedrive', slug: 'pipedrive', description: 'Keep your pipeline accurate with validated, clean data imports.' },
-  { name: 'Zoho CRM', slug: 'zoho-crm', description: 'Validate and clean your spreadsheets before every Zoho CRM import.' },
-  { name: 'monday.com', slug: 'monday', description: 'Keep your boards organized with clean, validated data imports.' },
-  { name: 'Airtable', slug: 'airtable', description: 'Import clean, validated data to keep your bases organized.' },
 ];
 
 export default function ResourcesPage() {
