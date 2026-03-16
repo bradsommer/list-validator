@@ -102,44 +102,79 @@ export async function POST(request: NextRequest) {
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
     const accountName = companyName?.trim()
       || (fullName ? `${fullName}'s Account` : normalizedEmail.split('@')[0] + "'s Account");
-    const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
     const region = countryToRegion(country || '');
 
-    // Try with region column first; if the migration hasn't been applied yet, retry without it
+    // Deduplication: If this user already has an account with the same name and no other
+    // users (i.e., an incomplete signup from a previous attempt), reuse it instead of
+    // creating a duplicate.
     let account: { id: string } | null = null;
-    const { data: accountData, error: accountError } = await getServerSupabase()
-      .from('accounts')
-      .insert({
-        name: accountName,
-        slug: accountSlug,
-        region,
-      })
-      .select()
-      .single();
 
-    if (accountError) {
-      console.error('Account creation error (with region):', accountError);
-      // Retry without region in case the column doesn't exist yet
-      const { data: retryData, error: retryError } = await getServerSupabase()
+    if (existingUser) {
+      // Find accounts owned by this user that match the requested name
+      const { data: existingAccounts } = await getServerSupabase()
+        .from('users')
+        .select('account_id, accounts!inner(id, name)')
+        .eq('username', normalizedEmail)
+        .eq('accounts.name', accountName);
+
+      if (existingAccounts && existingAccounts.length > 0) {
+        // Check if any of these accounts have only one user (the owner) — meaning
+        // it's likely an incomplete/abandoned signup attempt we can reuse
+        for (const row of existingAccounts) {
+          const acct = row.accounts as unknown as { id: string; name: string };
+          const { count } = await getServerSupabase()
+            .from('users')
+            .select('id', { count: 'exact', head: true })
+            .eq('account_id', acct.id);
+
+          if (count !== null && count <= 1) {
+            account = { id: acct.id };
+            console.log(`Reusing existing account ${acct.id} for ${normalizedEmail} instead of creating duplicate`);
+            break;
+          }
+        }
+      }
+    }
+
+    // Only create a new account if we didn't find an existing one to reuse
+    if (!account) {
+      const accountSlug = normalizedEmail.replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+
+      // Try with region column first; if the migration hasn't been applied yet, retry without it
+      const { data: accountData, error: accountError } = await getServerSupabase()
         .from('accounts')
         .insert({
           name: accountName,
-          slug: accountSlug + '-r',
+          slug: accountSlug,
+          region,
         })
         .select()
         .single();
 
-      if (retryError || !retryData) {
-        console.error('Account creation error (without region):', retryError);
-        return NextResponse.json(
-          { success: false, error: 'Failed to create account workspace. Please try again.' },
-          { status: 500 }
-        );
+      if (accountError) {
+        console.error('Account creation error (with region):', accountError);
+        // Retry without region in case the column doesn't exist yet
+        const { data: retryData, error: retryError } = await getServerSupabase()
+          .from('accounts')
+          .insert({
+            name: accountName,
+            slug: accountSlug + '-r',
+          })
+          .select()
+          .single();
+
+        if (retryError || !retryData) {
+          console.error('Account creation error (without region):', retryError);
+          return NextResponse.json(
+            { success: false, error: 'Failed to create account workspace. Please try again.' },
+            { status: 500 }
+          );
+        }
+        account = retryData;
+      } else {
+        account = accountData;
       }
-      account = retryData;
-    } else {
-      account = accountData;
     }
 
     if (!account) {
