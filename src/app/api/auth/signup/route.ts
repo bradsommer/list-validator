@@ -150,7 +150,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user linked to the new account
-    const { data: user, error: createError } = await getServerSupabase()
+    // Try with marketing_opt_in columns first; retry without if migration hasn't been applied yet
+    let user: { id: string } | null = null;
+    const { data: userData, error: createError } = await getServerSupabase()
       .from('users')
       .insert({
         username: normalizedEmail,
@@ -173,7 +175,41 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      console.error('User creation error:', createError);
+      console.error('User creation error (with marketing columns):', createError);
+      // Retry without marketing columns in case the migration hasn't been applied yet
+      const { data: retryData, error: retryError } = await getServerSupabase()
+        .from('users')
+        .insert({
+          username: normalizedEmail,
+          password_hash: passwordHash,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          role: 'admin',
+          account_id: account.id,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (retryError) {
+        if (retryError.code === '23505') {
+          return NextResponse.json(
+            { success: false, error: 'This email is already linked to this account.' },
+            { status: 409 }
+          );
+        }
+        console.error('User creation error (without marketing columns):', retryError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create user profile. Please try again.' },
+          { status: 500 }
+        );
+      }
+      user = retryData;
+    } else {
+      user = userData;
+    }
+
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Failed to create user profile. Please try again.' },
         { status: 500 }
