@@ -3,6 +3,8 @@ import { runEnrichment } from '@/lib/enrichment';
 import { logInfo, logError } from '@/lib/logger';
 import type { EnrichmentConfig, ParsedRow } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

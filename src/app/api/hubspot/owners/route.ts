@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getHubSpotOwners } from '@/lib/hubspot';
 import { cache, CACHE_TTL, CACHE_KEYS } from '@/lib/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const accountId = request.headers.get('x-account-id') || '';
   try {

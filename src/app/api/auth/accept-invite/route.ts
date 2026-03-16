@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/auth/accept-invite — Accept an account invitation (existing users only).
  * Activates the user record for the new account without requiring password setup.

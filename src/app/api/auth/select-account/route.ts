@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { selectAccount } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const currentToken = request.cookies.get('auth_token')?.value;

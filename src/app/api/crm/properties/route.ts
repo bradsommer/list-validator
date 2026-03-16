@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET - List properties for an object type
 export async function GET(request: NextRequest) {
   const accountId = request.headers.get('x-account-id');

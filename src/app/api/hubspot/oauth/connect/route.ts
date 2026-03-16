@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokens, getAuthorizeUrl } from '@/lib/hubspot';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Revoke any existing HubSpot authorization at HubSpot's end, then return a
 // fresh authorize URL.  This forces HubSpot to show the full consent flow (both
 // screens) for unapproved apps instead of auto-redirecting based on a cached grant.

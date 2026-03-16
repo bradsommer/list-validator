@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Purge expired sessions (15-day TTL)
 // Can be called by cron job or manually from admin
 export async function POST() {
