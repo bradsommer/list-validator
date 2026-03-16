@@ -105,34 +105,37 @@ export async function POST(request: NextRequest) {
 
     const region = countryToRegion(country || '');
 
-    // Deduplication: If this user already has an account with the same name and no other
-    // users (i.e., an incomplete signup from a previous attempt), reuse it instead of
-    // creating a duplicate.
+    // Deduplication: Check if there are any orphaned accounts (0 users) that were
+    // created by a previous failed/incomplete signup attempt for this email.
+    // Account slugs are derived from the email, so we can find candidates by
+    // matching the slug prefix. Reuse the first orphaned one instead of creating
+    // yet another empty account.
     let account: { id: string } | null = null;
 
-    if (existingUser) {
-      // Find accounts owned by this user that match the requested name
-      const { data: existingAccounts } = await getServerSupabase()
-        .from('users')
-        .select('account_id, accounts!inner(id, name)')
-        .eq('username', normalizedEmail)
-        .eq('accounts.name', accountName);
+    const slugPrefix = normalizedEmail.replace(/[^a-z0-9]/g, '-');
+    const { data: candidateAccounts } = await getServerSupabase()
+      .from('accounts')
+      .select('id')
+      .like('slug', `${slugPrefix}-%`)
+      .eq('is_active', true);
 
-      if (existingAccounts && existingAccounts.length > 0) {
-        // Check if any of these accounts have only one user (the owner) — meaning
-        // it's likely an incomplete/abandoned signup attempt we can reuse
-        for (const row of existingAccounts) {
-          const acct = row.accounts as unknown as { id: string; name: string };
-          const { count } = await getServerSupabase()
-            .from('users')
-            .select('id', { count: 'exact', head: true })
-            .eq('account_id', acct.id);
+    if (candidateAccounts && candidateAccounts.length > 0) {
+      for (const candidate of candidateAccounts) {
+        const { count } = await getServerSupabase()
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('account_id', candidate.id);
 
-          if (count !== null && count <= 1) {
-            account = { id: acct.id };
-            console.log(`Reusing existing account ${acct.id} for ${normalizedEmail} instead of creating duplicate`);
-            break;
-          }
+        if (count === 0) {
+          // Update the orphaned account's name/region to match the current request
+          await getServerSupabase()
+            .from('accounts')
+            .update({ name: accountName })
+            .eq('id', candidate.id);
+
+          account = { id: candidate.id };
+          console.log(`Reusing orphaned account ${candidate.id} for ${normalizedEmail} instead of creating duplicate`);
+          break;
         }
       }
     }
