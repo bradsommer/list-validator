@@ -9,6 +9,7 @@ export interface User {
   role: UserRole;
   accountId: string | null;
   accountName: string | null;
+  accountNumber: number | null;
   isActive: boolean;
   lastLogin: string | null;
   createdAt: string;
@@ -18,6 +19,7 @@ export interface AccountOption {
   userId: string;
   accountId: string;
   accountName: string;
+  accountNumber: number | null;
   role: UserRole;
 }
 
@@ -44,7 +46,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     // Find ALL user records for this email (could be in multiple accounts)
     const { data: users, error: userError } = await getServerSupabase()
       .from('users')
-      .select('*, account:accounts(id, name)')
+      .select('*, account:accounts(id, name, account_number)')
       .eq('username', username.toLowerCase().trim())
       .eq('is_active', true);
 
@@ -86,7 +88,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
         .update({ last_login: new Date().toISOString() })
         .eq('id', firstUser.id);
 
-      const firstAccount = firstUser.account as { id: string; name: string } | null;
+      const firstAccount = firstUser.account as { id: string; name: string; account_number: number | null } | null;
 
       return {
         success: true,
@@ -95,20 +97,22 @@ export async function loginUser(username: string, password: string): Promise<Aut
           id: firstUser.id,
           username: firstUser.username,
           firstName: firstUser.first_name,
-        lastName: firstUser.last_name,
+          lastName: firstUser.last_name,
           role: firstUser.role,
           accountId: firstAccount?.id || null,
           accountName: firstAccount?.name || null,
+          accountNumber: firstAccount?.account_number ?? null,
           isActive: firstUser.is_active,
           lastLogin: firstUser.last_login,
           createdAt: firstUser.created_at,
         },
         accounts: users.map((u) => {
-          const acc = u.account as { id: string; name: string } | null;
+          const acc = u.account as { id: string; name: string; account_number: number | null } | null;
           return {
             userId: u.id,
             accountId: acc?.id || '',
             accountName: acc?.name || 'Unknown Account',
+            accountNumber: acc?.account_number ?? null,
             role: u.role,
           };
         }),
@@ -154,7 +158,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
       }
     }
 
-    const account = user.account as { id: string; name: string } | null;
+    const account = user.account as { id: string; name: string; account_number: number | null } | null;
     return {
       success: true,
       token,
@@ -162,10 +166,11 @@ export async function loginUser(username: string, password: string): Promise<Aut
         id: user.id,
         username: user.username,
         firstName: user.first_name,
-      lastName: user.last_name,
+        lastName: user.last_name,
         role: effectiveRole,
         accountId: account?.id || null,
         accountName: account?.name || null,
+        accountNumber: account?.account_number ?? null,
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
@@ -192,7 +197,7 @@ export async function selectAccount(
     // Verify the target user record belongs to the same email
     const { data: targetUser, error: targetError } = await getServerSupabase()
       .from('users')
-      .select('*, account:accounts(id, name)')
+      .select('*, account:accounts(id, name, account_number)')
       .eq('id', targetUserId)
       .eq('username', currentUser.username)
       .eq('is_active', true)
@@ -224,7 +229,7 @@ export async function selectAccount(
       .update({ last_login: new Date().toISOString() })
       .eq('id', targetUser.id);
 
-    const account = targetUser.account as { id: string; name: string } | null;
+    const account = targetUser.account as { id: string; name: string; account_number: number | null } | null;
     return {
       success: true,
       token,
@@ -236,6 +241,7 @@ export async function selectAccount(
         role: targetUser.role,
         accountId: account?.id || null,
         accountName: account?.name || null,
+        accountNumber: account?.account_number ?? null,
         isActive: targetUser.is_active,
         lastLogin: targetUser.last_login,
         createdAt: targetUser.created_at,
@@ -262,7 +268,7 @@ export async function validateSession(token: string): Promise<User | null> {
   try {
     const { data: session, error: sessionError } = await getServerSupabase()
       .from('user_sessions')
-      .select('*, user:users(*, account:accounts(id, name))')
+      .select('*, user:users(*, account:accounts(id, name, account_number))')
       .eq('token', token)
       .gt('expires_at', new Date().toISOString())
       .single();
@@ -272,7 +278,7 @@ export async function validateSession(token: string): Promise<User | null> {
     }
 
     const user = session.user;
-    const account = user.account as { id: string; name: string } | null;
+    const account = user.account as { id: string; name: string; account_number: number | null } | null;
     return {
       id: user.id,
       username: user.username,
@@ -281,6 +287,7 @@ export async function validateSession(token: string): Promise<User | null> {
       role: user.role,
       accountId: account?.id || null,
       accountName: account?.name || null,
+      accountNumber: account?.account_number ?? null,
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,
@@ -336,10 +343,11 @@ export async function createUser(
         id: user.id,
         username: user.username,
         firstName: user.first_name,
-      lastName: user.last_name,
+        lastName: user.last_name,
         role: user.role,
         accountId: user.account_id || null,
         accountName: null,
+        accountNumber: null,
         isActive: user.is_active,
         lastLogin: user.last_login,
         createdAt: user.created_at,
@@ -406,6 +414,7 @@ export async function getAllUsers(): Promise<User[]> {
       role: user.role,
       accountId: user.account_id || null,
       accountName: null,
+      accountNumber: null,
       isActive: user.is_active,
       lastLogin: user.last_login,
       createdAt: user.created_at,

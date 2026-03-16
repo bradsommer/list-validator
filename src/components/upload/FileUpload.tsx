@@ -206,8 +206,7 @@ export function FileUpload({ onCancel }: { onCancel?: () => void }) {
         <div className="flex pt-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm"
-            style={{ color: '#0b8377' }}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
           >
             Cancel
           </button>

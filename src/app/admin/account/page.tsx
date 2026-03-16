@@ -8,6 +8,7 @@ export default function AccountSettingsPage() {
   const { user, isAdmin, checkSession } = useAuth();
   const [accountName, setAccountName] = useState('');
   const [originalName, setOriginalName] = useState('');
+  const [accountNumber, setAccountNumber] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -24,6 +25,7 @@ export default function AccountSettingsPage() {
         if (json.data) {
           setAccountName(json.data.name);
           setOriginalName(json.data.name);
+          setAccountNumber(json.data.account_number ?? null);
         }
       } catch (err) {
         console.error('Error fetching account:', err);
@@ -76,7 +78,14 @@ export default function AccountSettingsPage() {
     <AdminLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Account Settings</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-gray-900">Account Settings</h2>
+            {accountNumber != null && (
+              <span className="px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-600 rounded">
+                Account #{accountNumber}
+              </span>
+            )}
+          </div>
           <p className="text-gray-500 text-sm mt-1">Manage your account configuration.</p>
         </div>
 

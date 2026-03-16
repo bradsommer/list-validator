@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover',
 });
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -52,6 +47,27 @@ export async function POST(req: NextRequest) {
         };
 
         if (userId) {
+          // Verify the user still exists (account may have been cleaned up)
+          const { data: existingUser } = await getServerSupabase()
+            .from('users')
+            .select('id, account_id')
+            .eq('id', userId)
+            .single();
+
+          if (!existingUser) {
+            console.warn(`Stripe checkout completed for deleted user ${userId} — account was likely cleaned up as orphaned`);
+            // Cancel the just-created subscription since the user no longer exists
+            if (subscriptionId) {
+              try {
+                await stripe.subscriptions.cancel(subscriptionId);
+                console.log(`Cancelled orphaned subscription ${subscriptionId}`);
+              } catch (cancelErr) {
+                console.error(`Failed to cancel orphaned subscription ${subscriptionId}:`, cancelErr);
+              }
+            }
+            break;
+          }
+
           // Preferred: match by user ID from metadata
           await getServerSupabase().from('users').update(updateData).eq('id', userId);
         } else if (customerEmail && customerId) {

@@ -9,7 +9,31 @@ import type { Granularity, RangePreset } from '@/components/dashboard/ImportsCha
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { appLink, marketingLink, isDomainSplitActive } from '@/lib/domainLinks';
 
+const crmLinks = [
+  { name: 'HubSpot', slug: 'hubspot' },
+  { name: 'Salesforce', slug: 'salesforce' },
+  { name: 'Dynamics 365', slug: 'dynamics' },
+  { name: 'Pipedrive', slug: 'pipedrive' },
+  { name: 'Zoho CRM', slug: 'zoho-crm' },
+  { name: 'monday.com', slug: 'monday' },
+  { name: 'Airtable', slug: 'airtable' },
+];
+
 function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (resourcesRef.current && !resourcesRef.current.contains(e.target as Node)) {
+        setResourcesOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Navigation */}
@@ -19,22 +43,125 @@ function LandingPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-7" />
             </Link>
-            <div className="flex items-center gap-4">
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="relative" ref={resourcesRef}>
+                <button
+                  onClick={() => setResourcesOpen(!resourcesOpen)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-1"
+                >
+                  Resources
+                  <svg className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {resourcesOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <Link
+                      href="/resources"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      All Resources
+                    </Link>
+                    <Link
+                      href="/documentation"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      Help Center
+                    </Link>
+                    <div className="border-t border-gray-100 my-1" />
+                    <p className="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+                    {crmLinks.map((crm) => (
+                      <Link
+                        key={crm.slug}
+                        href={`/resources/${crm.slug}`}
+                        className="block px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        onClick={() => setResourcesOpen(false)}
+                      >
+                        {crm.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Link
                 href="/contact"
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               >
-                Contact Us
+                Contact
               </Link>
               <a
                 href={appLink('/login')}
                 className="px-4 py-2 text-sm font-medium"
                 style={{ color: '#0B8377' }}
               >
-                Sign In
+                Login
               </a>
             </div>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 py-2">
+              <Link
+                href="/resources"
+                className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Resources
+              </Link>
+              <Link
+                href="/documentation"
+                className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Help Center
+              </Link>
+              <p className="px-6 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+              {crmLinks.map((crm) => (
+                <Link
+                  key={crm.slug}
+                  href={`/resources/${crm.slug}`}
+                  className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {crm.name}
+                </Link>
+              ))}
+              <Link
+                href="/contact"
+                className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Contact
+              </Link>
+              <a
+                href={appLink('/login')}
+                className="block px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                style={{ color: '#0B8377' }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Login
+              </a>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -43,10 +170,10 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
             Clean Your Data
-            <span className="block" style={{ color: '#0B8377' }}>Before It Hits HubSpot</span>
+            <span className="block" style={{ color: '#0B8377' }}>Before It Hits Your CRM</span>
           </h1>
           <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-            Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to HubSpot every time.
+            Stop importing messy data. FreshSegments automatically cleans, standardizes, and validates your spreadsheets so you can upload perfect data to your CRM every time.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -56,12 +183,6 @@ function LandingPage() {
             >
               Start Free Trial
             </Link>
-            <a
-              href={appLink('/login')}
-              className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              Sign In
-            </a>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             $19.99/month after 14-day free trial. Cancel anytime.
@@ -74,7 +195,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900">Everything You Need for Clean Data</h2>
-            <p className="mt-4 text-lg text-gray-600">Powerful features to transform your messy spreadsheets into HubSpot-ready data.</p>
+            <p className="mt-4 text-lg text-gray-600">Powerful features to transform your messy spreadsheets into CRM-ready data.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -108,7 +229,7 @@ function LandingPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Column Mapping</h3>
-              <p className="text-gray-600">Map your spreadsheet columns to HubSpot properties with smart auto-matching. Remembers your preferences for future imports.</p>
+              <p className="text-gray-600">Map your spreadsheet columns to your CRM properties with smart auto-matching. Remembers your preferences for future imports.</p>
             </div>
 
             {/* Feature 4 */}
@@ -130,7 +251,7 @@ function LandingPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Detection</h3>
-              <p className="text-gray-600">Instantly see which rows have issues. Review flagged records before export to ensure only clean data reaches HubSpot.</p>
+              <p className="text-gray-600">Instantly see which rows have issues. Review flagged records before export to ensure only clean data reaches your CRM.</p>
             </div>
 
             {/* Feature 6 */}
@@ -140,8 +261,8 @@ function LandingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">HubSpot-Ready Export</h3>
-              <p className="text-gray-600">Export clean, validated CSV files ready to upload directly to HubSpot. No more import errors or data cleanup.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">CRM-Ready Export</h3>
+              <p className="text-gray-600">Export clean, validated CSV files ready to upload directly to your CRM. No more import errors or data cleanup.</p>
             </div>
           </div>
         </div>
@@ -176,7 +297,7 @@ function LandingPage() {
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold" style={{ backgroundColor: '#0B8377' }}>3</div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Export Clean Data</h3>
-                <p className="mt-2 text-gray-600">Download your validated, HubSpot-ready file and import it with confidence.</p>
+                <p className="mt-2 text-gray-600">Download your validated, CRM-ready file and import it with confidence.</p>
               </div>
             </div>
           </div>
@@ -259,26 +380,16 @@ function LandingPage() {
             <Link href="/">
               <FreshSegmentsLogo className="h-6" dark />
             </Link>
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/documentation" className="hover:text-white transition-colors">
-                Documentation
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/contact" className="hover:text-white transition-colors">
-                Contact Us
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">
-                Terms of Use
-              </Link>
-              <span className="text-gray-500">|</span>
-              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">
-                Privacy Choices
-              </button>
+            <div className="grid grid-cols-3 md:flex md:items-center gap-x-4 gap-y-2 text-sm text-center md:text-left">
+              <Link href="/documentation" className="hover:text-white transition-colors">Documentation</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Use</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">Privacy Choices</button>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>
           </div>

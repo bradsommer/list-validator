@@ -9,6 +9,7 @@ export default function BillingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResubscribing, setIsResubscribing] = useState(false);
   const [error, setError] = useState('');
+  const [needsSubscription, setNeedsSubscription] = useState(false);
 
   const handleManageBilling = async () => {
     setIsLoading(true);
@@ -23,6 +24,8 @@ export default function BillingPage() {
 
       if (data.url) {
         window.location.href = data.url;
+      } else if (res.status === 404) {
+        setNeedsSubscription(true);
       } else {
         setError(data.error || 'Unable to open billing portal');
       }
@@ -68,6 +71,31 @@ export default function BillingPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+
+        {needsSubscription && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-900">No Subscription Found</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  You don&apos;t have an active subscription yet. Set up a subscription to get started.
+                </p>
+                <button
+                  onClick={handleResubscribe}
+                  disabled={isResubscribing}
+                  className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 text-sm font-medium"
+                >
+                  {isResubscribing ? 'Redirecting...' : 'Subscribe Now'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -1,13 +1,30 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { FreshSegmentsLogo } from '@/components/FreshSegmentsLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { appLink } from '@/lib/domainLinks';
 
-export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: ReactNode; maxWidth?: string }) {
+const crmLinks = [
+  { name: 'HubSpot', slug: 'hubspot' },
+];
+
+export function PublicLayout({ children, maxWidth = 'max-w-5xl', centerContent = false }: { children: ReactNode; maxWidth?: string; centerContent?: boolean }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (resourcesRef.current && !resourcesRef.current.contains(e.target as Node)) {
+        setResourcesOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -26,7 +43,49 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
             <Link href="/">
               <FreshSegmentsLogo className="h-7" />
             </Link>
-            <div className="flex items-center gap-4">
+            {/* Desktop nav */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="relative" ref={resourcesRef}>
+                <button
+                  onClick={() => setResourcesOpen(!resourcesOpen)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-1"
+                >
+                  Resources
+                  <svg className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {resourcesOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <Link
+                      href="/resources"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      All Resources
+                    </Link>
+                    <Link
+                      href="/documentation"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setResourcesOpen(false)}
+                    >
+                      Help Center
+                    </Link>
+                    <div className="border-t border-gray-100 my-1" />
+                    <p className="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+                    {crmLinks.map((crm) => (
+                      <Link
+                        key={crm.slug}
+                        href={`/resources/${crm.slug}`}
+                        className="block px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        onClick={() => setResourcesOpen(false)}
+                      >
+                        {crm.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               {isAuthenticated ? (
                 <a
                   href={appLink('/')}
@@ -42,7 +101,7 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
                     className="px-4 py-2 text-sm font-medium"
                     style={{ color: '#0B8377' }}
                   >
-                    Sign In
+                    Login
                   </a>
                   <Link
                     href="/signup"
@@ -54,12 +113,87 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
                 </>
               )}
             </div>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 py-2">
+              <Link
+                href="/resources"
+                className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Resources
+              </Link>
+              <Link
+                href="/documentation"
+                className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Help Center
+              </Link>
+              <p className="px-6 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">CRMs</p>
+              {crmLinks.map((crm) => (
+                <Link
+                  key={crm.slug}
+                  href={`/resources/${crm.slug}`}
+                  className="block px-6 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {crm.name}
+                </Link>
+              ))}
+              {isAuthenticated ? (
+                <a
+                  href={appLink('/')}
+                  className="block px-4 py-2 text-sm font-medium text-white rounded-lg mx-4 mt-1 text-center"
+                  style={{ backgroundColor: '#0B8377' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Go to App
+                </a>
+              ) : (
+                <>
+                  <a
+                    href={appLink('/login')}
+                    className="block px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                    style={{ color: '#0B8377' }}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Login
+                  </a>
+                  <Link
+                    href="/signup"
+                    className="block px-4 py-2 text-sm font-medium text-white rounded-lg mx-4 mt-1 text-center"
+                    style={{ backgroundColor: '#0B8377' }}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Start Free Trial
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Content */}
-      <div className={`flex-1 ${maxWidth} mx-auto w-full px-4 sm:px-6 lg:px-8 py-12`}>
+      <div className={`flex-1 ${maxWidth} mx-auto w-full px-4 sm:px-6 lg:px-8 py-12${centerContent ? ' flex items-center justify-center' : ''}`}>
         {children}
       </div>
 
@@ -68,15 +202,15 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <FreshSegmentsLogo className="h-6" dark />
-            <div className="flex items-center gap-4 text-sm">
+            <div className="grid grid-cols-3 md:flex md:items-center gap-x-4 gap-y-2 text-sm text-center md:text-left">
               <Link href="/documentation" className="hover:text-white transition-colors">Documentation</Link>
-              <span className="text-gray-500">|</span>
-              <Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link>
-              <span className="text-gray-500">|</span>
+              <span className="text-gray-500 hidden md:inline">|</span>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
+              <span className="text-gray-500 hidden md:inline">|</span>
               <Link href="/legal/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <span className="text-gray-500">|</span>
+              <span className="text-gray-500 hidden md:inline">|</span>
               <Link href="/legal/terms" className="hover:text-white transition-colors">Terms of Use</Link>
-              <span className="text-gray-500">|</span>
+              <span className="text-gray-500 hidden md:inline">|</span>
               <button onClick={() => { import('vanilla-cookieconsent').then(cc => cc.showPreferences()); }} className="hover:text-white transition-colors">Privacy Choices</button>
             </div>
             <p className="text-sm">&copy; {new Date().getFullYear()} FreshSegments. All rights reserved.</p>

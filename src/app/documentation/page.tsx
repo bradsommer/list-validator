@@ -26,13 +26,13 @@ const docCards: DocCard[] = [
   },
   {
     title: 'Output Headings Guide',
-    description: 'Configure the column headings used when exporting cleaned data for HubSpot import. Includes manual headings and HubSpot property sync.',
+    description: 'Configure the column headings used when exporting cleaned data for CRM import. Includes manual headings and CRM property sync.',
     href: '/docs/output-headings',
     icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
   },
   {
     title: 'Integrations Guide',
-    description: 'Connect FreshSegments to HubSpot to sync properties and streamline your import workflow. Covers setup, permissions, and troubleshooting.',
+    description: 'Connect FreshSegments to your CRM to sync properties and streamline your import workflow. Covers setup, permissions, and troubleshooting.',
     href: '/docs/integrations',
     icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
   },
@@ -78,7 +78,7 @@ export default function DocumentationPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="space-y-4 text-gray-700 leading-relaxed">
             <p>
-              FreshSegments helps you validate, clean, and enrich your contact data before importing it into HubSpot.
+              FreshSegments helps you validate, clean, and enrich your contact data before importing it into your CRM.
               Here&apos;s how to get started:
             </p>
             <ol className="list-decimal pl-6 space-y-3">
@@ -104,8 +104,8 @@ export default function DocumentationPage() {
                 Each modification is tracked so you know exactly what was changed and why.
               </li>
               <li>
-                <strong>Export</strong> &mdash; Download your cleaned data as a CSV ready for HubSpot import,
-                or push it directly if you&apos;ve connected your HubSpot account via{' '}
+                <strong>Export</strong> &mdash; Download your cleaned data as a CSV ready for CRM import,
+                or push it directly if you&apos;ve connected your CRM account via{' '}
                 <a href={appLink('/admin/integrations')} className="text-teal-600 hover:underline">Integrations</a>.
               </li>
             </ol>
@@ -145,7 +145,7 @@ export default function DocumentationPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-900 mb-2">Object Types</h3>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Rules can be scoped to specific HubSpot object types: Contacts, Companies, or Deals.
+              Rules can be scoped to specific CRM object types: Contacts, Companies, or Deals.
               This lets you apply email validation only to Contact imports, or company name cleanup
               only to Company imports. Leave all unchecked to apply a rule to all imports.
             </p>
@@ -191,10 +191,10 @@ export default function DocumentationPage() {
             </p>
           </div>
           <div className="p-5">
-            <h3 className="font-semibold text-gray-900 mb-1">Can I use FreshSegments for non-HubSpot imports?</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">Which CRMs does FreshSegments work with?</h3>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Yes. While FreshSegments is optimized for HubSpot, the cleaned CSV export works with any CRM or system
-              that accepts CSV imports. Column mapping and validation are CRM-agnostic.
+              FreshSegments works with any CRM that accepts CSV imports, including HubSpot, Salesforce, Dynamics, Pipedrive,
+              Zoho CRM, Monday, Airtable, and more. Column mapping and validation are CRM-agnostic.
             </p>
           </div>
           <div className="p-5">

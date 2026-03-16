@@ -9,6 +9,7 @@ interface Account {
   id: string;
   name: string;
   slug: string;
+  account_number: number | null;
   is_active: boolean;
   created_at: string;
 }
@@ -34,6 +35,10 @@ export default function CompanyAdminAccountsPage() {
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [copyingConfigTo, setCopyingConfigTo] = useState<string | null>(null);
   const [copyResult, setCopyResult] = useState<{ accountId: string; message: string; success: boolean } | null>(null);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ message: string; success: boolean } | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState<string | null>(null);
+  const [deleteResult, setDeleteResult] = useState<{ accountId: string; message: string; success: boolean } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isCompanyAdmin) {
@@ -81,9 +86,7 @@ export default function CompanyAdminAccountsPage() {
   };
 
   const getUsersForAccount = (accountId: string) => {
-    // Filter out super_admin users — they are FreshSegments-internal and
-    // should not appear in any company account's user list.
-    return users.filter((u) => u.account_id === accountId && u.role !== 'super_admin');
+    return users.filter((u) => u.account_id === accountId);
   };
 
   const handleCopyConfig = async (targetAccountId: string) => {
@@ -114,7 +117,61 @@ export default function CompanyAdminAccountsPage() {
     }
   };
 
-  const unassignedUsers = users.filter((u) => !u.account_id && u.role !== 'super_admin');
+  const handleCleanupOrphans = async () => {
+    setCleaningUp(true);
+    setCleanupResult(null);
+    try {
+      const res = await fetch('/api/cron/cleanup-orphaned-accounts', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setCleanupResult({ message: data.message, success: true });
+        // Refresh the accounts list
+        if (data.deleted > 0) {
+          const refreshRes = await fetch('/api/company-admin/accounts');
+          const refreshData = await refreshRes.json();
+          setAccounts(refreshData.accounts || []);
+          setUsers(refreshData.users || []);
+        }
+      } else {
+        setCleanupResult({ message: data.error || 'Cleanup failed', success: false });
+      }
+    } catch {
+      setCleanupResult({ message: 'Network error', success: false });
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
+  const handleDeleteAccount = async (account: Account) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${account.name}"${account.account_number ? ` (#${account.account_number})` : ''}? This will permanently remove the account and all its data.`
+    );
+    if (!confirmed) return;
+
+    setDeletingAccount(account.id);
+    setDeleteResult(null);
+    try {
+      const res = await fetch(`/api/company-admin/accounts/${account.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDeleteResult({ accountId: account.id, message: data.message, success: true });
+        // Remove from local state
+        setAccounts((prev) => prev.filter((a) => a.id !== account.id));
+      } else {
+        setDeleteResult({ accountId: account.id, message: data.error || 'Delete failed', success: false });
+      }
+    } catch {
+      setDeleteResult({ accountId: account.id, message: 'Network error', success: false });
+    } finally {
+      setDeletingAccount(null);
+    }
+  };
+
+  const orphanedAccountCount = accounts.filter(
+    (a) => getUsersForAccount(a.id).length === 0
+  ).length;
+
+  const unassignedUsers = users.filter((u) => !u.account_id);
 
   if (authLoading || (!isCompanyAdmin && !authLoading)) {
     return null;
@@ -123,11 +180,32 @@ export default function CompanyAdminAccountsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
+        <div className="flex items-start justify-between gap-4">
           <p className="text-gray-600">
             View all accounts and their users. Click an account to see its users and log in as any user for troubleshooting.
           </p>
+          {orphanedAccountCount > 0 && (
+            <button
+              onClick={handleCleanupOrphans}
+              disabled={cleaningUp}
+              className="shrink-0 px-3 py-1.5 text-sm font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              {cleaningUp ? 'Cleaning up...' : `Remove ${orphanedAccountCount} orphaned account${orphanedAccountCount !== 1 ? 's' : ''}`}
+            </button>
+          )}
         </div>
+        {cleanupResult && (
+          <div className={`px-4 py-2 rounded text-sm ${
+            cleanupResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {cleanupResult.message}
+          </div>
+        )}
+        {deleteResult && deleteResult.success && (
+          <div className="px-4 py-2 rounded text-sm bg-green-50 text-green-700">
+            {deleteResult.message}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">
@@ -140,8 +218,10 @@ export default function CompanyAdminAccountsPage() {
               const acctUsers = getUsersForAccount(account.id);
               const isExpanded = expandedAccount === account.id;
 
+              const isOrphaned = acctUsers.length === 0;
+
               return (
-                <div key={account.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div key={account.id} className={`bg-white rounded-lg border overflow-hidden ${isOrphaned ? 'border-red-200 bg-red-50/30' : 'border-gray-200'}`}>
                   {/* Account header */}
                   <button
                     onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
@@ -154,23 +234,43 @@ export default function CompanyAdminAccountsPage() {
                         </svg>
                       </div>
                       <div className="text-left">
-                        <div className="font-medium text-gray-900">{account.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{account.name}</span>
+                          {account.account_number != null && (
+                            <span className="px-1.5 py-0.5 text-xs font-mono bg-gray-100 text-gray-500 rounded">
+                              #{account.account_number}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-400">{account.slug}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         {account.id !== user?.accountId && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyConfig(account.id);
-                            }}
-                            disabled={copyingConfigTo === account.id}
-                            className="px-2.5 py-1 text-xs font-medium rounded-md bg-primary-50 text-primary-600 hover:bg-primary-100 disabled:opacity-50 transition-colors"
-                          >
-                            {copyingConfigTo === account.id ? 'Copying...' : 'Apply My Rules & Questions'}
-                          </button>
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyConfig(account.id);
+                              }}
+                              disabled={copyingConfigTo === account.id}
+                              className="px-2.5 py-1 text-xs font-medium rounded-md bg-primary-50 text-primary-600 hover:bg-primary-100 disabled:opacity-50 transition-colors"
+                            >
+                              {copyingConfigTo === account.id ? 'Copying...' : 'Apply My Rules & Questions'}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAccount(account);
+                              }}
+                              disabled={deletingAccount === account.id}
+                              className="px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                              title="Delete this account"
+                            >
+                              {deletingAccount === account.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </>
                         )}
                         <span className={`px-2 py-0.5 text-xs rounded-full ${
                           account.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -196,6 +296,12 @@ export default function CompanyAdminAccountsPage() {
                       copyResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                     }`}>
                       {copyResult.message}
+                    </div>
+                  )}
+                  {/* Delete result */}
+                  {deleteResult && deleteResult.accountId === account.id && !deleteResult.success && (
+                    <div className="mx-5 mb-3 px-3 py-2 rounded text-sm bg-red-50 text-red-700">
+                      {deleteResult.message}
                     </div>
                   )}
 
