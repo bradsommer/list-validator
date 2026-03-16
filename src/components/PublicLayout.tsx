@@ -16,7 +16,7 @@ const crmLinks = [
   { name: 'Airtable', slug: 'airtable' },
 ];
 
-export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: ReactNode; maxWidth?: string }) {
+export function PublicLayout({ children, maxWidth = 'max-w-5xl', centerContent = false }: { children: ReactNode; maxWidth?: string; centerContent?: boolean }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
@@ -199,7 +199,7 @@ export function PublicLayout({ children, maxWidth = 'max-w-5xl' }: { children: R
       </nav>
 
       {/* Content */}
-      <div className={`flex-1 ${maxWidth} mx-auto w-full px-4 sm:px-6 lg:px-8 py-12`}>
+      <div className={`flex-1 ${maxWidth} mx-auto w-full px-4 sm:px-6 lg:px-8 py-12${centerContent ? ' flex items-center justify-center' : ''}`}>
         {children}
       </div>
 
