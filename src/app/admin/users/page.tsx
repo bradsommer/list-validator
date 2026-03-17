@@ -66,8 +66,10 @@ export default function UsersPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (currentUser?.accountId) {
+      fetchUsers();
+    }
+  }, [currentUser?.accountId]);
 
   const fetchUsers = async () => {
     setIsLoading(true);
