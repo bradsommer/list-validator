@@ -317,22 +317,22 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// GET /api/admin/users — List users (optionally filtered by account)
+// GET /api/admin/users — List users for a specific account
 export async function GET(request: NextRequest) {
   try {
     const accountId = request.nextUrl.searchParams.get('accountId');
-    const db = getServerSupabase();
 
-    let query = db
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (accountId) {
-      query = query.eq('account_id', accountId);
+    if (!accountId) {
+      return NextResponse.json({ error: 'Account ID is required' }, { status: 400 });
     }
 
-    const { data, error } = await query;
+    const db = getServerSupabase();
+
+    const { data, error } = await db
+      .from('users')
+      .select('*')
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -347,17 +347,22 @@ export async function GET(request: NextRequest) {
 // DELETE /api/admin/users — Delete a user
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = await request.json();
+    const { userId, accountId } = await request.json();
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
+
+    if (!accountId) {
+      return NextResponse.json({ error: 'Account ID is required' }, { status: 400 });
     }
 
     const db = getServerSupabase();
     const { error } = await db
       .from('users')
       .delete()
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('account_id', accountId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
