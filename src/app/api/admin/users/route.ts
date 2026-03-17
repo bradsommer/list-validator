@@ -3,6 +3,8 @@ import { getServerSupabase } from '@/lib/supabase';
 import { sendInviteEmail, sendAccountAcceptEmail } from '@/lib/email';
 import { validatePassword } from '@/lib/passwordValidation';
 
+export const dynamic = 'force-dynamic';
+
 function generateToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);

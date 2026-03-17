@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runEnrichment } from '@/lib/enrichment';
 import type { EnrichmentConfig, ParsedRow } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Run enrichment on provided rows (server-side)
 // This is used by the client-side EnrichmentPanel to run AI/SERP enrichment
 // through the server, since AI API calls require server-side env vars and

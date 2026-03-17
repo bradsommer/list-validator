@@ -3,6 +3,8 @@ import { getValidAccessToken } from '@/lib/hubspot';
 import { getServerSupabase } from '@/lib/supabase';
 import { validateSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
 
 type ObjectType = 'contacts' | 'companies' | 'deals';

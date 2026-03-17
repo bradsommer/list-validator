@@ -72,6 +72,7 @@ interface AppState {
   // Actions
   setSessionId: (id: string) => void;
   setCurrentStep: (step: number) => void;
+  setSteps: (steps: string[]) => void;
   nextStep: () => void;
   prevStep: () => void;
 
@@ -133,6 +134,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   setSessionId: (id) => set({ sessionId: id }),
   setCurrentStep: (step) => set({ currentStep: step }),
+  setSteps: (steps) => set({ steps }),
   nextStep: () => set((state) => ({
     currentStep: Math.min(state.currentStep + 1, state.steps.length - 1)
   })),

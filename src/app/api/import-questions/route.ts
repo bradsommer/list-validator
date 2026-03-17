@@ -8,6 +8,8 @@ import {
   type QuestionType,
 } from '@/lib/importQuestions';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/import-questions?accountId=xxx
  * Returns all import questions for an account.

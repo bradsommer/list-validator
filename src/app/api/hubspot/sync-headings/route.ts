@@ -4,6 +4,8 @@ import { fetchAndStoreProperties } from '@/app/api/hubspot/properties/route';
 import { getServerSupabase } from '@/lib/supabase';
 import { validateSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // POST - sync HubSpot properties into column_headings
 export async function POST(request: NextRequest) {
   try {

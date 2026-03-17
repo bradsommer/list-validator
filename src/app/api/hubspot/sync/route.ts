@@ -3,6 +3,8 @@ import { processRowForHubSpot, getValidAccessToken, resetClient } from '@/lib/hu
 import { upsertCrmRecord } from '@/lib/crmRecords';
 import { logInfo, logError, logSuccess } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
 interface SyncRow {
   contactProperties: Record<string, string>;
   companyProperties: Record<string, string>;

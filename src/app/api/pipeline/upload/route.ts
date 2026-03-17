@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 const BATCH_INSERT_SIZE = 500;
 
 // POST - Create upload session and store rows in DB
