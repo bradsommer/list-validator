@@ -252,7 +252,7 @@ export default function UsersPage() {
       await fetch('/api/admin/users', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user.id, accountId: currentUser?.accountId }),
       });
       fetchUsers();
     } catch (err) {
