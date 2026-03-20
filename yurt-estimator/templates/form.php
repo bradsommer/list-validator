@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         <input type="hidden" name="ye_product" value="<?php echo esc_attr( $product_id ); ?>" />
 
         <div class="ye-options-header">
+            <h3><?php echo esc_html( $product['label'] ); ?> — Base Price: $<?php echo esc_html( number_format( $product['base_price'], 2 ) ); ?></h3>
             <h3>Options Total: <span id="ye-options-total">$0.00</span></h3>
             <hr />
         </div>

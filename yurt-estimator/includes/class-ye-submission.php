@@ -160,20 +160,28 @@ class YE_Submission {
 
         $body .= "View in WordPress: " . admin_url( "post.php?post={$post_id}&action=edit" ) . "\n";
 
-        $headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+        $from_name  = get_option( 'ye_email_from_name', 'Mongolian Yurts / FIRE' );
+        $from_email = get_option( 'ye_notification_email', get_option( 'admin_email' ) );
+        $headers    = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>',
+        );
 
-        // Also send confirmation to customer
+        // Send admin notification
         wp_mail( $to, $subject, $body, $headers );
 
+        // Send customer confirmation
         $customer_subject = 'Your Yurt Estimate — ' . $product['label'];
         $customer_body  = "Thank you for your interest, {$data['first_name']}!\n\n";
         $customer_body .= "Here is a summary of your yurt estimate:\n\n";
         $customer_body .= "Product: {$product['label']}\n";
+        $customer_body .= "Base Price: $" . number_format( $data['base_price'], 2 ) . "\n\n";
         foreach ( $selections as $sel ) {
-            $price_str = $sel['price'] > 0 ? ' (+$' . number_format( $sel['price'], 2 ) . ')' : '';
+            $price_str = $sel['price'] > 0 ? ' (+$' . number_format( $sel['price'], 2 ) . ')' : ' (included)';
             $customer_body .= "{$sel['field_label']}: {$sel['value_label']}{$price_str}\n";
         }
-        $customer_body .= "\nEstimated Total: $" . number_format( $data['total_price'], 2 ) . "\n\n";
+        $customer_body .= "\nOptions Total: $" . number_format( $data['options_total'], 2 ) . "\n";
+        $customer_body .= "Estimated Total: $" . number_format( $data['total_price'], 2 ) . "\n\n";
         $customer_body .= "We will be in touch soon!\n";
 
         wp_mail( $data['email'], $customer_subject, $customer_body, $headers );
