@@ -36,6 +36,12 @@
                         price = parseFloat(input.getAttribute('data-price')) || 0;
                     }
                     optionsTotal += price;
+
+                    // Update per-field price indicator
+                    var priceEl = document.getElementById('ye-price-' + key);
+                    if (priceEl) {
+                        priceEl.textContent = price > 0 ? '+$' + price.toFixed(2) : '';
+                    }
                 }
             });
 

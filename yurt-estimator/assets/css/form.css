@@ -22,15 +22,24 @@
 }
 
 .ye-field {
+    display: flex;
+    flex-direction: column;
     margin-bottom: 18px;
 }
 
 .ye-label {
     display: block;
+    width: 100%;
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     font-size: 1em;
     color: #333;
+}
+
+.ye-field select,
+.ye-field .ye-radio-group {
+    display: block;
+    margin-top: 4px;
 }
 
 .ye-required {
@@ -81,6 +90,13 @@
 .ye-price-tag {
     color: #666;
     font-size: 0.9em;
+}
+
+.ye-field-price {
+    color: #8B6914;
+    font-weight: 700;
+    font-size: 0.9em;
+    margin-left: 8px;
 }
 
 .ye-field-row {

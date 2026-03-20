@@ -22,11 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <?php foreach ( $product['fields'] as $field_key => $field ) : ?>
             <div class="ye-field" data-field="<?php echo esc_attr( $field_key ); ?>">
-                <label class="ye-label">
+                <label class="ye-label" for="ye_field_<?php echo esc_attr( $field_key ); ?>">
                     <?php echo esc_html( $field['label'] ); ?>
                     <?php if ( ! empty( $field['required'] ) ) : ?>
                         <span class="ye-required">*</span>
                     <?php endif; ?>
+                    <span class="ye-field-price" id="ye-price-<?php echo esc_attr( $field_key ); ?>"></span>
                 </label>
 
                 <?php if ( $field['type'] === 'radio' ) : ?>
@@ -53,7 +54,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                         <?php foreach ( $field['options'] as $opt_key => $opt ) : ?>
                             <option value="<?php echo esc_attr( $opt_key ); ?>"
                                     data-price="<?php echo esc_attr( $opt['price'] ); ?>">
-                                <?php echo esc_html( $opt['label'] ); ?>
+                                <?php echo esc_html( $opt['label'] ); ?><?php if ( $opt['price'] > 0 ) : ?> (+$<?php echo esc_html( number_format( $opt['price'], 2 ) ); ?>)<?php endif; ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
